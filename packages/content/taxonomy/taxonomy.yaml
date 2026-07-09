@@ -1,0 +1,189 @@
+# CyberRange — Canonical Skill Taxonomy (the spine)
+# Location in repo: packages/content/taxonomy/taxonomy.yaml
+#
+# RULES
+# - IDs are stable dotted lowercase strings. NEVER rename an ID — mark
+#   `deprecated: true` and add a new node instead.
+# - Three kinds: domain -> category -> skill (leaf). Only skills carry `level`.
+# - Everything references these IDs: lesson frontmatter, checklist items,
+#   drill cards, and (Phase 2) vuln templates and debrief lines.
+# - Seeded from spec §3 curriculum + Appendix A. `# TODO` marks thin areas
+#   to expand while authoring content — expansion is welcome, renames are not.
+
+version: 1
+
+domains:
+  - id: foundations
+    title: Foundations
+    categories:
+      - id: foundations.core
+        title: Core concepts
+        skills:
+          - { id: foundations.core.os-basics,        title: "What an operating system is",              level: foundations }
+          - { id: foundations.core.users-perms,      title: "Users, groups, and permissions (concepts)", level: foundations }
+          - { id: foundations.core.services,         title: "Services and daemons",                      level: foundations }
+          - { id: foundations.core.ports,            title: "What a port is",                            level: foundations }
+          - { id: foundations.core.passwords,        title: "Passwords and password policy",             level: foundations }
+          - { id: foundations.core.hardening,        title: "What hardening means",                      level: foundations }
+      - id: foundations.competition
+        title: Competition literacy
+        skills:
+          - { id: foundations.competition.scoring-engine, title: "How the scoring engine behaves",       level: foundations }
+          - { id: foundations.competition.readme,         title: "Reading a README",                     level: foundations }
+          - { id: foundations.competition.safe-change,    title: "Safe-change discipline (back up first)", level: foundations }
+
+  - id: windows
+    title: Windows
+    categories:
+      - id: windows.account-policy
+        title: Account policies
+        skills:
+          - { id: windows.account-policy.length-age-history, title: "Password length, age, history",     level: standard }
+          - { id: windows.account-policy.complexity,         title: "Password complexity",               level: standard }
+          - { id: windows.account-policy.lockout,            title: "Lockout threshold, duration, reset", level: standard }
+      - id: windows.users-groups
+        title: Users and groups
+        skills:
+          - { id: windows.users-groups.unauthorized-users,  title: "Unauthorized users and admins",      level: standard }
+          - { id: windows.users-groups.weak-passwords,      title: "Weak and blank passwords",           level: standard }
+          - { id: windows.users-groups.never-expires,       title: "Password-never-expires flags",       level: standard }
+          - { id: windows.users-groups.guest-admin,         title: "Guest account and renaming admin",   level: standard }
+      - id: windows.policy-registry
+        title: Local policy and registry
+        skills:
+          - { id: windows.policy-registry.audit-policy,     title: "Audit policy",                       level: standard }
+          - { id: windows.policy-registry.uac,              title: "UAC",                                level: standard }
+          - { id: windows.policy-registry.registry-classics, title: "Registry classics (legal notice, autoplay, password reveal)", level: standard }
+          - { id: windows.policy-registry.smb,              title: "SMB hardening (SMBv1 off)",          level: standard }
+          - { id: windows.policy-registry.rdp,              title: "RDP hardening (NLA, allowed users)", level: standard }
+      - id: windows.services
+        title: Services
+        skills:
+          - { id: windows.services.insecure-services,      title: "Disable Telnet/FTP/SNMP/RemoteRegistry", level: standard }
+          - { id: windows.services.critical-services,      title: "Protecting README-critical services",   level: standard }
+      - id: windows.persistence
+        title: Persistence and malware
+        skills:
+          - { id: windows.persistence.run-keys,            title: "Run/RunOnce keys and startup folders",  level: standard }
+          - { id: windows.persistence.scheduled-tasks,     title: "Malicious scheduled tasks and services", level: standard }
+          - { id: windows.persistence.artifacts,           title: "Netcat listeners, keyloggers, prohibited tools", level: standard }
+          - { id: windows.persistence.wmi,                 title: "WMI persistence",                       level: advanced }
+      - id: windows.defenses-updates
+        title: Updates, Defender, firewall, files
+        skills:
+          - { id: windows.defenses-updates.windows-update, title: "Windows Update and app updates",        level: standard }
+          - { id: windows.defenses-updates.defender,       title: "Defender, SmartScreen, firewall profiles", level: standard }
+          - { id: windows.defenses-updates.shares-ntfs,    title: "Shares and NTFS permissions",           level: standard }
+          - { id: windows.defenses-updates.prohibited,     title: "Prohibited files and hosts-file tampering", level: standard }
+      - id: windows.server
+        title: Server (later rounds)
+        skills:
+          - { id: windows.server.roles,                    title: "Role minimization",                     level: advanced }
+          - { id: windows.server.gpo,                      title: "Group Policy password enforcement",     level: advanced }
+          - { id: windows.server.ad-dns,                   title: "AD/DNS fundamentals",                   level: advanced }
+
+  - id: linux
+    title: Linux
+    categories:
+      - id: linux.accounts
+        title: Accounts and authentication
+        skills:
+          - { id: linux.accounts.passwd-shadow,   title: "Auditing /etc/passwd and /etc/shadow",     level: standard }
+          - { id: linux.accounts.uid0,            title: "Duplicate UID 0 detection",                level: standard }
+          - { id: linux.accounts.sudoers,         title: "sudoers and NOPASSWD audit",               level: standard }
+          - { id: linux.accounts.chage,           title: "Password aging with chage",                level: standard }
+      - id: linux.pam
+        title: PAM
+        skills:
+          - { id: linux.pam.pwquality,            title: "pam_pwquality (minlen, credits)",          level: standard }
+          - { id: linux.pam.pwhistory,            title: "pam_pwhistory",                            level: standard }
+          - { id: linux.pam.faillock,             title: "faillock",                                 level: standard }
+      - id: linux.ssh
+        title: SSH hardening
+        skills:
+          - { id: linux.ssh.permitrootlogin,      title: "PermitRootLogin",                          level: standard }
+          - { id: linux.ssh.passwordauth,         title: "PasswordAuthentication per README",        level: standard }
+          - { id: linux.ssh.limits,               title: "MaxAuthTries, X11Forwarding",              level: standard }
+      - id: linux.services-persistence
+        title: Services and persistence
+        skills:
+          - { id: linux.services-persistence.systemd-audit, title: "systemd service auditing",         level: standard }
+          - { id: linux.services-persistence.cron,          title: "Cron persistence (system, user, cron.d)", level: standard }
+          - { id: linux.services-persistence.rc-bashrc,     title: "rc.local and .bashrc payloads",     level: standard }
+          - { id: linux.services-persistence.authorized-keys, title: "Rogue authorized_keys",           level: standard }
+          - { id: linux.services-persistence.malware,       title: "Netcat listeners, miners, prohibited tools", level: standard }
+          - { id: linux.services-persistence.critical,      title: "Protecting README-critical services", level: standard }
+      - id: linux.files-perms
+        title: File permissions
+        skills:
+          - { id: linux.files-perms.sensitive-modes, title: "shadow/sudoers modes (600/640, 440)",    level: standard }
+          - { id: linux.files-perms.suid,            title: "Unauthorized SUID/SGID binaries",        level: standard }
+          - { id: linux.files-perms.world-writable,  title: "World-writable dirs and sticky /tmp",    level: standard }
+      - id: linux.updates-network
+        title: Updates and network
+        skills:
+          - { id: linux.updates-network.apt,         title: "apt updates and unattended-upgrades",    level: standard }
+          - { id: linux.updates-network.ufw,         title: "UFW",                                    level: standard }
+          - { id: linux.updates-network.sysctl,      title: "sysctl hardening (ip_forward, syncookies, redirects)", level: standard }
+      - id: linux.web-variant
+        title: Web-server-present images
+        skills:
+          - { id: linux.web-variant.apache-php,      title: "Minimal Apache/PHP hardening with service up", level: advanced }
+
+  - id: forensics
+    title: Forensics
+    categories:
+      - id: forensics.core
+        title: Question archetypes
+        skills:
+          - { id: forensics.core.file-hunting,    title: "File hunting by name/content/timestamp",   level: standard }
+          - { id: forensics.core.hashing,         title: "Hashing (md5sum, certutil)",               level: standard }
+          - { id: forensics.core.login-history,   title: "Login history (last, Event ID 4624)",      level: standard }
+          - { id: forensics.core.decoding,        title: "Decoding (base64 and friends)",            level: standard }
+          - { id: forensics.core.stego,           title: "Basic steganography",                      level: advanced }
+          - { id: forensics.core.ports,           title: "Listening-port identification (ss/netstat)", level: standard }
+          - { id: forensics.core.answer-format,   title: "Answer format discipline",                 level: foundations }
+          # TODO: browser artifacts, archive handling
+
+  - id: networking
+    title: Networking / Cisco
+    categories:
+      - id: networking.fundamentals
+        title: Fundamentals
+        skills:
+          - { id: networking.fundamentals.osi,        title: "OSI model",                            level: foundations }
+          - { id: networking.fundamentals.tcp-udp,    title: "TCP/UDP and the classic port list",    level: foundations }
+          - { id: networking.fundamentals.subnetting, title: "Subnetting and CIDR",                  level: standard }
+      - id: networking.devices
+        title: Device configuration
+        skills:
+          - { id: networking.devices.hardening,   title: "Device hardening (enable secret, SSH, banners, lines)", level: standard }
+          - { id: networking.devices.vlans,       title: "VLANs and trunking",                       level: standard }
+          - { id: networking.devices.acls,        title: "ACL logic",                                level: advanced }
+          # TODO: wireless security, Packet Tracer scenarios
+
+  - id: scripting
+    title: Scripting and automation
+    categories:
+      - id: scripting.bash
+        title: Bash
+        skills:
+          - { id: scripting.bash.oneliners,       title: "User-audit one-liners",                    level: standard }
+          - { id: scripting.bash.audit-script,    title: "Building a full audit script",             level: advanced }
+      - id: scripting.powershell
+        title: PowerShell
+        skills:
+          - { id: scripting.powershell.queries,   title: "Get-LocalUser / Get-Service / registry queries", level: standard }
+          - { id: scripting.powershell.audit-script, title: "PowerShell audit script",               level: advanced }
+
+  - id: meta
+    title: Competition meta-skills
+    categories:
+      - id: meta.strategy
+        title: Strategy and discipline
+        skills:
+          - { id: meta.strategy.readme-traps,     title: "README parsing drills and trap patterns",  level: standard }
+          - { id: meta.strategy.point-strategy,   title: "Point strategy (forensics early, protect critical services)", level: standard }
+          - { id: meta.strategy.time-management,  title: "Six-hour time management",                 level: standard }
+          - { id: meta.strategy.role-splits,      title: "Team role splits",                         level: standard }
+          - { id: meta.strategy.change-log,       title: "The change-log habit",                     level: foundations }

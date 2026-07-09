@@ -1,0 +1,394 @@
+// CyberRange — Prisma schema v1 (Phase 1 scope only)
+// Location in repo: packages/db/prisma/schema.prisma
+//
+// Rules:
+// - Migrations via `prisma migrate dev` with named migrations.
+// - Phase 2 tables (LabTemplate, VulnTemplate, LabSession, CheckResult) are
+//   RESERVED — do not create until Phase 2 opens. SkillNode IDs are the
+//   stable strings they will reference.
+// - Content-sourced tables (SkillNode, Lesson, ChecklistTemplate/Item,
+//   DrillCard, Season/SeasonEvent) are synced from packages/content by the
+//   idempotent seed script. YAML/MDX is the source of truth, DB is an index.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ---------------------------------------------------------------------------
+// BETTER AUTH — owned by the library.
+// After installing/upgrading Better Auth, run `pnpm dlx @better-auth/cli
+// generate` and reconcile: field names below follow current docs but the
+// CLI output is authoritative. Custom columns are marked APP FIELD and must
+// be mirrored in Better Auth `additionalFields` config.
+// One Organization == one Team. Member.role: "coach" | "captain" | "member".
+// ---------------------------------------------------------------------------
+
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // APP FIELDS
+  platformRole  PlatformRole @default(STUDENT)
+  displayHandle String?      @unique // public leaderboard/team name
+  gradeBand     GradeBand?           // data minimization: band, never DOB
+
+  sessions       Session[]
+  accounts       Account[]
+  members        Member[]
+  invitations    Invitation[]
+  lessonProgress LessonProgress[]
+  cardStates     UserCardState[]
+  reviews        ReviewLog[]
+}
+
+model Session {
+  id                   String   @id @default(cuid())
+  token                String   @unique
+  userId               String
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt            DateTime
+  ipAddress            String?
+  userAgent            String?
+  activeOrganizationId String? // org plugin: currently selected team
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model Account {
+  id                    String    @id @default(cuid())
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accountId             String
+  providerId            String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+}
+
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  logo      String?
+  metadata  String?
+  createdAt DateTime @default(now())
+
+  // APP FIELDS — this organization IS a team
+  division Division @default(OPEN)
+  joinCode String   @unique @default(cuid()) // rotate on coach request
+  seasonId String?
+  season   Season?  @relation(fields: [seasonId], references: [id])
+
+  members     Member[]
+  invitations Invitation[]
+  checklists  TeamChecklist[]
+}
+
+model Member {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role           String // "coach" | "captain" | "member"
+  createdAt      DateTime     @default(now())
+
+  // APP FIELD — machine role assignment (spec §9)
+  machineRole MachineRole?
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+}
+
+model Invitation {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  email          String
+  role           String?
+  status         String       @default("pending")
+  expiresAt      DateTime
+  inviterId      String
+  inviter        User         @relation(fields: [inviterId], references: [id], onDelete: Cascade)
+}
+
+// ---------------------------------------------------------------------------
+// TAXONOMY — the spine. Synced from packages/content/taxonomy/taxonomy.yaml.
+// IDs are stable dotted strings ("linux.pam.pwquality"). Never renamed.
+// ---------------------------------------------------------------------------
+
+model SkillNode {
+  id        String     @id // e.g. "linux.pam.pwquality"
+  parentId  String? // null = domain; one level down = category; leaf = skill
+  parent    SkillNode?  @relation("Tree", fields: [parentId], references: [id])
+  children  SkillNode[] @relation("Tree")
+  title     String
+  kind      NodeKind
+  level     TrackLevel?
+  sortOrder Int         @default(0)
+  deprecated Boolean    @default(false)
+
+  lessons        LessonSkill[]
+  checklistItems ChecklistItem[]
+  drillCards     DrillCard[]
+}
+
+// ---------------------------------------------------------------------------
+// LESSONS — MDX files are truth; rows synced from frontmatter.
+// ---------------------------------------------------------------------------
+
+model Lesson {
+  slug        String  @id
+  title       String
+  domainId    String // top-level SkillNode id, e.g. "linux"
+  level       TrackLevel
+  minutes     Int     @default(7)
+  published   Boolean @default(false)
+  sortOrder   Int     @default(0)
+
+  skills   LessonSkill[]
+  progress LessonProgress[]
+}
+
+model LessonSkill {
+  lessonSlug  String
+  lesson      Lesson    @relation(fields: [lessonSlug], references: [slug], onDelete: Cascade)
+  skillNodeId String
+  skillNode   SkillNode @relation(fields: [skillNodeId], references: [id])
+
+  @@id([lessonSlug, skillNodeId])
+}
+
+model LessonProgress {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lessonSlug  String
+  lesson      Lesson   @relation(fields: [lessonSlug], references: [slug], onDelete: Cascade)
+  completedAt DateTime @default(now())
+  checkScore  Int? // end-of-lesson interactive check, 0–100
+
+  @@unique([userId, lessonSlug])
+}
+
+// ---------------------------------------------------------------------------
+// CHECKLISTS — canonical templates synced from content; teams fork them.
+// ---------------------------------------------------------------------------
+
+model ChecklistTemplate {
+  id       String @id // e.g. "linux-core"
+  os       OS
+  seasonId String
+  season   Season @relation(fields: [seasonId], references: [id])
+  version  Int    @default(1)
+  title    String
+
+  items ChecklistItem[]
+  forks TeamChecklist[]
+}
+
+model ChecklistItem {
+  id          String            @id // stable key, e.g. "linux.ssh.permitrootlogin.check"
+  templateId  String
+  template    ChecklistTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  skillNodeId String
+  skillNode   SkillNode         @relation(fields: [skillNodeId], references: [id])
+  sortOrder   Int
+  action      String
+  why         String
+  commands    Json // { "ubuntu22": "...", "ubuntu24": "...", ... }
+  lessonSlug  String?
+
+  @@index([templateId])
+}
+
+model TeamChecklist {
+  id             String            @id @default(cuid())
+  organizationId String
+  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  sourceId       String
+  source         ChecklistTemplate @relation(fields: [sourceId], references: [id])
+  sourceVersion  Int // for diffing against upstream
+  title          String
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  items TeamChecklistItem[]
+}
+
+model TeamChecklistItem {
+  id              String        @id @default(cuid())
+  teamChecklistId String
+  teamChecklist   TeamChecklist @relation(fields: [teamChecklistId], references: [id], onDelete: Cascade)
+  upstreamItemId  String? // null = team-added item
+  sortOrder       Int
+  action          String
+  why             String?
+  commands        Json?
+  removed         Boolean       @default(false) // soft-hide upstream items
+
+  @@index([teamChecklistId])
+}
+
+// ---------------------------------------------------------------------------
+// SRS — card definitions synced from content; per-user state via ts-fsrs.
+// Field names mirror ts-fsrs Card object.
+// ---------------------------------------------------------------------------
+
+model DrillCard {
+  id          String    @id // e.g. "card.linux.pam.pwquality.minlen"
+  skillNodeId String
+  skillNode   SkillNode @relation(fields: [skillNodeId], references: [id])
+  type        CardType
+  front       String
+  back        String
+  active      Boolean   @default(true)
+
+  states UserCardState[]
+  reviews ReviewLog[]
+}
+
+model UserCardState {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cardId        String
+  card          DrillCard @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  due           DateTime
+  stability     Float     @default(0)
+  difficulty    Float     @default(0)
+  elapsedDays   Int       @default(0)
+  scheduledDays Int       @default(0)
+  reps          Int       @default(0)
+  lapses        Int       @default(0)
+  state         Int       @default(0) // fsrs State enum: 0 New 1 Learning 2 Review 3 Relearning
+  lastReview    DateTime?
+
+  @@unique([userId, cardId])
+  @@index([userId, due]) // the daily-drill query
+}
+
+model ReviewLog {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cardId     String
+  card       DrillCard @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  rating     Int // fsrs Rating: 1 Again 2 Hard 3 Good 4 Easy
+  reviewedAt DateTime  @default(now())
+
+  @@index([userId, reviewedAt])
+}
+
+// ---------------------------------------------------------------------------
+// SEASON — the official calendar as data (spec Appendix B).
+// ---------------------------------------------------------------------------
+
+model Season {
+  id     String @id // e.g. "cp-19"
+  title  String
+  active Boolean @default(false)
+
+  events     SeasonEvent[]
+  teams      Organization[]
+  checklists ChecklistTemplate[]
+}
+
+model SeasonEvent {
+  id       String    @id @default(cuid())
+  seasonId String
+  season   Season    @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  kind     EventKind
+  title    String
+  startsAt DateTime
+  endsAt   DateTime
+  lockout  Boolean   @default(false) // integrity lockout window (used Phase 2+)
+}
+
+// ---------------------------------------------------------------------------
+
+enum PlatformRole {
+  STUDENT
+  COACH
+  ADMIN
+}
+
+enum Division {
+  OPEN
+  ALL_SERVICE
+  MIDDLE_SCHOOL
+}
+
+enum GradeBand {
+  MS // middle school
+  HS_9_10
+  HS_11_12
+}
+
+enum MachineRole {
+  WINDOWS
+  LINUX
+  CISCO
+}
+
+enum NodeKind {
+  DOMAIN
+  CATEGORY
+  SKILL
+}
+
+enum TrackLevel {
+  FOUNDATIONS
+  STANDARD
+  ADVANCED
+}
+
+enum OS {
+  WINDOWS
+  LINUX
+}
+
+enum CardType {
+  CONCEPT
+  COMMAND
+}
+
+enum EventKind {
+  REGISTRATION
+  ROUND_1
+  ROUND_2
+  STATE
+  SEMIFINALS
+  FINALS
+  CUSTOM
+}
