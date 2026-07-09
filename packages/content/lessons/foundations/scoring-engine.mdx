@@ -1,0 +1,103 @@
+---
+slug: scoring-engine
+title: How the scoring engine behaves
+domainId: foundations
+level: foundations
+minutes: 7
+sortOrder: 1
+published: false
+skills:
+  - foundations.competition.scoring-engine
+check:
+  - q: "You fix three things quickly, but the score hasn't moved ten seconds later. What's the most likely explanation?"
+    options:
+      - "Your fixes were wrong"
+      - "The engine hasn't run its next check cycle yet"
+      - "The scoring engine crashed"
+      - "Those items weren't worth points"
+    answer: 1
+    why: "The engine checks on a timer. Give any change a minute or two before judging it."
+  - q: "Your score just dropped by 6 points. What's the first question to ask?"
+    options:
+      - "Which vulnerability did we miss?"
+      - "Is the scoring engine broken?"
+      - "What did we change most recently?"
+      - "Should we restart the machine?"
+    answer: 2
+    why: "Score drops are almost always self-inflicted — a penalty from the last change. Your change log tells you what that was."
+  - q: "What does the scoring engine actually evaluate?"
+    options:
+      - "The commands you type"
+      - "How long you've been working"
+      - "The current state of the machine"
+      - "Which tools you have open"
+    answer: 2
+    why: "It checks state — file contents, users, services, settings. How you got there doesn't matter; where the machine is does."
+---
+
+When the round starts, most new competitors open the image and immediately
+start fixing things. Better teams spend their first minutes understanding
+the robot that's grading them — because once you know how it behaves, every
+decision for the next six hours gets easier.
+
+## What the engine actually is
+
+The scoring engine is a program running on the image. On a schedule, it
+checks a list of specific conditions: does this config file contain this
+line, does this user still exist, is this service running, is this setting
+at this value, is this package installed.
+
+The key insight: it evaluates **state, not actions**. It doesn't watch your
+keystrokes and doesn't care whether you fixed something through a settings
+menu, a terminal, or a script. It only cares whether the machine's current
+state matches what it's checking for. Two teams can earn the same points
+through completely different methods.
+
+## The cycle
+
+Checks run on a timer, and the score report updates at regular intervals —
+in practice, treat it as a minute or two. That has one huge practical
+consequence: **change, then wait, then verify.** If you fix something and
+the score doesn't move in the next ten seconds, nothing is wrong. Give it
+a cycle before you conclude anything.
+
+Teams that don't know this make five changes in a burst, see the score
+move once, and have no idea which change did it — or worse, which change
+caused a problem.
+
+## Points go up, and points go down
+
+The score report shows two kinds of lines. **Gained points** appear when
+you fix a scored issue. **Penalties** appear when you break something the
+scenario requires — stopping a critical service, deleting an authorized
+user, removing required software.
+
+Yes: your score can drop. When it does, it's almost never mysterious — it's
+the last thing you changed. That's why the change-log habit (lesson 3)
+exists.
+
+## Critical services
+
+The README names services that must keep working: maybe SSH, a web server,
+a database. These are exactly where penalties happen, because hardening
+work happens *near* them. Edit `sshd_config` carelessly and SSH stops —
+penalty. After any change that touches a required service, confirm the
+service is still running and still works before moving on.
+
+## The score report is your instrument panel
+
+There's a score report on the image (usually a desktop shortcut). Reading
+it is a skill: the total, how many scored issues you've found out of the
+total available, and any penalty lines. Open it after every change cycle —
+not once an hour. It is the only ground truth in the room. One more
+round-day fact worth knowing: the engine reports progress automatically,
+and if the internet drops it keeps tracking locally and reports when the
+connection returns — so keep working.
+
+## The loop that wins rounds
+
+Read the report → make **one** change → wait a cycle → read the report →
+log what happened → repeat. It feels slow. It's faster than the
+alternative, because you always know exactly which change produced which
+result — and you never spend twenty minutes hunting for the change that
+cost you six points.

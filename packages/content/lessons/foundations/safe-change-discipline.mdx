@@ -1,0 +1,108 @@
+---
+slug: safe-change-discipline
+title: Safe-change discipline
+domainId: foundations
+level: foundations
+minutes: 6
+sortOrder: 3
+published: false
+skills:
+  - foundations.competition.safe-change
+  - meta.strategy.change-log
+check:
+  - q: "You're about to edit `/etc/ssh/sshd_config`. What comes first?"
+    options:
+      - "sudo systemctl restart ssh"
+      - "sudo cp /etc/ssh/sshd_config /etc/ssh/sshd_config.bak"
+      - "Open the score report"
+      - "Tell your teammates"
+    answer: 1
+    why: "Back up before you touch it. The copy turns a disaster into a 30-second revert."
+  - q: "Your score dropped after a batch of five quick changes. What would have prevented the twenty minutes you're about to spend finding the cause?"
+    options:
+      - "Working faster"
+      - "Making changes one at a time and verifying each"
+      - "Restarting the machine after each change"
+      - "Having a second person watch the score"
+    answer: 1
+    why: "One change per cycle means the cause of any score drop is always simply: the last thing you did."
+  - q: "A good change-log line contains:"
+    options:
+      - "Time, what changed, why, and the result"
+      - "Just the command you ran"
+      - "The current score"
+      - "Your initials and the time"
+    answer: 0
+    why: "Those four pieces make the log an undo map, a penalty diagnosis tool, and your post-round debrief — for free."
+---
+
+New teams lose more points to self-inflicted damage than to
+vulnerabilities they never found. A penalty erases a fix you already made;
+a broken required service erases twenty minutes of the round. This lesson
+is the seatbelt.
+
+## Back up before you touch it
+
+Before editing any config file, copy it:
+
+```
+sudo cp /etc/ssh/sshd_config /etc/ssh/sshd_config.bak
+```
+
+Same pattern for anything under `/etc`. On Windows: before editing the
+registry, export the key first (File → Export in `regedit`), and before
+changing a policy, write down its original value. A backup converts
+"we broke SSH and don't know why" into a 30-second revert.
+
+## One change at a time
+
+Make five changes in a burst and then watch the score drop — which one
+caused it? Now you're bisecting under a clock. One change, wait a cycle,
+verify, next. It feels slower. Over a six-hour round it is faster, because
+you never lose time to detective work, and every point movement has an
+obvious cause.
+
+## Verify means three things
+
+After each change, confirm in order:
+
+1. **The service still runs** — `sudo systemctl status ssh` (or check
+   the service in Windows).
+2. **The behavior is intact** — can you still actually log in over SSH?
+   Does the required website still load?
+3. **The score report** — did the change register, and did anything
+   go red?
+
+Only then, the next change.
+
+## The change log
+
+One line per change, in a shared doc or on paper the whole team can see:
+
+```
+14:32 — set PermitRootLogin no in sshd_config — README hardening — +3, ssh still up
+```
+
+Time, what, why, result. That's it. This log is three tools in one: the
+undo map when something breaks, the instant answer to "what did we change
+last?" when the score drops, and a ready-made debrief after the round. The
+teams that keep one look calm at hour five. The teams that don't, don't.
+
+## Know the way back before you go in
+
+Before every change, be able to answer: *how do I revert this?* Copy the
+`.bak` file back and restart the service. Import the exported registry
+key. Re-enable the service. If you can't answer the question, you're not
+ready to make the change yet.
+
+## Discipline don'ts
+
+Don't run scripts you didn't write and can't explain line by line — if it
+breaks something, you can't revert what you don't understand, and the
+competition treats scripts as at-your-own-risk: points a script fails to
+earn get no correction or appeal. Never touch the CyberPatriot folder or
+the scoring service itself — tampering with it can kill your team's
+scoring — and if you install security tools, make sure they don't
+quarantine it. Don't make sweeping changes in the last minutes of a round
+when there's no time to recover. And start long operations, like system
+updates, early in the round — never with ten minutes left.

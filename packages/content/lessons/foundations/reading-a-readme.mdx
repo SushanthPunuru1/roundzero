@@ -1,0 +1,102 @@
+---
+slug: reading-a-readme
+title: Reading a README
+domainId: foundations
+level: foundations
+minutes: 7
+sortOrder: 2
+published: false
+skills:
+  - foundations.competition.readme
+check:
+  - q: "You find a user named `hackerman` on the machine. What do you do?"
+    options:
+      - "Delete it immediately — the name is obviously suspicious"
+      - "Check it against your extracted authorized-user lists, then remove it only if it's not on them"
+      - "Change its password and move on"
+      - "Ask a teammate if the name sounds bad"
+    answer: 1
+    why: "Suspicious-looking is not a reason. Not authorized in the README is. Authorized users with sketchy names are a classic trap."
+  - q: "The README says the FTP server is required for the scenario. FTP is insecure. What's the right move?"
+    options:
+      - "Uninstall it — security beats the scenario"
+      - "Stop the service but leave it installed"
+      - "Keep it running and harden its configuration"
+      - "Replace it with SFTP"
+    answer: 2
+    why: "Required means required. Removing or stopping it is a penalty. Your job is to make the required thing as safe as it can be."
+  - q: "What should the first ~10 minutes of a round produce?"
+    options:
+      - "Your first fixed vulnerability"
+      - "A full system update running"
+      - "Four written lists extracted from the README"
+      - "A disabled guest account"
+    answer: 2
+    why: "Admins, users, required services/software, explicit instructions — everything you do for six hours gets justified against those lists."
+---
+
+Every image ships with a README, and it is not flavor text. It is the
+contract the scoring engine was built from. The single most expensive
+mistake in this competition is acting on instinct when the README says
+otherwise.
+
+## The README outranks your instincts
+
+It defines who is authorized to be on the machine, which of those people
+are administrators, which services and software the scenario requires, and
+any explicit instructions. Points and penalties are derived from it.
+
+That leads to one rule worth memorizing: **"this looks suspicious" is not a
+reason to act. "This is not authorized in the README" is.** One caveat in
+the other direction: the README is the authorization contract, not a
+complete inventory — plenty of scored issues are never hinted at in it, so
+finishing its explicit items doesn't mean you're done hunting.
+
+## The extraction pass
+
+Before anyone changes anything, spend the first ten minutes producing four
+written lists:
+
+1. Authorized administrators
+2. Authorized standard users
+3. Required services and software
+4. Explicit instructions — the do's and do-not's
+
+Put them in a shared notes file or on paper. For the rest of the round,
+every user you remove, every service you stop, and every package you
+uninstall gets justified against these lists — not against memory, and not
+against vibes. Whole-team rule: nobody works from a half-remembered README.
+
+## The classic traps
+
+These patterns show up again and again:
+
+- **The authorized user with a sketchy name.** Deleting an authorized
+  account is a penalty, no matter what it's called.
+- **The required "insecure" service.** The scenario needs FTP or a media
+  server. Uninstalling it costs you. The real task is hardening its
+  configuration while keeping it alive.
+- **The mid-paragraph instruction.** "Do not change the password for user
+  X" buried in a sentence of scenario prose. This is why extraction is a
+  reading exercise, not a skim.
+- **Required software that looks like junk.** A game or media app that the
+  scenario explicitly needs. Check the list before you uninstall anything.
+
+## Forensics questions come first
+
+Images include forensics questions — files on the desktop named "Forensics
+Question 1" and so on. Read every one of them **before you change
+anything**: fixing a vulnerability can destroy the exact evidence a
+question asks about — the unauthorized user you just deleted, the
+prohibited file you just removed. Make reading them part of the extraction
+pass. Two more things: the required answer format is strict, so match it
+exactly, and the questions themselves often point toward vulnerabilities
+you haven't found yet.
+
+## Read it twice
+
+Set a reminder: halfway through the round, read the README again, start to
+finish. After an hour of real work, a line that meant nothing at minute
+five suddenly matters. Have two different teammates do the extraction pass
+independently at the start and compare lists — mismatches are almost always
+a trap one of you caught.
