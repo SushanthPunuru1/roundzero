@@ -1,4 +1,4 @@
-# CyberRange — Claude Code Context
+# RoundZero — Claude Code Context
 
 Free, open-source, browser-based training platform for CyberPatriot teams.
 Chromebook-first. The debrief is the product. Independent and unofficial.

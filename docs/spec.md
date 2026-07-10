@@ -1,4 +1,4 @@
-# CyberRange — Complete Product Specification
+# RoundZero — Complete Product Specification
 **A free, open-source, browser-based training platform for CyberPatriot teams**
 
 One-line pitch: TryHackMe-class infrastructure, purpose-built for the one competition thousands of high-school teams train for with no real tooling. Independent and unofficial — not affiliated with the Air & Space Forces Association or CyberPatriot.

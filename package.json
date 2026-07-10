@@ -1,0 +1,22 @@
+{
+  "name": "roundzero",
+  "private": true,
+  "packageManager": "pnpm@11.11.0",
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @roundzero/web dev",
+    "build": "pnpm --filter @roundzero/db run generate && pnpm --filter @roundzero/web build",
+    "test": "pnpm -r --if-present run test",
+    "lint": "eslint . && pnpm -r --if-present run typecheck",
+    "db:migrate": "pnpm --filter @roundzero/db run migrate",
+    "db:seed": "pnpm --filter @roundzero/db run seed"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.4",
+    "eslint": "^9.39.4",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.63.0"
+  }
+}

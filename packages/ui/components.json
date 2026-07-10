@@ -1,0 +1,21 @@
+{
+  "$schema": "https://ui.shadcn.com/schema.json",
+  "style": "new-york",
+  "rsc": false,
+  "tsx": true,
+  "tailwind": {
+    "config": "",
+    "css": "../../apps/web/src/app/globals.css",
+    "baseColor": "neutral",
+    "cssVariables": true,
+    "prefix": ""
+  },
+  "iconLibrary": "lucide",
+  "aliases": {
+    "components": "@roundzero/ui/components",
+    "utils": "@roundzero/ui/lib/utils",
+    "ui": "@roundzero/ui/components/ui",
+    "lib": "@roundzero/ui/lib",
+    "hooks": "@roundzero/ui/hooks"
+  }
+}

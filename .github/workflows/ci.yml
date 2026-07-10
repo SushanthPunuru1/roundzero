@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  # Placeholder values — no secrets. `prisma generate` and `next build` only
+  # need these vars to be present; nothing connects to a live DB in CI.
+  DATABASE_URL: "postgresql://user:password@localhost:5432/roundzero"
+  DIRECT_URL: "postgresql://user:password@localhost:5432/roundzero"
+  GOOGLE_CLIENT_ID: "ci-placeholder"
+  GOOGLE_CLIENT_SECRET: "ci-placeholder"
+  RESEND_API_KEY: "ci-placeholder"
+  BETTER_AUTH_SECRET: "ci-placeholder"
+  BETTER_AUTH_URL: "http://localhost:3000"
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm --filter @roundzero/db run generate
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build

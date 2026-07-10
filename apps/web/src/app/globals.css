@@ -1,0 +1,47 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: dark;
+
+  /* RoundZero design tokens — see DESIGN.md. Do not add ad-hoc colors. */
+  --bg: #0b0d11;
+  --surface: #12151a;
+  --surface-2: #171b21;
+  --hairline: #232830;
+  --text: #e8eaf0;
+  --text-dim: #98a1ae;
+  --accent: #e8a33d;
+  --accent-hover: #f2b45a;
+  --score: #3fb950;
+  --penalty: #f85149;
+
+  /* TODO(DESIGN.md): self-host Switzer + IBM Plex Mono (Fontshare, free
+     license) and swap these fallback stacks for @font-face-backed ones. */
+  --font-body: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono-stack: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-hairline: var(--hairline);
+  --color-text: var(--text);
+  --color-text-dim: var(--text-dim);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-score: var(--score);
+  --color-penalty: var(--penalty);
+
+  --font-sans: var(--font-body);
+  --font-mono: var(--font-mono-stack);
+
+  --radius-md: 6px;
+  --radius-sm: 3px;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+}

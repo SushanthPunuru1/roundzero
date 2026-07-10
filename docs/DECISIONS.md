@@ -53,3 +53,38 @@ Terraform/Ansible, school orgs, mentor role, Discord, season ladder, AI
 tutor, placement micro-task, desktop streaming — all deliberately parked
 until something forces them. Rationale: solo builder, season deadline,
 free-tier budget.
+
+**010 · 2026-07 · Product renamed CyberRange → RoundZero.** Working
+title replaced everywhere it appeared (`CLAUDE.md`, `DESIGN.md`,
+`docs/ROADMAP.md`, `docs/spec.md`, schema/taxonomy header comments). No
+functional change.
+
+**011 · 2026-07 · Monorepo scaffolded: pnpm workspaces, no Turborepo
+yet.** `apps/web` (Next.js 16 App Router, TS strict), `packages/{db,ui,
+content}`. Root scripts shell out via `pnpm --filter`/`pnpm -r`; a build
+orchestrator (Turborepo/Nx) is unnecessary at this package count and
+adds config surface — revisit if build graph complexity grows.
+Tailwind v4 config is CSS-first (`@theme` in `globals.css`), no
+`tailwind.config.js`. shadcn/ui wired in monorepo mode: `components.json`
+lives in `packages/ui` (the single target for generated primitives, per
+`CLAUDE.md` rule 3); `apps/web` consumes it via `transpilePackages`.
+Only `Button` built this session as a wiring proof — the rest of the
+`packages/ui` v1 inventory (`DESIGN.md`) lands with the milestone work
+that needs it. Prisma pinned to `6.19.2` (not the newly-`latest` 7.x)
+to match the already-committed `schema.prisma`'s `prisma-client-js`
+generator without forcing a schema rewrite mid-scaffold. ESLint 9 flat
+config at the root plus Next's own generated config in `apps/web`
+(pinned at 9, not the newly-`latest` 10 — `eslint-plugin-react`, pulled
+in by `eslint-config-next`, throws on ESLint 10's runtime API as of
+this writing);
+Vitest per-package, proven with one smoke test in `packages/db`. CI
+(`.github/workflows/ci.yml`) runs `prisma generate`/lint/test/build only
+— no `prisma migrate dev` against the real Neon DB, in CI or during
+scaffolding, since that's a live shared resource and creating the
+initial migration belongs with next session's auth/teams work.
+
+**012 · 2026-07 · Switzer/IBM Plex Mono not yet self-hosted.**
+`globals.css` wires the `--font-sans`/`--font-mono` token names to
+system-font fallback stacks with a TODO. Fetching and licensing the
+actual Fontshare/IBM Plex Mono font files is follow-up work, not
+something to fetch from a third-party CDN unattended during scaffolding.
