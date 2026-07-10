@@ -1,0 +1,302 @@
+# RoundZero — Canonical Windows hardening checklist
+# Location in repo: packages/content/checklists/windows-core.yaml
+#
+# Upstream template teams fork (M2). Synced to ChecklistTemplate +
+# ChecklistItem by the seed script. Every item keys to a taxonomy skill node.
+#
+# Written for ANY CyberPatriot team. Targets Windows 10/11 workstation
+# images; Server-only items live in windows-server.yaml (later).
+#
+# GROUND RULE: the README wins. It names authorized users, authorized
+# admins, required services, and forbidden changes. It overrides every
+# default below. Run commands from an ELEVATED prompt (Admin).
+#
+# TOOL NOTE: `secpol.msc` (Local Security Policy) does not exist on Windows
+# Home editions. Competition images are normally Pro/Enterprise, so secpol
+# is available. Where a setting can be done from the command line, both
+# paths are given.
+
+id: windows-core
+os: WINDOWS
+seasonId: cp-19
+version: 1
+title: Windows core hardening
+
+items:
+  # --- Forensics & setup (do first) --------------------------------------
+  - id: windows.setup.readme-forensics
+    skillNodeId: foundations.competition.readme
+    sortOrder: 10
+    action: "Read the README and every forensics question before changing anything."
+    why: "Fixing a vuln destroys evidence a forensics question may need — the unauthorized user you delete, the file you remove. Extract authorized users, authorized admins, required services, and explicit instructions first."
+    lessonSlug: reading-a-readme
+    commands:
+      all: "# No commands. Read the README and the Forensics Question files on the desktop. Write down the four lists before touching anything."
+
+  - id: windows.setup.backup-habit
+    skillNodeId: foundations.competition.safe-change
+    sortOrder: 20
+    action: "Export any registry key before you edit it."
+    why: "A .reg export turns a broken system into a double-click revert. Do this for every registry item below."
+    lessonSlug: safe-change-discipline
+    commands:
+      all: |
+        reg export "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" C:\backup\run.reg
+        :: pattern: reg export "<key>" <file>.reg   before any change
+
+  # --- Account policy ----------------------------------------------------
+  - id: windows.account-policy.length-age-history
+    skillNodeId: windows.account-policy.length-age-history
+    sortOrder: 30
+    action: "Set minimum password length, max/min password age, and password history."
+    why: "Account policy is reliably scored. Set values to the README's numbers if it gives them; otherwise use secure defaults."
+    commands:
+      all: |
+        net accounts /minpwlen:14 /maxpwage:90 /minpwage:1 /uniquepw:5
+        net accounts            :: verify current values
+        :: GUI path: secpol.msc > Account Policies > Password Policy
+
+  - id: windows.account-policy.complexity
+    skillNodeId: windows.account-policy.complexity
+    sortOrder: 40
+    action: "Enable 'Password must meet complexity requirements' and disable reversible encryption."
+    why: "TRAP: complexity CANNOT be set with `net accounts`. Use secpol.msc, or export/edit/import with secedit. Reversible encryption stores passwords as plaintext-equivalent and is always a finding."
+    commands:
+      all: |
+        :: GUI: secpol.msc > Account Policies > Password Policy
+        ::   Password must meet complexity requirements  -> Enabled
+        ::   Store passwords using reversible encryption -> Disabled
+        :: CLI alternative:
+        secedit /export /cfg C:\sec.cfg
+        :: edit C:\sec.cfg -> PasswordComplexity = 1 , ClearTextPassword = 0
+        secedit /configure /db %windir%\security\local.sdb /cfg C:\sec.cfg /areas SECURITYPOLICY
+
+  - id: windows.account-policy.lockout
+    skillNodeId: windows.account-policy.lockout
+    sortOrder: 50
+    action: "Set account lockout threshold, duration, and reset counter."
+    why: "Blocks brute force and is commonly scored. Note: Windows 11 ships with a default lockout policy already enabled — 'already set' does not mean it matches the README or the scored value."
+    commands:
+      all: |
+        net accounts /lockoutthreshold:5 /lockoutduration:30 /lockoutwindow:30
+        net accounts            :: verify
+        :: GUI path: secpol.msc > Account Policies > Account Lockout Policy
+
+  # --- Users and groups --------------------------------------------------
+  - id: windows.users.unauthorized-users
+    skillNodeId: windows.users-groups.unauthorized-users
+    sortOrder: 60
+    action: "Remove users not authorized by the README."
+    why: "Unauthorized accounts are scored. A suspicious-sounding name that IS on the authorized list must stay — deleting it is a penalty."
+    commands:
+      all: |
+        Get-LocalUser | Select Name,Enabled,LastLogon
+        Remove-LocalUser -Name "baduser"
+
+  - id: windows.users.unauthorized-admins
+    skillNodeId: windows.users-groups.unauthorized-users
+    sortOrder: 70
+    action: "Remove unauthorized members of the local Administrators group."
+    why: "Admin membership must exactly match the README's authorized-administrator list. Demote, don't delete, if the user is authorized as a standard user."
+    commands:
+      all: |
+        Get-LocalGroupMember -Group "Administrators"
+        Remove-LocalGroupMember -Group "Administrators" -Member "baduser"
+
+  - id: windows.users.weak-passwords
+    skillNodeId: windows.users-groups.weak-passwords
+    sortOrder: 80
+    action: "Set strong passwords on all authorized accounts."
+    why: "Blank and weak passwords are scored. Use a strong, consistent password your team records in the change log."
+    commands:
+      all: |
+        $p = Read-Host -AsSecureString
+        Set-LocalUser -Name "alice" -Password $p
+
+  - id: windows.users.never-expires
+    skillNodeId: windows.users-groups.never-expires
+    sortOrder: 90
+    action: "Turn off 'password never expires' and require password change where appropriate."
+    why: "Non-expiring passwords defeat the aging policy you just set — a standard scored pair."
+    commands:
+      all: |
+        Get-LocalUser | Where-Object { $_.PasswordExpires -eq $null -and $_.Enabled }
+        Set-LocalUser -Name "alice" -PasswordNeverExpires $false
+
+  - id: windows.users.guest-admin
+    skillNodeId: windows.users-groups.guest-admin
+    sortOrder: 100
+    action: "Disable the Guest account and the built-in Administrator unless the README requires them."
+    why: "Both are classic scored items. Do not disable an account the README says must remain active."
+    commands:
+      all: |
+        Get-LocalUser -Name "Guest","Administrator" | Select Name,Enabled
+        Disable-LocalUser -Name "Guest"
+        Disable-LocalUser -Name "Administrator"
+
+  # --- Local policy and registry -----------------------------------------
+  - id: windows.policy.audit-policy
+    skillNodeId: windows.policy-registry.audit-policy
+    sortOrder: 110
+    action: "Enable auditing for logon events and account management (success and failure)."
+    why: "Audit policy is scored, and the logs it produces answer forensics questions."
+    commands:
+      all: |
+        auditpol /set /category:"Logon/Logoff" /success:enable /failure:enable
+        auditpol /set /category:"Account Management" /success:enable /failure:enable
+        auditpol /get /category:*        :: verify
+
+  - id: windows.policy.uac
+    skillNodeId: windows.policy-registry.uac
+    sortOrder: 120
+    action: "Set User Account Control to the highest level (always notify)."
+    why: "UAC at maximum is a standard scored setting."
+    commands:
+      all: |
+        reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v EnableLUA
+        reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v EnableLUA /t REG_DWORD /d 1 /f
+        reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v ConsentPromptBehaviorAdmin /t REG_DWORD /d 2 /f
+
+  - id: windows.policy.registry-classics
+    skillNodeId: windows.policy-registry.registry-classics
+    sortOrder: 130
+    action: "Fix the classic registry findings: no autologon, no password reveal, autoplay off."
+    why: "These same keys appear round after round. Export each key before changing it."
+    commands:
+      all: |
+        :: no cached auto-logon password
+        reg delete "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon" /v DefaultPassword /f
+        reg add "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon" /v AutoAdminLogon /t REG_SZ /d 0 /f
+        :: disable autoplay for all drives
+        reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer" /v NoDriveTypeAutoRun /t REG_DWORD /d 255 /f
+
+  - id: windows.policy.smb
+    skillNodeId: windows.policy-registry.smb
+    sortOrder: 140
+    action: "Disable SMBv1 unless the README requires it."
+    why: "SMBv1 is the WannaCry protocol. Removing it is a standard scored item."
+    commands:
+      all: |
+        Get-WindowsOptionalFeature -Online -FeatureName SMB1Protocol
+        Disable-WindowsOptionalFeature -Online -FeatureName SMB1Protocol -NoRestart
+
+  - id: windows.policy.rdp
+    skillNodeId: windows.policy-registry.rdp
+    sortOrder: 150
+    action: "Disable Remote Desktop, or if the README requires it, require Network Level Authentication."
+    why: "Exposed RDP is a top real-world attack vector. Required-RDP images score NLA instead."
+    commands:
+      all: |
+        :: disable RDP entirely (fDenyTSConnections = 1)
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\Terminal Server" /v fDenyTSConnections /t REG_DWORD /d 1 /f
+        :: if RDP is required, force NLA instead:
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp" /v UserAuthentication /t REG_DWORD /d 1 /f
+
+  # --- Services ----------------------------------------------------------
+  - id: windows.services.insecure-services
+    skillNodeId: windows.services.insecure-services
+    sortOrder: 160
+    action: "Stop and disable insecure services (Telnet, FTP, SNMP, Remote Registry) unless required."
+    why: "Unneeded services are scored attack surface. Check the README's required-services list first."
+    commands:
+      all: |
+        Get-Service | Where-Object {$_.Status -eq "Running"} | Sort Name
+        Stop-Service -Name RemoteRegistry -Force
+        Set-Service -Name RemoteRegistry -StartupType Disabled
+
+  - id: windows.services.critical-services
+    skillNodeId: windows.services.critical-services
+    sortOrder: 170
+    action: "Confirm every README-required service is still running after each change."
+    why: "Breaking a required service is an immediate penalty — the most common way teams lose points they already earned."
+    lessonSlug: scoring-engine
+    commands:
+      all: "Get-Service -Name <required-service> | Select Name,Status,StartType"
+
+  # --- Persistence and malware -------------------------------------------
+  - id: windows.persistence.run-keys
+    skillNodeId: windows.persistence.run-keys
+    sortOrder: 180
+    action: "Audit Run/RunOnce registry keys and the startup folders."
+    why: "The most common persistence spot. Anything you can't account for is suspect."
+    commands:
+      all: |
+        reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run"
+        reg query "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Run"
+        reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce"
+        dir "C:\ProgramData\Microsoft\Windows\Start Menu\Programs\StartUp"
+
+  - id: windows.persistence.scheduled-tasks
+    skillNodeId: windows.persistence.scheduled-tasks
+    sortOrder: 190
+    action: "Look for malicious scheduled tasks."
+    why: "Scheduled tasks re-launch malware after reboot and survive most cleanup."
+    commands:
+      all: |
+        Get-ScheduledTask | Where-Object {$_.State -ne "Disabled"} | Select TaskName,TaskPath
+        Unregister-ScheduledTask -TaskName "BadTask" -Confirm:$false
+
+  - id: windows.persistence.artifacts
+    skillNodeId: windows.persistence.artifacts
+    sortOrder: 200
+    action: "Find and remove prohibited tools (netcat, keyloggers, hacking utilities, crackers)."
+    why: "Prohibited software is scored. Check the README's allowed-software list before removing anything that looks unusual."
+    commands:
+      all: |
+        Get-Process | Sort CPU -Descending | Select -First 15
+        netstat -ano | findstr LISTENING
+        Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*" | Select DisplayName
+
+  # --- Updates, Defender, firewall, files ---------------------------------
+  - id: windows.updates.windows-update
+    skillNodeId: windows.defenses-updates.windows-update
+    sortOrder: 210
+    action: "Turn on automatic updates and start the update download EARLY."
+    why: "Patch level is scored and downloads are slow. Kick this off near the start of the round, never at the end."
+    lessonSlug: safe-change-discipline
+    commands:
+      all: |
+        :: GUI: Settings > Windows Update > check for updates (start it, let it run)
+        reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update" /v AUOptions /t REG_DWORD /d 4 /f
+
+  - id: windows.defenses.defender
+    skillNodeId: windows.defenses-updates.defender
+    sortOrder: 220
+    action: "Enable Microsoft Defender real-time protection and run a scan."
+    why: "Defender disabled is a scored finding, and a scan surfaces the malware other items ask you to remove."
+    commands:
+      all: |
+        Get-MpComputerStatus | Select RealTimeProtectionEnabled,AntivirusEnabled
+        Set-MpPreference -DisableRealtimeMonitoring $false
+        Start-MpScan -ScanType QuickScan
+
+  - id: windows.defenses.firewall
+    skillNodeId: windows.defenses-updates.defender
+    sortOrder: 230
+    action: "Enable the firewall on all three profiles (Domain, Private, Public)."
+    why: "A disabled profile is a scored finding — teams often enable one and miss the other two."
+    commands:
+      all: |
+        Get-NetFirewallProfile | Select Name,Enabled
+        Set-NetFirewallProfile -Profile Domain,Private,Public -Enabled True
+
+  - id: windows.defenses.shares-ntfs
+    skillNodeId: windows.defenses-updates.shares-ntfs
+    sortOrder: 240
+    action: "Remove non-default file shares and tighten loose permissions."
+    why: "An unauthorized share exposes data across the network. Leave the default admin shares (C$, ADMIN$, IPC$) alone."
+    commands:
+      all: |
+        Get-SmbShare
+        Remove-SmbShare -Name "BadShare" -Force
+
+  - id: windows.defenses.prohibited-files
+    skillNodeId: windows.defenses-updates.prohibited
+    sortOrder: 250
+    action: "Find prohibited media files and check the hosts file for tampering."
+    why: "Prohibited files (mp3, mp4, and similar in user folders) are scored, and a poisoned hosts file silently redirects domains."
+    commands:
+      all: |
+        Get-ChildItem C:\Users -Include *.mp3,*.mp4,*.avi,*.wav -Recurse -ErrorAction SilentlyContinue
+        type C:\Windows\System32\drivers\etc\hosts
+        :: a clean hosts file has only comment lines and possibly 127.0.0.1 localhost
