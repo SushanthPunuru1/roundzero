@@ -1,0 +1,261 @@
+# RoundZero — Canonical Linux hardening checklist
+# Location in repo: packages/content/checklists/linux-core.yaml
+#
+# This is the upstream template teams fork (M2). Synced to
+# ChecklistTemplate + ChecklistItem by the seed script. Every item keys to a
+# taxonomy skill node and (where one exists) a lesson slug.
+#
+# Written for ANY CyberPatriot team, not one club. Ubuntu-focused because
+# that is the modern Linux competition image. Commands verified against
+# Ubuntu 22.04 and 24.04 as of this authoring (see notes on version splits).
+#
+# GROUND RULE for every item: the README wins. If the README authorizes a
+# user, requires a service, or forbids a change, it overrides the generic
+# advice here. This checklist is a default, not a script to run blindly.
+
+id: linux-core
+os: LINUX
+seasonId: cp-19          # update when the season model is seeded
+version: 1
+title: Linux core hardening
+
+items:
+  # --- Forensics & setup (do first) --------------------------------------
+  - id: linux.setup.readme-forensics
+    skillNodeId: foundations.competition.readme
+    sortOrder: 10
+    action: "Read the README and every forensics question before changing anything."
+    why: "Fixing a vuln can destroy evidence a forensics question needs. Extract authorized users, required services, and explicit instructions first."
+    lessonSlug: reading-a-readme
+    commands:
+      all: "# No commands — read the README and the Forensics Question files on the desktop. Write down authorized admins, authorized users, required services, and do-not-touch instructions."
+
+  - id: linux.setup.backup-habit
+    skillNodeId: foundations.competition.safe-change
+    sortOrder: 20
+    action: "Back up each config file before you edit it."
+    why: "A .bak turns a broken service into a 30-second revert. Do this for every file below."
+    lessonSlug: safe-change-discipline
+    commands:
+      all: "sudo cp /etc/ssh/sshd_config /etc/ssh/sshd_config.bak   # pattern: cp <file> <file>.bak before editing"
+
+  # --- Accounts ----------------------------------------------------------
+  - id: linux.accounts.unauthorized-users
+    skillNodeId: linux.accounts.passwd-shadow
+    sortOrder: 30
+    action: "Find and remove users not authorized by the README."
+    why: "Unauthorized accounts are scored. Compare human users (UID >= 1000) against your authorized list. Never delete an authorized user, even one with a suspicious name."
+    commands:
+      all: |
+        awk -F: '$3>=1000 && $3<65534 {print $1}' /etc/passwd   # list human users
+        sudo deluser --remove-home baduser                       # remove one not on the README
+
+  - id: linux.accounts.uid0
+    skillNodeId: linux.accounts.uid0
+    sortOrder: 40
+    action: "Check that root is the only UID 0 account."
+    why: "A second UID 0 user is a hidden superuser — a classic scored vuln."
+    commands:
+      all: "awk -F: '$3==0 {print $1}' /etc/passwd   # should print only: root"
+
+  - id: linux.accounts.unauthorized-admins
+    skillNodeId: linux.accounts.sudoers
+    sortOrder: 50
+    action: "Remove unauthorized users from the sudo group."
+    why: "Admin rights must match the README's authorized-administrator list."
+    commands:
+      all: |
+        getent group sudo          # who has sudo
+        sudo deluser baduser sudo   # remove one not authorized as admin
+
+  - id: linux.accounts.sudoers-nopasswd
+    skillNodeId: linux.accounts.sudoers
+    sortOrder: 60
+    action: "Audit sudoers for NOPASSWD and other unsafe rules."
+    why: "NOPASSWD entries let a user run sudo with no password. Edit only with visudo so a syntax error can't lock out sudo."
+    commands:
+      all: |
+        sudo grep -r NOPASSWD /etc/sudoers /etc/sudoers.d/
+        sudo visudo                       # main file
+        sudo visudo -f /etc/sudoers.d/<file>   # a drop-in file
+
+  - id: linux.accounts.weak-passwords
+    skillNodeId: windows.users-groups.weak-passwords   # shared concept; see note
+    sortOrder: 70
+    action: "Set strong passwords on accounts that have weak ones, and lock accounts that shouldn't log in."
+    why: "Blank or weak passwords are scored. The README may also require specific accounts be locked."
+    commands:
+      all: |
+        sudo passwd username           # set a strong password
+        sudo passwd -l username        # lock an account
+        sudo awk -F: '($2==""){print $1}' /etc/shadow   # find blank passwords
+
+  # --- Password policy (PAM) ---------------------------------------------
+  - id: linux.pam.pwquality
+    skillNodeId: linux.pam.pwquality
+    sortOrder: 80
+    action: "Enforce password quality with pam_pwquality (minlen and complexity)."
+    why: "Password-strength policy is directly scored. Install the module if missing, then set the rules."
+    commands:
+      all: |
+        sudo apt-get install -y libpam-pwquality
+        # Edit /etc/security/pwquality.conf:
+        #   minlen = 14
+        #   dcredit = -1   ucredit = -1   ocredit = -1   lcredit = -1
+        grep -vE '^\s*#' /etc/security/pwquality.conf | grep -v '^\s*$'   # verify
+
+  - id: linux.pam.pwhistory
+    skillNodeId: linux.pam.pwhistory
+    sortOrder: 90
+    action: "Enforce password history so old passwords can't be reused."
+    why: "Reuse prevention (remember=N) is commonly scored."
+    commands:
+      ubuntu22: "grep pam_pwhistory /etc/pam.d/common-password   # ensure: password required pam_pwhistory.so remember=5 use_authtok"
+      ubuntu24: "grep pam_pwhistory /etc/pam.d/common-password   # on 24.04 pwhistory may be managed via /etc/security/pwhistory.conf — set remember=5 there"
+
+  - id: linux.pam.faillock
+    skillNodeId: linux.pam.faillock
+    sortOrder: 100
+    action: "Set an account-lockout policy with pam_faillock (replaces the old pam_tally2)."
+    why: "Lockout-after-failed-attempts is scored. On 22.04+ this is faillock, configured in /etc/security/faillock.conf."
+    commands:
+      all: |
+        # In /etc/security/faillock.conf set:
+        #   deny = 5
+        #   fail_interval = 900
+        #   unlock_time = 900
+        # Ensure pam_faillock is referenced in /etc/pam.d/common-auth
+        sudo faillock            # view current lockout state
+
+  - id: linux.accounts.login-defs
+    skillNodeId: linux.accounts.chage
+    sortOrder: 110
+    action: "Set password aging defaults (max/min days, warning) in /etc/login.defs."
+    why: "Aging policy is scored. Defaults apply to new passwords; use chage for existing users."
+    commands:
+      all: |
+        # In /etc/login.defs:
+        #   PASS_MAX_DAYS 90
+        #   PASS_MIN_DAYS 7
+        #   PASS_WARN_AGE 14
+        sudo chage -M 90 -m 7 -W 14 username   # apply to an existing user
+
+  # --- SSH ---------------------------------------------------------------
+  - id: linux.ssh.permitrootlogin
+    skillNodeId: linux.ssh.permitrootlogin
+    sortOrder: 120
+    action: "Disable direct root login over SSH."
+    why: "PermitRootLogin no is a standard scored item. Only harden SSH if the README keeps SSH as a required service."
+    commands:
+      all: |
+        # In /etc/ssh/sshd_config: PermitRootLogin no
+        sudo sshd -t && sudo systemctl restart ssh
+        sudo sshd -T | grep -i permitrootlogin   # verify the MERGED result
+
+  - id: linux.ssh.passwordauth
+    skillNodeId: linux.ssh.passwordauth
+    sortOrder: 130
+    action: "Set PasswordAuthentication per the README — and beware the cloud-init override."
+    why: "On Ubuntu 24, /etc/ssh/sshd_config.d/50-cloud-init.conf overrides the main file, so editing sshd_config alone does nothing. Always confirm with sshd -T."
+    commands:
+      all: |
+        sudo grep -ri passwordauthentication /etc/ssh/sshd_config /etc/ssh/sshd_config.d/
+        # Set the value in whichever file actually defines it (often the 50-cloud-init.conf drop-in on 24.04)
+        sudo sshd -t && sudo systemctl restart ssh
+        sudo sshd -T | grep -i passwordauthentication   # verify the MERGED result
+
+  - id: linux.ssh.limits
+    skillNodeId: linux.ssh.limits
+    sortOrder: 140
+    action: "Tighten remaining SSH options (MaxAuthTries, X11Forwarding, empty passwords)."
+    why: "Secondary SSH hardening items are frequently scored."
+    commands:
+      all: |
+        # In /etc/ssh/sshd_config:
+        #   MaxAuthTries 4
+        #   X11Forwarding no
+        #   PermitEmptyPasswords no
+        sudo sshd -t && sudo systemctl restart ssh
+        sudo sshd -T | grep -Ei 'maxauthtries|x11forwarding|permitemptypasswords'
+
+  # --- Services & persistence --------------------------------------------
+  - id: linux.services.audit-listening
+    skillNodeId: linux.services-persistence.systemd-audit
+    sortOrder: 150
+    action: "Audit listening services and disable ones the README doesn't require."
+    why: "Unneeded network services are attack surface and are scored. Do NOT disable a service the README lists as required."
+    commands:
+      all: |
+        sudo ss -tulpn                       # what's listening
+        systemctl list-units --type=service --state=running
+        sudo systemctl disable --now <svc>    # stop + disable an unneeded one
+
+  - id: linux.services.remove-insecure
+    skillNodeId: linux.services-persistence.malware
+    sortOrder: 160
+    action: "Remove insecure/prohibited services unless the README requires them (telnet, vsftpd, etc.)."
+    why: "Prohibited software is scored. If the README REQUIRES an 'insecure' service, harden it instead of removing it."
+    commands:
+      all: |
+        dpkg -l | grep -Ei 'telnet|vsftpd|nis|rsh|talk'
+        sudo apt-get purge -y telnetd        # example; only if not README-required
+
+  - id: linux.persistence.cron
+    skillNodeId: linux.services-persistence.cron
+    sortOrder: 170
+    action: "Check cron locations for unauthorized scheduled jobs."
+    why: "Cron is a top persistence mechanism — malicious reverse shells and miners hide here."
+    commands:
+      all: |
+        sudo ls -la /etc/cron.d /etc/cron.daily /etc/cron.hourly /var/spool/cron/crontabs
+        cat /etc/crontab
+        for u in $(cut -f1 -d: /etc/passwd); do sudo crontab -l -u "$u" 2>/dev/null; done
+
+  - id: linux.persistence.authorized-keys
+    skillNodeId: linux.services-persistence.authorized-keys
+    sortOrder: 180
+    action: "Check every user's authorized_keys for keys you can't account for."
+    why: "A rogue SSH key is silent backdoor access that survives a password change."
+    commands:
+      all: "sudo find /home /root -name authorized_keys -exec ls -la {} \\; -exec cat {} \\;"
+
+  # --- File permissions --------------------------------------------------
+  - id: linux.files.sensitive-modes
+    skillNodeId: linux.files-perms.sensitive-modes
+    sortOrder: 190
+    action: "Verify permissions on sensitive files (shadow, passwd, sudoers)."
+    why: "World-readable /etc/shadow is a scored finding."
+    commands:
+      all: |
+        sudo chmod 640 /etc/shadow && sudo chmod 644 /etc/passwd
+        sudo chmod 440 /etc/sudoers
+        ls -l /etc/shadow /etc/passwd /etc/sudoers
+
+  - id: linux.files.suid
+    skillNodeId: linux.files-perms.suid
+    sortOrder: 200
+    action: "Scan for unexpected SUID binaries."
+    why: "An attacker-planted SUID binary is instant privilege escalation. Compare against a known-good baseline."
+    commands:
+      all: "sudo find / -perm -4000 -type f 2>/dev/null   # investigate anything outside the standard set"
+
+  # --- Updates & network -------------------------------------------------
+  - id: linux.updates.apt
+    skillNodeId: linux.updates-network.apt
+    sortOrder: 210
+    action: "Update the package list and upgrade installed packages — start this EARLY."
+    why: "Patch level is scored and the upgrade is slow. Kick it off near the start of the round, not the end."
+    lessonSlug: safe-change-discipline
+    commands:
+      all: "sudo apt-get update && sudo apt-get -y upgrade"
+
+  - id: linux.network.ufw
+    skillNodeId: linux.updates-network.ufw
+    sortOrder: 220
+    action: "Enable the firewall — but allow required services first."
+    why: "An enabled firewall is scored. Enabling UFW before allowing SSH can cut your own access; allow required ports first."
+    commands:
+      all: |
+        sudo ufw allow OpenSSH        # allow required services BEFORE enabling
+        sudo ufw enable
+        sudo ufw status verbose
