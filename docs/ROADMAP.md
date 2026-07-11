@@ -28,7 +28,7 @@ late September; Linux labs by early November. August assumes reduced hours
       EmptyState, DataTable, ScoreLine)
 - [x] Better Auth live: Google + magic link sign-in; platform roles
       (student / coach / admin)
-- [ ] Coach creates a team (division tag) → join code works → student
+- [x] Coach creates a team (division tag) → join code works → student
       joins → roster page shows members and machine roles (Windows /
       Linux / Cisco), captain flag settable
 - [ ] `taxonomy.yaml` seeded to DB via idempotent sync script

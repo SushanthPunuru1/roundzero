@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+/* Tailwind's content scan is rooted at this file's directory and doesn't
+   cross the workspace-package boundary on its own — without this, any
+   utility class used only inside packages/ui (e.g. Button's bg-accent,
+   bg-penalty) is silently dropped from the compiled CSS. */
+@source "../../../../packages/ui/src";
+
 :root {
   color-scheme: dark;
 

@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@roundzero/ui";
+import { Button, cn } from "@roundzero/ui";
 
 import { authClient } from "@/lib/auth-client";
 
-export function SignOutButton() {
+export function SignOutButton({ className }: { className?: string }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
@@ -23,7 +23,7 @@ export function SignOutButton() {
       variant="ghost"
       onClick={handleSignOut}
       disabled={loading}
-      className="w-full"
+      className={cn("w-full", className)}
     >
       {loading ? "Signing out…" : "Sign out"}
     </Button>

@@ -130,3 +130,23 @@ variable not found" before this). Wrapped only those three scripts with
 `build`/`test` (apps/web) untouched since CI invokes them with real env
 vars injected directly, not a `.env` file, and requiring one would break
 CI. Root `.env` stays the single source of truth — no duplicated secrets.
+
+**016 · 2026-07 · Team create/join/roster built as Prisma-direct server
+actions, not the organization plugin's REST endpoints.** Extends 004.
+The plugin's default RBAC (owner/admin/member) and invitation flow don't
+match our coach/captain/member roles or join-by-code UX, and 004 already
+scoped join-by-code and the one-team-per-user rule as app logic on top of
+the plugin's schema — so `createTeam`/`joinTeam`/roster-management actions
+write `Organization`/`Member` via Prisma directly, gated by
+`auth.api.getSession` + a hand-rolled permission check
+(`apps/web/src/lib/teams.ts`), instead of `auth.api.createOrganization` /
+`addMember`. `auth.ts` is untouched. A user's team is resolved by
+`Member.userId` (at most one row, per 004), so `Session.activeOrganizationId`
+stays unused this milestone — revisit if we ever need multi-team switching.
+No new dependency: the machine-role/division pickers are a tokenized native
+`<select>` (`packages/ui` `Select`) and member removal uses an inline
+two-step confirm, both avoiding Radix Select/Dialog. Added to
+`packages/ui`: `Card`, `Badge`, `Select`, `PageHeader` (DESIGN.md v1
+inventory, tokenized, no new colors). `packages/db` now re-exports the
+`Division`/`MachineRole` Prisma enums so `apps/web` doesn't need its own
+`@prisma/client` dependency just for types.
