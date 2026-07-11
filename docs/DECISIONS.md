@@ -150,3 +150,59 @@ two-step confirm, both avoiding Radix Select/Dialog. Added to
 inventory, tokenized, no new colors). `packages/db` now re-exports the
 `Division`/`MachineRole` Prisma enums so `apps/web` doesn't need its own
 `@prisma/client` dependency just for types.
+
+**017 · 2026-07 · Three bugs fixed post-016: roster machine-role revert,
+magic-link always-invalid, Google sign-in dropping the account name.**
+
+*Machine-role revert.* The DB write always succeeded (confirmed by querying
+Postgres directly after the action); the select just visually snapped back.
+Root cause was two-layered: react-dom calls `requestFormReset` as part of
+submitting any `<form action={fn}>` (`startHostTransition` in
+react-dom-client), which does a native `HTMLFormElement.reset()` — that
+resets *every* control in the form back to its HTML-declared default
+(first `<option>`, here "Unassigned") regardless of React's `value` prop,
+because it bypasses React's reconciliation entirely. Making the `<select>`
+controlled alone didn't fix it (verified: still reverted) since React only
+re-writes a controlled value when its own `value` prop differs from the
+prior *render*, and the native reset happens outside that diff. Fix: the
+machine-role control no longer renders a `<form action={fn}>` submitted via
+`requestSubmit()` — it calls the `useActionState` dispatch function directly
+from `onChange` (wrapped in `startTransition`, since the dispatch isn't
+auto-transitioned outside a form/button `action` prop), which never invokes
+`startHostTransition`'s reset path. Promote/remove kept their `<form>`s —
+their only field is a `value`-controlled hidden input, immune to this.
+Added `apps/web/src/app/app/team/roster-table.test.tsx`
+(`@testing-library/react` + `jsdom`, new devDependencies — free/MIT, no
+Next-specific test runner existed for component-level React behavior)
+asserting the select keeps a newly-chosen value after the mocked action
+resolves; confirmed it fails against the pre-fix code before restoring the
+fix, so it's a real regression guard.
+
+*Magic link always `INVALID_TOKEN`.* The email pointed straight at the
+API's GET verify endpoint, which consumes the (single-use) token on the
+first request to it — email clients and corporate gateways routinely
+prefetch/scan links before the user clicks, consuming it first. Fixed by
+routing the email link at a new app page (`/magic-link`) instead; the
+token-consuming fetch now happens from client-side JS on user page-load
+(`magic-link-confirm.tsx`), which scanners generally don't execute. Verified
+directly: a plain `curl` GET against the new link left the token unconsumed
+in `Verification`; a real (JS-executing) browser hit afterward still signed
+in successfully. The confirm page omits `callbackURL` on its own verify
+call specifically because Better Auth returns JSON instead of redirecting
+when it's absent (`callback.mjs`) — that's what lets success/failure be
+told apart from `fetch` without following/parsing a redirect. Guarded with
+a `useRef` against React Strict Mode's dev double-invoke of effects, which
+would otherwise burn the token on the throwaway first pass.
+`buildMagicLinkConfirmUrl` (`auth-helpers.ts`) is unit-tested.
+
+*Google sign-in showing email instead of name.* Confirmed in the dev DB:
+the account had `providers: ["google"]` but `name: ""`. Better Auth only
+writes `name`/`image` from a social profile at first user creation
+(`handleOAuthUserInfo`); an existing user (e.g. one first created nameless
+via magic link) never gets it backfilled on a later Google sign-in unless
+`overrideUserInfoOnSignIn: true` is set on the provider — added to
+`socialProviders.google` in `auth.ts`. Self-heals on next Google sign-in;
+not independently unit-tested (would require mocking Better Auth's OAuth
+callback flow, out of proportion to a one-line config fix) — verified by
+source tracing (`@better-auth/core` `google.ts` / `link-account.mjs`)
+since real Google OAuth can't be driven headlessly here.

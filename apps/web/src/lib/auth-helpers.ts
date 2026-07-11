@@ -14,6 +14,28 @@ export function buildMagicLinkEmail({
   };
 }
 
+// Better Auth's default magic-link URL points straight at the API's GET
+// verify endpoint, which consumes the (single-use) token on the first
+// request to it. Email clients and corporate security gateways routinely
+// prefetch/scan links in emails before the user ever clicks — that GET
+// consumes the token, so the real click always sees an already-used token.
+// Routing through an app page instead defers the token-consuming request to
+// client-side JS, which scanners generally don't execute.
+export function buildMagicLinkConfirmUrl({
+  token,
+  originalUrl,
+}: {
+  token: string;
+  originalUrl: string;
+}): string {
+  const parsed = new URL(originalUrl);
+  const callbackURL = parsed.searchParams.get("callbackURL") ?? "/app";
+  const confirmUrl = new URL("/magic-link", parsed.origin);
+  confirmUrl.searchParams.set("token", token);
+  confirmUrl.searchParams.set("callbackURL", callbackURL);
+  return confirmUrl.toString();
+}
+
 export interface ViewerSession {
   user: {
     name: string;

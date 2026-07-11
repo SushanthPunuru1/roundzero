@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { buildMagicLinkEmail, viewerFromSession } from "./auth-helpers";
+import {
+  buildMagicLinkConfirmUrl,
+  buildMagicLinkEmail,
+  viewerFromSession,
+} from "./auth-helpers";
 
 describe("buildMagicLinkEmail", () => {
   it("includes the sign-in url and a sentence-case subject", () => {
@@ -18,6 +22,36 @@ describe("buildMagicLinkEmail", () => {
       appName: "Test App",
     });
     expect(subject).toBe("Sign in to Test App");
+  });
+});
+
+describe("buildMagicLinkConfirmUrl", () => {
+  it("points at the app's /magic-link page, not the raw API endpoint", () => {
+    const confirmUrl = buildMagicLinkConfirmUrl({
+      token: "abc123",
+      originalUrl:
+        "https://roundzero.example/api/auth/magic-link/verify?token=abc123&callbackURL=%2Fapp",
+    });
+    const parsed = new URL(confirmUrl);
+    expect(parsed.pathname).toBe("/magic-link");
+    expect(parsed.searchParams.get("token")).toBe("abc123");
+    expect(parsed.searchParams.get("callbackURL")).toBe("/app");
+  });
+
+  it("preserves the origin from the original url", () => {
+    const confirmUrl = buildMagicLinkConfirmUrl({
+      token: "tok",
+      originalUrl: "https://roundzero.example/api/auth/magic-link/verify?token=tok",
+    });
+    expect(new URL(confirmUrl).origin).toBe("https://roundzero.example");
+  });
+
+  it("defaults callbackURL to /app when the original url omits it", () => {
+    const confirmUrl = buildMagicLinkConfirmUrl({
+      token: "tok",
+      originalUrl: "https://roundzero.example/api/auth/magic-link/verify?token=tok",
+    });
+    expect(new URL(confirmUrl).searchParams.get("callbackURL")).toBe("/app");
   });
 });
 

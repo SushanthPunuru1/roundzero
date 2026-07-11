@@ -5,7 +5,7 @@ import { magicLink, organization } from "better-auth/plugins";
 import { Resend } from "resend";
 import { prisma } from "@roundzero/db";
 
-import { buildMagicLinkEmail } from "./auth-helpers";
+import { buildMagicLinkConfirmUrl, buildMagicLinkEmail } from "./auth-helpers";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -18,6 +18,11 @@ export const auth = betterAuth({
     google: {
       clientId: process.env.GOOGLE_CLIENT_ID as string,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
+      // Without this, Better Auth only writes name/image at first user
+      // creation. A user who first signed up via magic link (no name
+      // collected) and later signs in with Google would stay nameless
+      // forever — this refreshes name/image from Google on every sign-in.
+      overrideUserInfoOnSignIn: true,
     },
   },
 
@@ -46,8 +51,11 @@ export const auth = betterAuth({
 
   plugins: [
     magicLink({
-      sendMagicLink: async ({ email, url }) => {
-        const { subject, text } = buildMagicLinkEmail({ url });
+      sendMagicLink: async ({ email, url, token }) => {
+        // Point the email at an app page, not the raw verify API — see
+        // buildMagicLinkConfirmUrl for why (link-scanner token consumption).
+        const confirmUrl = buildMagicLinkConfirmUrl({ token, originalUrl: url });
+        const { subject, text } = buildMagicLinkEmail({ url: confirmUrl });
         await resend.emails.send({
           from: "RoundZero <onboarding@resend.dev>",
           to: email,

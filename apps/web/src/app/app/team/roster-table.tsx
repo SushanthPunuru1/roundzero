@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { startTransition, useActionState, useState } from "react";
 import { AlertCircle } from "lucide-react";
 import { Badge, Button, Select } from "@roundzero/ui";
 
@@ -71,6 +71,21 @@ function RosterRow({
   );
   const [confirmingRemove, setConfirmingRemove] = useState(false);
 
+  // Controlled: React resets uncontrolled form fields after a form action
+  // resolves, which snapped this back to its original defaultValue even
+  // though the write had already persisted. Keeping it controlled (synced
+  // from the server-confirmed prop) survives that reset. Resynced during
+  // render (not an effect) per React's documented pattern for adjusting
+  // state when a prop changes: https://react.dev/learn/you-might-not-need-an-effect
+  const [trackedMachineRole, setTrackedMachineRole] = useState(member.machineRole);
+  const [machineRoleValue, setMachineRoleValue] = useState(
+    member.machineRole ?? "NONE",
+  );
+  if (member.machineRole !== trackedMachineRole) {
+    setTrackedMachineRole(member.machineRole);
+    setMachineRoleValue(member.machineRole ?? "NONE");
+  }
+
   const rowError = machineState.error ?? promoteState.error ?? removeState.error;
   const columnCount = isCoach ? 4 : 3;
 
@@ -88,22 +103,32 @@ function RosterRow({
         </td>
         <td className="px-4 py-3 align-top">
           {isCoach ? (
-            <form action={machineAction}>
-              <input type="hidden" name="memberId" value={member.id} />
-              <Select
-                name="machineRole"
-                className="min-w-[130px]"
-                defaultValue={member.machineRole ?? "NONE"}
-                disabled={machinePending}
-                onChange={(event) => event.currentTarget.form?.requestSubmit()}
-                aria-label={`Machine role for ${member.name}`}
-              >
-                <option value="NONE">Unassigned</option>
-                <option value="WINDOWS">Windows</option>
-                <option value="LINUX">Linux</option>
-                <option value="CISCO">Cisco</option>
-              </Select>
-            </form>
+            // Deliberately not a <form action={machineAction}> submitted via
+            // requestSubmit(): React resets a host <form>'s fields as part of
+            // submitting it (react-dom's requestFormReset), which snaps a
+            // native <select> back to its first <option> regardless of a
+            // controlled `value` — calling the action directly sidesteps
+            // that host-form reset path entirely.
+            <Select
+              name="machineRole"
+              className="min-w-[130px]"
+              value={machineRoleValue}
+              disabled={machinePending}
+              onChange={(event) => {
+                const value = event.target.value;
+                setMachineRoleValue(value);
+                const formData = new FormData();
+                formData.set("memberId", member.id);
+                formData.set("machineRole", value);
+                startTransition(() => machineAction(formData));
+              }}
+              aria-label={`Machine role for ${member.name}`}
+            >
+              <option value="NONE">Unassigned</option>
+              <option value="WINDOWS">Windows</option>
+              <option value="LINUX">Linux</option>
+              <option value="CISCO">Cisco</option>
+            </Select>
           ) : (
             <span className="text-text-dim">
               {machineRoleLabel(member.machineRole)}
