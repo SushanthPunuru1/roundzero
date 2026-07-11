@@ -26,7 +26,7 @@ late September; Linux labs by early November. August assumes reduced hours
 - [ ] `DESIGN.md` tokens wired into Tailwind theme; `packages/ui` v1
       primitives built (at minimum: Button, Card, Input, Badge, PageHeader,
       EmptyState, DataTable, ScoreLine)
-- [ ] Better Auth live: Google + magic link sign-in; platform roles
+- [x] Better Auth live: Google + magic link sign-in; platform roles
       (student / coach / admin)
 - [ ] Coach creates a team (division tag) → join code works → student
       joins → roster page shows members and machine roles (Windows /

@@ -102,3 +102,31 @@ requirement: persist per-check timestamps and critical-service uptime.
 PRINT-SURFACE identity for checklist export and readiness PDF.
 Reference:
 https://claude.ai/design/p/c6ee9605-07d1-4b6d-95a8-24980f330972?file=Debrief+directions.dc.html&via=share
+
+**014 · 2026-07 · Better Auth wired live: pinned dependency versions +
+magic-link sender.** `better-auth@1.6.23`, `@better-auth/cli@1.4.21` (dev
+dep, used one-off for schema generation, not a persistent script),
+`resend@6.17.2`, `zod@4.4.3`. Extends 004 (Google + magic link via Resend,
+organization plugin, one org == one team) with concrete versions. Magic-link
+sender is `onboarding@resend.dev` (Resend's shared dev sender) for now —
+it only delivers to the Resend account owner, which is enough to prove the
+flow end to end; swap for a verified domain sender before onboarding real
+users. `user`/`organization`/`member` APP FIELDS (see schema.prisma) are
+declared as Better Auth `additionalFields` with `input: false` so they can
+never be set through the public auth API — they stay system/coach-owned.
+Reconciled the hand-written Prisma schema against `@better-auth/cli
+generate` output (run against a scratch file, never applied directly): the
+generator agreed with every hand-written model and APP FIELD; the only
+real delta was a missing `@@index([identifier])` on `Verification`, now
+added. First migration (`init_auth`) applied to the dev Neon DB.
+
+**015 · 2026-07 · `dotenv-cli` added to load the root `.env` for local-only,
+DB/env-dependent scripts.** Next.js and the Prisma CLI only read `.env`
+files from their own package directory, not a monorepo root, so
+`apps/web`'s `dev` script and `packages/db`'s `migrate`/`seed` scripts
+couldn't see the root `.env` (`prisma validate` failed with "Environment
+variable not found" before this). Wrapped only those three scripts with
+`dotenv -e ../../.env --`; deliberately left `generate` (packages/db) and
+`build`/`test` (apps/web) untouched since CI invokes them with real env
+vars injected directly, not a `.env` file, and requiring one would break
+CI. Root `.env` stays the single source of truth — no duplicated secrets.
