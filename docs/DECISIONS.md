@@ -88,3 +88,17 @@ initial migration belongs with next session's auth/teams work.
 system-font fallback stacks with a TODO. Fetching and licensing the
 actual Fontshare/IBM Plex Mono font files is follow-up work, not
 something to fetch from a third-party CDN unattended during scaffolding.
+
+**013 · 2026-07 · Design exploration verdict. Precision-instrument
+hypothesis VALIDATED — all strong outputs stayed inside DESIGN.md
+tokens. Adopted: (a) 2a 'flight recorder' as the Phase 2 debrief-page
+target: run-trajectory chart (points over elapsed time, penalty drops,
+critical-service outage bands), timestamped event log, gauge strip
+incl. critical-service uptime %, seed shown in header. Chart is
+enhancement only — the event log is the at-rest source of truth; all
+chart/log interactions require keyboard parity. Phase 2 data
+requirement: persist per-check timestamps and critical-service uptime.
+(b) 1b 'field datasheet' (warm light assessment-record) as the
+PRINT-SURFACE identity for checklist export and readiness PDF.
+Reference:
+https://claude.ai/design/p/c6ee9605-07d1-4b6d-95a8-24980f330972?file=Debrief+directions.dc.html&via=share

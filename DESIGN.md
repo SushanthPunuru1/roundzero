@@ -10,8 +10,9 @@ decoration. Two audiences shape every call: students who want it to feel
 technical and real, and non-technical teacher-coaches who need it to feel
 trustworthy enough to show a principal.
 
-Dark-first. A light theme is derived later for print surfaces (checklist
-export, readiness PDF) — do not improvise one per-screen.
+Dark-first. Print surfaces (checklist export, readiness PDF) use the
+'field datasheet' identity: warm light, assessment-record header with
+record ID, outlined chips — see DECISIONS.md 013 for reference.
 
 ## Color tokens
 
@@ -88,6 +89,11 @@ States:
 - **missed** (debrief only) — hollow circle glyph, neutral points, row at
   full opacity (misses are the lesson, never de-emphasize them)
 - **penalty** — alert glyph, negative points in `--penalty`
+- penalty rows may carry a subtle `--penalty` background tint (~6%
+  opacity); found/missed rows stay untinted
+- score count-ups and charts are enhancement only: the final value and
+  the event list must be the at-rest DOM state, correct with JS or
+  motion disabled
 
 Build it once in `packages/ui`, prop-driven, before any screen uses it.
 
