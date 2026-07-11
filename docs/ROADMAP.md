@@ -31,7 +31,7 @@ late September; Linux labs by early November. August assumes reduced hours
 - [x] Coach creates a team (division tag) → join code works → student
       joins → roster page shows members and machine roles (Windows /
       Linux / Cisco), captain flag settable
-- [ ] `taxonomy.yaml` seeded to DB via idempotent sync script
+- [x] `taxonomy.yaml` seeded to DB via idempotent sync script
 - [ ] MDX lesson pipeline: three real Foundations lessons render with an
       end-of-lesson interactive check; completion recorded
 - **Done when:** a club officer signs in on a school Chromebook, joins the

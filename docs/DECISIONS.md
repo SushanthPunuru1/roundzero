@@ -195,6 +195,25 @@ a `useRef` against React Strict Mode's dev double-invoke of effects, which
 would otherwise burn the token on the throwaway first pass.
 `buildMagicLinkConfirmUrl` (`auth-helpers.ts`) is unit-tested.
 
+**018 · 2026-07 · `yaml` (eemeli, MIT) added to `packages/db`, pinned to
+`2.9.0`.** Needed to parse `packages/content/taxonomy/taxonomy.yaml` for the
+taxonomy sync script (`prisma/seed.ts`, wired to `pnpm db:seed`), which
+replaces the seed stub left in place during scaffolding (011). Ships its own
+TS types, so no `@types` package. Parsing and validation
+(`src/taxonomy/parse.ts`: dotted-id format, no duplicate ids, parent-prefix
+consistency, skill `level` required/valid) and the create/update/deprecate
+diff against existing rows (`src/taxonomy/reconcile.ts`) are pure functions,
+unit-tested without touching the DB; `prisma/seed.ts` is the thin glue that
+reads the file, calls both, and applies the plan in a transaction (creates
+ordered DOMAIN → CATEGORY → SKILL so the self-referential `parentId` FK is
+always satisfied). No `zod`: the cross-reference checks here are custom logic
+either way, and hand-rolled `TaxonomyError` messages keep `packages/db`
+dependency-light. Per DECISIONS 006, a `SkillNode` id absent from the YAML is
+marked `deprecated: true`, never deleted; a deprecated id that reappears is
+un-deprecated. Verified against the dev Neon DB: first run created all 108
+rows (7 domains + 22 categories + 79 skills, matching the file); a second run
+reported all 108 as unchanged, proving idempotency.
+
 *Google sign-in showing email instead of name.* Confirmed in the dev DB:
 the account had `providers: ["google"]` but `name: ""`. Better Auth only
 writes `name`/`image` from a social profile at first user creation
