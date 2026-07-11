@@ -10,9 +10,8 @@ export default function Home() {
         RoundZero — skeleton with a pulse.
       </h1>
       <p className="max-w-md text-sm leading-6 text-text-dim">
-        Monorepo, Tailwind tokens, and <code className="font-mono">@roundzero/ui</code>{" "}
-        are wired up. Auth, teams, taxonomy sync, and lesson rendering are
-        next.
+        Sign-in, teams, and the skill taxonomy sync are live. Lesson
+        rendering is the current focus.
       </p>
       <Button>Placeholder action</Button>
     </main>

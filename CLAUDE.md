@@ -85,6 +85,9 @@ agent/                RESERVED for Phase 2 Go agent. Do not create yet.
 - `tabular-nums` on every number that can change or align.
 - Lucide icons only, one stroke weight. No emoji in UI.
 
+Every user-facing screen must pass `DESIGN.md`'s Screen craft checklist
+before a session ends.
+
 ## Do not build yet (deferred by decision)
 
 Redis/queues · R2/object storage · session recordings · Prometheus/Grafana ·

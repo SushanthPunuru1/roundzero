@@ -30,21 +30,23 @@ export function TeamChooser() {
   }
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
+    <div className="grid gap-6 sm:grid-cols-2">
       <Card>
-        <CardHeader>
-          <Users
-            className="size-5 text-text-dim"
-            strokeWidth={1.75}
-            aria-hidden="true"
-          />
+        <CardHeader className="gap-3 p-8">
+          <span className="flex size-9 items-center justify-center rounded-md border border-hairline bg-surface-2">
+            <Users
+              className="size-5 text-text-dim"
+              strokeWidth={1.75}
+              aria-hidden="true"
+            />
+          </span>
           <CardTitle>Create a team</CardTitle>
           <CardDescription>
             Start a new roster, set your division, and get a join code for
             your teammates.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-8 pt-0">
           <Button
             type="button"
             className="w-full"
@@ -55,18 +57,20 @@ export function TeamChooser() {
         </CardContent>
       </Card>
       <Card>
-        <CardHeader>
-          <KeyRound
-            className="size-5 text-text-dim"
-            strokeWidth={1.75}
-            aria-hidden="true"
-          />
+        <CardHeader className="gap-3 p-8">
+          <span className="flex size-9 items-center justify-center rounded-md border border-hairline bg-surface-2">
+            <KeyRound
+              className="size-5 text-text-dim"
+              strokeWidth={1.75}
+              aria-hidden="true"
+            />
+          </span>
           <CardTitle>Join a team</CardTitle>
           <CardDescription>
             Have a join code from your coach? Use it to join their roster.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-8 pt-0">
           <Button
             type="button"
             variant="ghost"
@@ -112,7 +116,7 @@ function CreateTeamCard({ onBack }: { onBack: () => void }) {
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="gap-2 p-8">
         <BackButton onBack={onBack} />
         <CardTitle>Create a team</CardTitle>
         <CardDescription>
@@ -120,8 +124,8 @@ function CreateTeamCard({ onBack }: { onBack: () => void }) {
           afterward.
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        <form action={formAction} className="flex flex-col gap-4">
+      <CardContent className="p-8 pt-0">
+        <form action={formAction} className="flex flex-col gap-5">
           <div className="flex flex-col gap-1.5">
             <label htmlFor="name" className="text-sm text-text-dim">
               Team name
@@ -165,15 +169,15 @@ function JoinTeamCard({ onBack }: { onBack: () => void }) {
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="gap-2 p-8">
         <BackButton onBack={onBack} />
         <CardTitle>Join a team</CardTitle>
         <CardDescription>
           Enter the join code your coach shared with you.
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        <form action={formAction} className="flex flex-col gap-4">
+      <CardContent className="p-8 pt-0">
+        <form action={formAction} className="flex flex-col gap-5">
           <div className="flex flex-col gap-1.5">
             <label htmlFor="code" className="text-sm text-text-dim">
               Join code

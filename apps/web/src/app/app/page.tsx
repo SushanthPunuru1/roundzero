@@ -3,8 +3,6 @@ import { redirect } from "next/navigation";
 import { prisma } from "@roundzero/db";
 
 import { auth } from "@/lib/auth";
-import { viewerFromSession } from "@/lib/auth-helpers";
-import { SignOutButton } from "./sign-out-button";
 import { TeamChooser } from "./team-chooser";
 
 export default async function AppPage() {
@@ -20,24 +18,14 @@ export default async function AppPage() {
     redirect("/app/team");
   }
 
-  const viewer = viewerFromSession(session);
-
   return (
-    <div className="mx-auto flex min-h-screen max-w-2xl flex-col px-4 py-12">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p className="text-[11px] uppercase tracking-[0.06em] text-text-dim">
-            RoundZero
-          </p>
-          <h1 className="mt-2 text-xl font-semibold text-text">
-            Get your team set up
-          </h1>
-          <p className="mt-1 text-sm text-text-dim">
-            Signed in as <span className="font-mono text-text">{viewer.email}</span>
-          </p>
-        </div>
-        <SignOutButton className="w-auto" />
-      </div>
+    <div>
+      <h1 className="text-[25px] font-semibold leading-[32px] text-text">
+        Set up your team
+      </h1>
+      <p className="mt-1 text-sm text-text-dim">
+        Create a new roster as coach, or join one with a code from your team.
+      </p>
       <div className="mt-8">
         <TeamChooser />
       </div>

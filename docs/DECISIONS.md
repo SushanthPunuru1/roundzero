@@ -225,3 +225,26 @@ not independently unit-tested (would require mocking Better Auth's OAuth
 callback flow, out of proportion to a one-line config fix) — verified by
 source tracing (`@better-auth/core` `google.ts` / `link-account.mjs`)
 since real Google OAuth can't be driven headlessly here.
+
+**019 · 2026-07 · Visual craft pass: persistent app shell + screen-craft
+checklist codified.** Every `/app` page used to build its own chrome (a
+repeated eyebrow + sign-out button) with no shared frame or max-width. Added
+`apps/web/src/app/app/layout.tsx` (session check + `TopBar`, ~1100px centered
+container) as the single shell for all `/app` routes; `TopBar`
+(`app/top-bar.tsx`) carries the wordmark, a path-derived breadcrumb, and
+account controls, with room left for a future ⌘K search (not built). New
+`packages/ui` primitives, tokenized, no new colors: `Avatar` (deterministic
+initials, `--surface-2`/`--hairline`, never a hashed color) and
+`StatStrip`/`Stat` (the DECISIONS 013 gauge-strip style: eyebrow label over a
+mono `tabular-nums` value). `/app/team` gained a stat strip (members, roles
+filled, division) and an n=1 "invite panel" moment instead of a one-row
+table; roster rows got avatars, a hover surface step, and an em dash instead
+of a blank Actions cell. Codified the standard as a "Screen craft checklist"
+appended to `DESIGN.md`, referenced from `CLAUDE.md`'s Design section so
+future sessions are gated on it. No server action, auth, or Prisma schema
+changes; no new dependency. Verified with Playwright screenshots (browser
+fetched ephemerally via `npx`, not added to any `package.json`) of the public
+landing/sign-in routes plus a temporary, uncommitted preview route exercising
+the same prop-driven components the real `/app`/`/app/team` pages compose
+(those pages are session-gated server components, so Playwright can't
+navigate to them directly without a seeded session).

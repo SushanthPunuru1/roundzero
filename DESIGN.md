@@ -126,6 +126,27 @@ WCAG 2.1 AA contrast · fully keyboard-navigable with visible
 respected · touch targets ≥ 40px on mobile-readable pages · every async
 surface has designed loading, empty, and error states before it ships.
 
+## Screen craft checklist
+
+Every user-facing screen must pass this before a session ends:
+
+- **Frame present** — no content floats loose in the viewport; it sits
+  inside the persistent app shell/container.
+- **Hierarchy** — eyebrow / title / support line read in that order at a
+  glance.
+- **Density appropriate to the data** — dense tables stay dense (13px,
+  tight padding); sparse screens get room to breathe. Neither crowds nor
+  pads out the actual content.
+- **n=1, n=7 (or similar mid-size), and empty states are all designed** —
+  not just the happy-path screenshot. A list of one is a deliberate moment,
+  not a table with one row.
+- **Hover + focus states** — every interactive row/control has a visible
+  hover surface step and a visible `:focus-visible` ring.
+- **Numbers in mono with `tabular-nums`** — any value that can change or
+  align.
+- **No dead columns or placeholder voids** — an empty cell renders an em
+  dash or is omitted, never blank space implying something is missing.
+
 ## Don't list
 
 No new colors, fonts, radii, shadows, or durations outside this file ·

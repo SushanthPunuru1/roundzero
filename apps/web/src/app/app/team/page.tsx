@@ -1,11 +1,10 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { prisma } from "@roundzero/db";
-import { Badge, PageHeader } from "@roundzero/ui";
+import { Badge, Card, PageHeader, Stat, StatStrip } from "@roundzero/ui";
 
 import { auth } from "@/lib/auth";
 import { canManageRoster, divisionLabel, sortRosterMembers } from "@/lib/teams";
-import { SignOutButton } from "../sign-out-button";
 import { JoinCode } from "./join-code";
 import { RosterTable } from "./roster-table";
 
@@ -30,11 +29,13 @@ export default async function TeamPage() {
 
   const roster = sortRosterMembers(members);
   const isCoach = canManageRoster(membership.role);
+  const rolesFilled = new Set(
+    roster.map((member) => member.machineRole).filter(Boolean),
+  ).size;
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-12">
+    <div>
       <PageHeader
-        eyebrow="RoundZero"
         title={
           <span className="flex flex-wrap items-center gap-3">
             {membership.organization.name}
@@ -42,23 +43,44 @@ export default async function TeamPage() {
           </span>
         }
         actions={
-          <>
-            {isCoach && <JoinCode code={membership.organization.joinCode} />}
-            <SignOutButton className="w-auto" />
-          </>
+          isCoach && roster.length > 1 ? (
+            <JoinCode code={membership.organization.joinCode} />
+          ) : undefined
         }
       />
-      <div className="mt-6">
-        <RosterTable
-          members={roster.map((member) => ({
-            id: member.id,
-            name: member.user.name?.trim() || member.user.email,
-            email: member.user.email,
-            role: member.role,
-            machineRole: member.machineRole,
-          }))}
-          isCoach={isCoach}
-        />
+      <p className="mt-1 text-sm text-text-dim">
+        {roster.length} {roster.length === 1 ? "member" : "members"}
+      </p>
+      <StatStrip className="mt-6">
+        <Stat label="Members" value={roster.length} />
+        <Stat label="Roles filled" value={`${rolesFilled}/3`} />
+        <Stat label="Division" value={divisionLabel(membership.organization.division)} />
+      </StatStrip>
+      <div className="mt-8">
+        {roster.length === 1 && isCoach ? (
+          <Card className="flex flex-col items-start gap-4 p-8">
+            <div>
+              <p className="text-base font-semibold text-text">
+                Your roster is just you
+              </p>
+              <p className="mt-1 text-sm text-text-dim">
+                Share the join code with your team so they can add themselves.
+              </p>
+            </div>
+            <JoinCode code={membership.organization.joinCode} variant="panel" />
+          </Card>
+        ) : (
+          <RosterTable
+            members={roster.map((member) => ({
+              id: member.id,
+              name: member.user.name?.trim() || member.user.email,
+              email: member.user.email,
+              role: member.role,
+              machineRole: member.machineRole,
+            }))}
+            isCoach={isCoach}
+          />
+        )}
       </div>
     </div>
   );

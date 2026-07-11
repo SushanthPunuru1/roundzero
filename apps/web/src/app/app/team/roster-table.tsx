@@ -2,7 +2,7 @@
 
 import { startTransition, useActionState, useState } from "react";
 import { AlertCircle } from "lucide-react";
-import { Badge, Button, Select } from "@roundzero/ui";
+import { Avatar, Badge, Button, Select } from "@roundzero/ui";
 
 import {
   promoteToCaptain,
@@ -91,10 +91,15 @@ function RosterRow({
 
   return (
     <>
-      <tr>
+      <tr className="transition-colors duration-150 ease-[cubic-bezier(0.2,0,0,1)] hover:bg-surface-2">
         <td className="px-4 py-3 align-top">
-          <div className="text-text">{member.name}</div>
-          <div className="font-mono text-xs text-text-dim">{member.email}</div>
+          <div className="flex items-center gap-3">
+            <Avatar name={member.name} size="sm" />
+            <div>
+              <div className="text-text">{member.name}</div>
+              <div className="font-mono text-xs text-text-dim">{member.email}</div>
+            </div>
+          </div>
         </td>
         <td className="px-4 py-3 align-top">
           <Badge tone={member.role === "coach" ? "accent" : "neutral"}>
@@ -111,7 +116,7 @@ function RosterRow({
             // that host-form reset path entirely.
             <Select
               name="machineRole"
-              className="min-w-[130px]"
+              className="min-w-[150px]"
               value={machineRoleValue}
               disabled={machinePending}
               onChange={(event) => {
@@ -137,22 +142,27 @@ function RosterRow({
         </td>
         {isCoach && (
           <td className="px-4 py-3 align-top">
-            <div className="flex flex-wrap items-center gap-2">
-              {member.role === "member" && (
-                <form action={promoteAction}>
-                  <input type="hidden" name="memberId" value={member.id} />
-                  <Button
-                    type="submit"
-                    variant="ghost"
-                    size="sm"
-                    disabled={promotePending}
-                  >
-                    Promote to captain
-                  </Button>
-                </form>
-              )}
-              {member.role !== "coach" &&
-                (confirmingRemove ? (
+            {member.role === "coach" ? (
+              <span className="text-text-dim">
+                <span aria-hidden="true">—</span>
+                <span className="sr-only">No actions available</span>
+              </span>
+            ) : (
+              <div className="flex flex-wrap items-center gap-2">
+                {member.role === "member" && (
+                  <form action={promoteAction}>
+                    <input type="hidden" name="memberId" value={member.id} />
+                    <Button
+                      type="submit"
+                      variant="ghost"
+                      size="sm"
+                      disabled={promotePending}
+                    >
+                      Promote to captain
+                    </Button>
+                  </form>
+                )}
+                {confirmingRemove ? (
                   <form action={removeAction} className="flex items-center gap-2">
                     <input type="hidden" name="memberId" value={member.id} />
                     <span className="text-xs text-text-dim">
@@ -185,8 +195,9 @@ function RosterRow({
                   >
                     Remove
                   </Button>
-                ))}
-            </div>
+                )}
+              </div>
+            )}
           </td>
         )}
       </tr>
