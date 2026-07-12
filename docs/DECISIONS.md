@@ -294,3 +294,34 @@ session requires either a live magic-link email round-trip or dumping
 session tokens from the DB, which this session's sandboxing correctly
 refused as credential materialization. A human should do one manual
 click-through before relying on this in production.
+
+**021 · 2026-07 · Deploy prep: fixed the 020 follow-up build bug, added
+postinstall `prisma generate`.** Root cause of "plain `pnpm build` fails
+locally on missing `RESEND_API_KEY`": `apps/web/src/lib/auth.ts`
+constructed `new Resend(process.env.RESEND_API_KEY)` at module scope: the
+`Resend` constructor throws synchronously when the key is falsy, and
+`auth.ts` is imported (module-evaluated, not just type-imported) by every
+route that touches auth, so `next build`'s page-data collection crashed
+building `/api/auth/[...all]` — confirmed by reproducing the exact
+stack trace with no env vars set. Fixed by constructing `Resend` inside
+the `sendMagicLink` callback instead (request-time, only runs when an
+email actually sends), matching the lazy-read approach `CLAUDE.md`
+prescribes; no dotenv wrapper needed since the real fix removes the
+import-time read. The other `auth.ts` env reads (`BETTER_AUTH_SECRET`,
+`BETTER_AUTH_URL`, Google client id/secret) stay at module scope —
+Better Auth only logs a warning/catches internally for those when unset,
+it doesn't throw, so build-time collection survives; verified by building
+with zero env vars set (exit 0, only warnings). Also added a `postinstall`
+script (`prisma generate`) to `packages/db/package.json` so a fresh
+install — Vercel or CI — always produces a client, instead of relying on
+`build`/`generate` being invoked first; `prisma`/`@prisma/client` builds
+were already allow-listed in `pnpm-workspace.yaml`; confirmed by installing
+after Prisma reported "Lockfile is up to date" and still needing zero
+manual steps: `packages/db postinstall$ prisma generate` ran automatically.
+Verified end to end the way Vercel actually builds: ran `pnpm build`
+(root, which chains `db generate` then `next build`) with all six env
+vars injected directly into the process environment (not the app's own
+dotenv), and separately with none set at all — both exit 0. `pnpm lint`
+and `pnpm test` (88 tests across `packages/db`/`apps/web`) also pass. No
+production validation was weakened — this only changed when a value is
+read, not whether it's required at runtime.

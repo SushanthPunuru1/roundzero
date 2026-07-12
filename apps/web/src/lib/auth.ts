@@ -7,8 +7,6 @@ import { prisma } from "@roundzero/db";
 
 import { buildMagicLinkConfirmUrl, buildMagicLinkEmail } from "./auth-helpers";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 export const auth = betterAuth({
   database: prismaAdapter(prisma, { provider: "postgresql" }),
   secret: process.env.BETTER_AUTH_SECRET,
@@ -56,6 +54,11 @@ export const auth = betterAuth({
         // buildMagicLinkConfirmUrl for why (link-scanner token consumption).
         const confirmUrl = buildMagicLinkConfirmUrl({ token, originalUrl: url });
         const { subject, text } = buildMagicLinkEmail({ url: confirmUrl });
+        // Constructed here, not at module scope: the constructor throws
+        // synchronously when RESEND_API_KEY is unset, which would fail
+        // `next build`'s page-data collection for every route that imports
+        // auth.ts (it doesn't need a real key until an email actually sends).
+        const resend = new Resend(process.env.RESEND_API_KEY);
         await resend.emails.send({
           from: "RoundZero <onboarding@resend.dev>",
           to: email,

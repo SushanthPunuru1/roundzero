@@ -6,6 +6,7 @@
   "main": "./src/client.ts",
   "types": "./src/client.ts",
   "scripts": {
+    "postinstall": "prisma generate",
     "generate": "prisma generate",
     "build": "prisma generate",
     "migrate": "dotenv -e ../../.env -- prisma migrate dev",
