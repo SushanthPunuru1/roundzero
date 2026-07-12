@@ -248,3 +248,49 @@ landing/sign-in routes plus a temporary, uncommitted preview route exercising
 the same prop-driven components the real `/app`/`/app/team` pages compose
 (those pages are session-gated server components, so Playwright can't
 navigate to them directly without a seeded session).
+
+**020 · 2026-07 · MDX lesson pipeline: `next-mdx-remote`, lesson sync, and
+check-grading design.** Milestone 1's final item. Added
+`next-mdx-remote@6.0.0` (new dependency) — its `/rsc` export compiles MDX to
+React inside a Server Component at request time, which we need since a
+lesson is read as data by slug rather than statically imported the way
+`@next/mdx` expects; peer `react >=16`, built on `@mdx-js/mdx@3`, no
+syntax-highlighting plugin added (commands are short shell lines styled in
+mono via a component map, kept the dep surface minimal). `packages/db/src/lessons/`
+mirrors the taxonomy module (`parse` / `grade` / `reconcile`, pure and
+unit-tested): frontmatter is validated against the `packages/content/lessons/README.md`
+contract and `validateSkillRefs` fails the whole seed run loudly if a
+lesson's `domainId` or any `skills[]` id isn't a real taxonomy node — the
+spine (CLAUDE.md rule 2) must hold for lessons too. `prisma/seed.ts` now
+syncs `Lesson`/`LessonSkill` the same idempotent way as `SkillNode`, after
+taxonomy sync so skill refs can be validated against the just-synced set.
+Deliberately no `check` column on `Lesson`: check questions live only in
+MDX frontmatter and are re-read + re-parsed server-side on every grading
+submission, so the answer key never ships to the client — `apps/web`'s
+`LessonCheck` client component only ever receives `{ q, options }`, and the
+`submitCheck` server action returns per-question correct/incorrect + `why`,
+never which option was correct. Retakes are unlimited; `LessonProgress.checkScore`
+keeps the best attempt (`bestScore` in `packages/db/src/lessons/grade.ts`).
+Lesson MDX is read from `packages/content` at request time via `node:fs`
+(same content-stays-out-of-apps/web rule as the taxonomy YAML), so
+`next.config.ts` gained `outputFileTracingRoot` (monorepo root) and
+`outputFileTracingIncludes` pinning `packages/content/lessons/**/*.mdx` into
+the Vercel function bundle for the `/app/lessons` routes — unverified on
+Vercel itself (no deploy access from this session), but confirmed locally: a
+production `next build` (with env loaded) compiles both routes and a
+standalone `compileMDX` smoke test against all three lesson bodies produces
+the expected heading/code-block counts. All three Foundations lessons
+(`reading-a-readme`, `scoring-engine`, `safe-change-discipline`) flipped to
+`published: true` — editorial sign-off given. Verified end to end: `pnpm
+db:seed` created all three lessons on first run and reported all-unchanged
+on a second run; temporarily pointing a skill ref at a nonexistent id made
+the seed fail loudly with exit code 1, as required, then reverted; a
+disposable-user integration script exercised the exact `LessonProgress`
+upsert the server action performs and confirmed retakes never lower the
+saved score. Full interactive browser click-through (open a lesson, answer
+the check, see the score persist across refresh) was not done in this
+session — no browser automation tool was available, and creating a real
+session requires either a live magic-link email round-trip or dumping
+session tokens from the DB, which this session's sandboxing correctly
+refused as credential materialization. A human should do one manual
+click-through before relying on this in production.
