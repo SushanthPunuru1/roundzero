@@ -9,6 +9,7 @@ import { SignOutButton } from "./sign-out-button";
 const CRUMBS: Record<string, string> = {
   "/app": "Set up",
   "/app/team": "Team",
+  "/app/lessons": "Lessons",
 };
 
 function crumbFor(pathname: string): string | null {
