@@ -22,7 +22,7 @@ export class TaxonomyError extends Error {
   }
 }
 
-const ID_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*(\.[a-z0-9]+(-[a-z0-9]+)*)*$/;
+export const ID_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*(\.[a-z0-9]+(-[a-z0-9]+)*)*$/;
 
 const LEVEL_MAP: Record<string, TrackLevel> = {
   foundations: "FOUNDATIONS",
