@@ -39,7 +39,7 @@ late September; Linux labs by early November. August assumes reduced hours
 
 ### Milestone 2 — Checklists (August)
 
-- [ ] Canonical Windows + Linux checklists authored in
+- [x] Canonical Windows + Linux checklists authored in
       `packages/content` (every item: action, why, per-OS commands,
       skill-node ID, lesson link)
 - [ ] Team fork: customize items, add items, reorder

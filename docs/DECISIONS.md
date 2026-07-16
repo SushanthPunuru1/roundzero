@@ -325,3 +325,66 @@ dotenv), and separately with none set at all — both exit 0. `pnpm lint`
 and `pnpm test` (88 tests across `packages/db`/`apps/web`) also pass. No
 production validation was weakened — this only changed when a value is
 read, not whether it's required at runtime.
+
+**022 · 2026-07 · Milestone 2: checklist + Season sync, read-only render.**
+Synced the two already-authored canonical checklists (`packages/content/
+checklists/{linux,windows}-core.yaml`, 47 items total) into `ChecklistTemplate`/
+`ChecklistItem` and rendered them. Extends 006/007/018/020 — same pattern:
+`packages/db/src/checklists/{parse,reconcile}.ts` pure and unit-tested,
+`prisma/seed.ts` the thin glue, syncing after taxonomy + lessons so
+`skillNodeId`/`lessonSlug` refs validate against the just-synced sets.
+
+*Schema.* `ChecklistItem` gained `caution String?` via an additive migration
+(`add_checklist_item_caution`) — the content contract already specified an
+optional caution field (none of the 47 items use it yet) but the column
+didn't exist. Season `cp-19` ("CyberPatriot XIX") is seeded as a minimal row
+(`syncSeason()`, upsert) so the templates' FK resolves; `SeasonEvent` rows
+(Appendix B calendar) wait for Milestone 4 coach planning.
+
+*Removed items are deleted, not soft-hidden.* Unlike `SkillNode` (deprecate,
+never delete — 006), a `ChecklistItem` whose id drops out of the YAML is
+deleted outright. `ChecklistItem` has no soft-hide column, and canonical
+items carry no user data yet — team forks (`TeamChecklistItem`, not built
+until next session) are separate rows, so nothing downstream references a
+canonical item by FK. Content-as-code means the DB is a rebuildable index;
+the lesson sync sets the same precedent (020).
+
+*jsonb key order.* Postgres jsonb does not preserve object key order, so
+`commands` equality in `reconcile.ts` compares key/value pairs
+(`sameCommands`), never `JSON.stringify` identity — confirmed against the
+real dev DB: a second `db:seed` run reported all 47 items unchanged despite
+the round trip through jsonb storage.
+
+*Detail-page sectioning.* Items render in authored `sortOrder` — never
+reordered, since the order itself is operational intent (e.g. `login-defs`
+deliberately follows the PAM cluster to complete the password-policy arc).
+Section headers come from contiguous taxonomy-category runs
+(`groupItemsIntoSections`, `apps/web/src/lib/checklists.ts`): a new header on
+category change; a header that recurs later reads `"{Category} — continued"`;
+a single-item run on its *first* occurrence renders headerless (the item's own
+category chip already carries identity) and is skipped by the TOC, but a
+single-item *recurrence* still gets the `"— continued"` header since that
+signal is the useful one. The sticky mini-TOC (`md:sticky`, collapses to a
+stacked block below `md`/768px — real Chromebook viewports run ≥1024px, so
+the sticky two-column layout is the normal case) lists only header-bearing
+runs.
+
+*One authorized content fix.* `linux-core.yaml`'s `weak-passwords` item
+pointed `skillNodeId` at `windows.users-groups.weak-passwords` — a Linux item
+referencing a Windows taxonomy node, flagged during this session's ref
+validation. Changed to `linux.accounts.passwd-shadow`; this also happens to
+join that item into the contiguous Linux Accounts run instead of leaving an
+orphan single-item cross-OS section.
+
+No new dependency (`yaml` already in `packages/db` per 018). Verified end to
+end against the dev Neon DB: `db:seed` created 2 templates + 47 items; a
+second run reported all-unchanged; temporarily pointing an item's
+`skillNodeId` at a nonexistent id failed the run with exit 1 and a precise
+message, then reverted. `pnpm test` (179 tests across `packages/db`/
+`apps/web`) and `pnpm lint` pass. Full interactive verification (both pages,
+copy-to-clipboard, section/TOC behavior, focus rings, and no horizontal
+overflow at mobile/tablet/Chromebook widths) was done via a temporary,
+uncommitted preview route rendering the real prop-driven components against
+real seeded data — same approach as 019, deleted before commit since
+`/app/checklists*` are session-gated and no browser-automatable session
+exists in this sandbox.

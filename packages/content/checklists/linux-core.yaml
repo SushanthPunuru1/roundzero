@@ -80,7 +80,7 @@ items:
         sudo visudo -f /etc/sudoers.d/<file>   # a drop-in file
 
   - id: linux.accounts.weak-passwords
-    skillNodeId: windows.users-groups.weak-passwords   # shared concept; see note
+    skillNodeId: linux.accounts.passwd-shadow
     sortOrder: 70
     action: "Set strong passwords on accounts that have weak ones, and lock accounts that shouldn't log in."
     why: "Blank or weak passwords are scored. The README may also require specific accounts be locked."

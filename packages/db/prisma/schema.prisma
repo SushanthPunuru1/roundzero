@@ -230,6 +230,7 @@ model ChecklistItem {
   why         String
   commands    Json // { "ubuntu22": "...", "ubuntu24": "...", ... }
   lessonSlug  String?
+  caution     String?
 
   @@index([templateId])
 }

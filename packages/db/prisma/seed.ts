@@ -2,8 +2,8 @@
 // checklists, drill cards) into the DB index tables. YAML/MDX stays the
 // source of truth; this script only upserts rows to match it.
 //
-// Milestone 1 implements taxonomy + lesson sync. Checklist/card sync are
-// later roadmap items — not built here.
+// Milestone 1 built taxonomy + lesson sync. This adds Season + checklist
+// sync (Milestone 2). Drill cards are a later roadmap item — not built here.
 
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -13,6 +13,12 @@ import { parseTaxonomy, type DesiredNode, type NodeKind } from "../src/taxonomy/
 import { reconcile, type ExistingNode } from "../src/taxonomy/reconcile";
 import { parseLessons, toLessonRow, validateSkillRefs } from "../src/lessons/parse";
 import { reconcileLessons, type ExistingLessonRow, type LessonRow } from "../src/lessons/reconcile";
+import { parseChecklists, validateChecklistRefs } from "../src/checklists/parse";
+import {
+  reconcileChecklists,
+  type ExistingChecklistItem,
+  type ExistingChecklistTemplate,
+} from "../src/checklists/reconcile";
 
 const CONTENT_DIR = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -20,6 +26,12 @@ const CONTENT_DIR = path.resolve(
 );
 const TAXONOMY_PATH = path.join(CONTENT_DIR, "taxonomy/taxonomy.yaml");
 const LESSONS_DIR = path.join(CONTENT_DIR, "lessons");
+const CHECKLISTS_DIR = path.join(CONTENT_DIR, "checklists");
+
+// The official CyberPatriot season currently in progress. SeasonEvent rows
+// (registration/round/state calendar, Appendix B) are seeded later once
+// coach planning (Milestone 4) needs them.
+const CURRENT_SEASON = { id: "cp-19", title: "CyberPatriot XIX", active: true };
 
 const KIND_ORDER: NodeKind[] = ["DOMAIN", "CATEGORY", "SKILL"];
 
@@ -103,7 +115,7 @@ async function syncTaxonomy(): Promise<DesiredNode[]> {
   return desired;
 }
 
-async function syncLessons(knownTaxonomyNodes: DesiredNode[]): Promise<void> {
+async function syncLessons(knownTaxonomyNodes: DesiredNode[]): Promise<Set<string>> {
   const files = listMdxFiles(LESSONS_DIR).map((filePath) => ({
     path: path.relative(LESSONS_DIR, filePath),
     text: readFileSync(filePath, "utf-8"),
@@ -172,11 +184,135 @@ async function syncLessons(knownTaxonomyNodes: DesiredNode[]): Promise<void> {
     `lesson sync — created: ${plan.toCreate.length}, updated: ${plan.toUpdate.length}, ` +
       `unchanged: ${plan.unchanged.length}`,
   );
+
+  return new Set(desired.map((row) => row.slug));
+}
+
+async function syncSeason(): Promise<Set<string>> {
+  await prisma.season.upsert({
+    where: { id: CURRENT_SEASON.id },
+    create: CURRENT_SEASON,
+    update: { title: CURRENT_SEASON.title, active: CURRENT_SEASON.active },
+  });
+
+  console.log(`season sync — ensured "${CURRENT_SEASON.id}"`);
+
+  const rows = await prisma.season.findMany({ select: { id: true } });
+  return new Set(rows.map((row) => row.id));
+}
+
+async function syncChecklists(
+  knownTaxonomyNodes: DesiredNode[],
+  knownLessonSlugs: Set<string>,
+  knownSeasonIds: Set<string>,
+): Promise<void> {
+  const files = readdirSync(CHECKLISTS_DIR)
+    .filter((name) => name.endsWith(".yaml"))
+    .map((name) => ({
+      path: name,
+      text: readFileSync(path.join(CHECKLISTS_DIR, name), "utf-8"),
+    }));
+
+  const desired = parseChecklists(files);
+  validateChecklistRefs(desired, knownTaxonomyNodes, knownLessonSlugs, knownSeasonIds);
+
+  const [existingTemplateRows, existingItemRows] = await Promise.all([
+    prisma.checklistTemplate.findMany(),
+    prisma.checklistItem.findMany(),
+  ]);
+  const existingTemplates: ExistingChecklistTemplate[] = existingTemplateRows.map((row) => ({
+    id: row.id,
+    os: row.os,
+    seasonId: row.seasonId,
+    version: row.version,
+    title: row.title,
+  }));
+  const existingItems: ExistingChecklistItem[] = existingItemRows.map((row) => ({
+    id: row.id,
+    templateId: row.templateId,
+    skillNodeId: row.skillNodeId,
+    sortOrder: row.sortOrder,
+    action: row.action,
+    why: row.why,
+    commands: row.commands as Record<string, string>,
+    lessonSlug: row.lessonSlug,
+    caution: row.caution,
+  }));
+
+  const plan = reconcileChecklists(desired, existingTemplates, existingItems);
+
+  await prisma.$transaction(async (tx) => {
+    for (const template of plan.templates.toCreate) {
+      await tx.checklistTemplate.create({
+        data: {
+          id: template.id,
+          os: template.os,
+          seasonId: template.seasonId,
+          version: template.version,
+          title: template.title,
+        },
+      });
+    }
+    for (const template of plan.templates.toUpdate) {
+      await tx.checklistTemplate.update({
+        where: { id: template.id },
+        data: {
+          os: template.os,
+          seasonId: template.seasonId,
+          version: template.version,
+          title: template.title,
+        },
+      });
+    }
+
+    for (const item of plan.items.toCreate) {
+      await tx.checklistItem.create({
+        data: {
+          id: item.id,
+          templateId: item.templateId,
+          skillNodeId: item.skillNodeId,
+          sortOrder: item.sortOrder,
+          action: item.action,
+          why: item.why,
+          commands: item.commands,
+          lessonSlug: item.lessonSlug,
+          caution: item.caution,
+        },
+      });
+    }
+    for (const item of plan.items.toUpdate) {
+      await tx.checklistItem.update({
+        where: { id: item.id },
+        data: {
+          templateId: item.templateId,
+          skillNodeId: item.skillNodeId,
+          sortOrder: item.sortOrder,
+          action: item.action,
+          why: item.why,
+          commands: item.commands,
+          lessonSlug: item.lessonSlug,
+          caution: item.caution,
+        },
+      });
+    }
+    for (const item of plan.items.toRemove) {
+      await tx.checklistItem.delete({ where: { id: item.id } });
+    }
+  });
+
+  console.log(
+    `checklist sync — templates created: ${plan.templates.toCreate.length}, ` +
+      `updated: ${plan.templates.toUpdate.length}, unchanged: ${plan.templates.unchanged.length}; ` +
+      `items created: ${plan.items.toCreate.length}, updated: ${plan.items.toUpdate.length}, ` +
+      `removed: ${plan.items.toRemove.length}, unchanged: ${plan.items.unchanged.length}`,
+  );
 }
 
 async function main(): Promise<void> {
   const taxonomyNodes = await syncTaxonomy();
-  await syncLessons(taxonomyNodes);
+  const lessonSlugs = await syncLessons(taxonomyNodes);
+  const seasonIds = await syncSeason();
+  await syncChecklists(taxonomyNodes, lessonSlugs, seasonIds);
 }
 
 main()

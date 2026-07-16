@@ -12,7 +12,7 @@ if (process.env.NODE_ENV !== "production") {
 
 // Re-exported so consumers (e.g. apps/web) don't need their own
 // `@prisma/client` dependency just for enum types/values.
-export { Division, MachineRole, TrackLevel } from "@prisma/client";
+export { Division, MachineRole, TrackLevel, OS } from "@prisma/client";
 
 // Re-exported so apps/web can parse/grade a lesson MDX file it reads from
 // packages/content without duplicating the frontmatter contract (README.md
