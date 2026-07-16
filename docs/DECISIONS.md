@@ -388,3 +388,41 @@ uncommitted preview route rendering the real prop-driven components against
 real seeded data — same approach as 019, deleted before commit since
 `/app/checklists*` are session-gated and no browser-automatable session
 exists in this sandbox.
+
+**023 · 2026-07 · Fixed Vercel prod build failure: stale cached Prisma
+Client survives a no-op install.** `dd5ade6`'s `caution` column (022) built
+and typechecked locally but failed on Vercel: `Type error: Property
+'caution' does not exist on type ...` in `app/checklists/[id]/page.tsx`.
+Root cause: Prisma's default generator output lands inside `node_modules`
+(`node_modules/.prisma/client`, no custom `output` path in
+`schema.prisma`), which Vercel restores wholesale from its build cache
+across deployments. `packages/db`'s `postinstall` (021) only fires when
+pnpm actually changes something during install; a cache-restored,
+lockfile-unchanged install is a no-op — pnpm logs "Already up to date" and
+never re-invokes lifecycle scripts — so the client generated *before* the
+`caution` migration survives untouched into a build of a commit that
+requires it. Reproduced exactly outside Vercel: cloned the repo to a
+scratch dir, `pnpm install` (fresh, postinstall generates a correct
+client), regenerated the client against a schema with `caution` stripped
+(simulating the pre-migration cached client), restored the real schema,
+ran a second `pnpm install` (logged "Already up to date," confirmed no
+regeneration), then `next build` with zero env vars in the process
+environment (no `.env` file) — reproduced the identical type error at the
+identical line. Fix: `apps/web`'s own `build` script now runs
+`pnpm --filter @roundzero/db run generate` before `next build`, so
+generation is part of the build path itself, not a side effect of
+install — this holds regardless of Vercel's install-caching behavior or
+whether Vercel invokes the root `pnpm build` chain (021) or `apps/web`'s
+script directly (a monorepo project's Root Directory setting can call
+either). Confirmed the fix against the same reproduced-stale-client
+clone: identical no-op install, then `pnpm run build` regenerated the
+client and completed with exit 0. `postinstall` (021) is kept as-is — it
+still helps fresh installs and local `pnpm install` — but is no longer
+load-bearing for prod builds. The generated client was already fully
+covered by the blanket `node_modules` entry in `.gitignore`; since no
+`output` override exists in `schema.prisma`, nothing generated is or was
+ever tracked in git. Re-verified the 021 dotenv guarantee is still intact
+while here: neither `apps/web`'s `build` nor `packages/db`'s `generate`
+wraps `dotenv -e ../../.env` (only `dev`/`migrate`/`seed` do, per 015),
+so this fix does not reintroduce a hard `.env`-file dependency in the
+build path. `pnpm build`/`lint`/`test` all still pass locally.

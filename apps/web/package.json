@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "dotenv -e ../../.env -- next dev",
-    "build": "next build",
+    "build": "pnpm --filter @roundzero/db run generate && next build",
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
