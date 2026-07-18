@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import { auth } from "@/lib/auth";
 import { viewerFromSession } from "@/lib/auth-helpers";
+import { countDueCards } from "@/lib/drill";
 import { TopBar } from "./top-bar";
 
 export default async function AppLayout({
@@ -16,10 +17,11 @@ export default async function AppLayout({
   }
 
   const viewer = viewerFromSession(session);
+  const dueCount = await countDueCards(session.user.id);
 
   return (
     <div className="flex min-h-full flex-col">
-      <TopBar name={viewer.name} email={viewer.email} />
+      <TopBar name={viewer.name} email={viewer.email} dueCount={dueCount} />
       <main className="flex-1">
         <div className="mx-auto max-w-[1100px] px-6 py-8">{children}</div>
       </main>

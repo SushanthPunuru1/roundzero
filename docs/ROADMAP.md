@@ -49,10 +49,10 @@ late September; Linux labs by early November. August assumes reduced hours
 
 ### Milestone 3 — SRS + daily drill (August–early Sept)
 
-- [ ] Drill cards (concept + command) authored per skill node in content
-- [ ] ts-fsrs scheduling: per-user card states, review log; unit-tested
-- [ ] Daily drill surface: ~5 minutes of due cards; streak tracking
-- [ ] Lesson completion enqueues that lesson's cards
+- [x] Drill cards (concept + command) authored per skill node in content
+- [x] ts-fsrs scheduling: per-user card states, review log; unit-tested
+- [x] Daily drill surface: ~5 minutes of due cards; streak tracking
+- [x] Lesson completion enqueues that lesson's cards
 
 ### Milestone 4 — Onboarding + club launch (September)
 

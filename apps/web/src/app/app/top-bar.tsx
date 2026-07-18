@@ -10,13 +10,22 @@ const NAV_LINKS = [
   { href: "/app/team", label: "Team" },
   { href: "/app/lessons", label: "Lessons" },
   { href: "/app/checklists", label: "Checklists" },
+  { href: "/app/drill", label: "Drill" },
 ];
 
 function isActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function TopBar({ name, email }: { name: string; email: string }) {
+export function TopBar({
+  name,
+  email,
+  dueCount = 0,
+}: {
+  name: string;
+  email: string;
+  dueCount?: number;
+}) {
   const pathname = usePathname();
 
   return (
@@ -36,19 +45,25 @@ export function TopBar({ name, email }: { name: string; email: string }) {
           <nav aria-label="Primary" className="flex items-center gap-4">
             {NAV_LINKS.map((link) => {
               const active = isActive(pathname, link.href);
+              const showDue = link.href === "/app/drill" && dueCount > 0;
               return (
                 <Link
                   key={link.href}
                   href={link.href}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "flex h-14 items-center border-b-2 text-sm transition-colors duration-150 ease-[cubic-bezier(0.2,0,0,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg",
+                    "flex h-14 items-center gap-1.5 border-b-2 text-sm transition-colors duration-150 ease-[cubic-bezier(0.2,0,0,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg",
                     active
                       ? "border-accent text-text"
                       : "border-transparent text-text-dim hover:text-text",
                   )}
                 >
                   {link.label}
+                  {showDue && (
+                    <span className="rounded-[3px] border border-accent/40 bg-accent/10 px-1.5 py-0.5 font-mono text-[11px] tabular-nums text-accent">
+                      {dueCount}
+                    </span>
+                  )}
                 </Link>
               );
             })}

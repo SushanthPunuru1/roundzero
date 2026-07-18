@@ -426,3 +426,83 @@ while here: neither `apps/web`'s `build` nor `packages/db`'s `generate`
 wraps `dotenv -e ../../.env` (only `dev`/`migrate`/`seed` do, per 015),
 so this fix does not reintroduce a hard `.env`-file dependency in the
 build path. `pnpm build`/`lint`/`test` all still pass locally.
+
+**024 · 2026-07 · Milestone 3: SRS daily drill.** Wired the 55 drill cards
+(`packages/content/cards/core.yaml`) and ts-fsrs scheduling (blessed by 005)
+into a `/app/drill` surface. Extends the content-as-code pattern (006/007)
+and the pure-parse/reconcile/glue split used by taxonomy/lessons/checklists.
+
+*Card sync — deactivate, never delete.* `packages/db/src/cards/{parse,
+reconcile}.ts`, wired into `prisma/seed.ts` after checklist sync. Unlike
+checklist items (022, hard-delete, no user data), a `DrillCard` dropped from
+the YAML is soft-deactivated (`active: false`) because `UserCardState`/
+`ReviewLog` rows reference it and carry a student's review history — this
+follows `SkillNode`'s deprecate-never-delete pattern (006) instead. A card
+that reappears is reactivated and its content refreshed. `skillNodeId` is
+validated against the taxonomy the same way checklist items are (must
+resolve to a leaf `SKILL` node).
+
+*ts-fsrs `5.4.1`, added to `packages/db`.* `packages/db/src/srs/schedule.ts`
+is a thin, unit-tested wrapper — the scheduling math is never hand-rolled.
+Its entire job is mapping between ts-fsrs's snake_case `Card` shape
+(`elapsed_days`, `scheduled_days`, `learning_steps`, `last_review`) and
+`UserCardState`'s camelCase columns, so nothing outside `packages/db`
+imports ts-fsrs directly (`Rating`/`CardState`/`newCardState`/
+`scheduleReview` are re-exported from `client.ts`). Probing the library
+directly (`fsrs().next(card, now, rating)`) showed it tracks a
+`learning_steps` field (position within the learning/relearning step
+sequence) that the original schema didn't persist — round-tripping without
+it would silently reset a card to the first learning step on every review,
+so `UserCardState.learningSteps Int @default(0)` was added alongside
+`createdAt DateTime @default(now())` (needed for the daily new-card cap
+below) in one additive migration, `add_usercardstate_createdat_and_
+learningsteps`.
+
+*New-card introduction, two paths.* (a) Completing a lesson
+(`enqueueLessonCards`, called from `submitCheck` in
+`apps/web/src/app/app/lessons/[slug]/actions.ts`) enqueues every active card
+for that lesson's skill nodes the user doesn't already have a
+`UserCardState` for — immediate, not subject to the cap, since it's an
+explicit signal and a lesson maps to only a handful of cards. (b) A capped
+daily Foundations batch (`DAILY_NEW_CARD_CAP = 10`,
+`packages/db/src/srs/day.ts`) tops up new cards from the Foundations domain
+whenever the drill loads, so a student with zero completed lessons still has
+something to drill. Both paths are idempotent
+(`createMany`/`skipDuplicates` against the `(userId, cardId)` unique
+constraint) and the selection itself is pure/unit-tested
+(`packages/db/src/srs/select.ts`).
+
+*Day boundary: fixed `America/New_York`, not per-user.* No per-user
+timezone is stored (data minimization, CLAUDE.md rule 8: no unnecessary
+PII). Both the streak and the daily new-card cap need a "local day"
+boundary, so `PLATFORM_TIME_ZONE = "America/New_York"` (CyberPatriot is a US
+competition) is threaded through as a parameter everywhere day-boundary math
+happens, rather than hardcoded inline — swapping in a per-user timezone
+later is a config change at each call site, not a data migration. The
+streak in particular (`packages/db/src/srs/streak.ts`, `computeStreak`) is
+**always derived at read time from raw `ReviewLog.reviewedAt` timestamps**
+passed in by the caller — never a stored/cached streak counter — precisely
+so that swap stays cheap. **Known edge case:** a west-coast student drilling
+late evening can have a review land just past the Eastern-time midnight
+boundary from their own perspective and see a streak break unfairly (or,
+symmetrically, get day-boundary credit earlier than their own local day
+actually turned over). **Revisit trigger:** first sustained non-Eastern user
+base — i.e. the Phase 2 external-user gate (spec Phase 2 gate: "25 external
+users complete a lab") — not before; the whole point of the parameterized
+design above is that this fix is additive when it comes.
+
+*Drill surface.* `/app/drill` (`apps/web/src/app/app/drill/{page,actions}
+.tsx`, `drill-session.tsx`): due count + streak in a `StatStrip`, one card
+at a time, space to reveal / 1-4 to rate (keyboard-first per CLAUDE.md rule
+5), COMMAND backs in mono. Rating buttons deliberately do **not** use
+`--score`/`--penalty` (DESIGN.md: scoring-semantics-only) — a drill rating
+is a memory-recall signal, not a competition score. Added `EmptyState`
+(icon, one sentence, one action) to `packages/ui` — it was already in the
+DESIGN.md v1 inventory (Milestone 1, still unbuilt) and is genuinely
+reusable, not one-off. `apps/web/src/app/app/layout.tsx` queries a cheap
+due-card count for the nav badge on every `/app` page load; the actual
+new-card top-up only runs when `/app/drill` itself loads, to avoid a write
+on every navigation.
+
+No other new dependency. `pnpm test`/`lint` pass; `pnpm db:seed` run twice
+locally confirmed idempotency (create once, all-unchanged second run).

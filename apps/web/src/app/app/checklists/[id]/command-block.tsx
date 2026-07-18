@@ -35,7 +35,7 @@ export function CommandBlock({ label, command }: { label: string; command: strin
           )}
         </button>
       </div>
-      <pre className="overflow-x-auto p-3 font-mono text-[13px] leading-[20px] text-text">
+      <pre className="whitespace-pre-wrap break-words p-3 font-mono text-[13px] leading-[20px] text-text">
         <code>{command}</code>
       </pre>
     </div>

@@ -2,8 +2,8 @@
 // checklists, drill cards) into the DB index tables. YAML/MDX stays the
 // source of truth; this script only upserts rows to match it.
 //
-// Milestone 1 built taxonomy + lesson sync. This adds Season + checklist
-// sync (Milestone 2). Drill cards are a later roadmap item — not built here.
+// Milestone 1 built taxonomy + lesson sync. Milestone 2 added Season +
+// checklist sync. This adds drill card sync (Milestone 3).
 
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -19,6 +19,8 @@ import {
   type ExistingChecklistItem,
   type ExistingChecklistTemplate,
 } from "../src/checklists/reconcile";
+import { parseCards, validateCardRefs } from "../src/cards/parse";
+import { reconcileCards, type ExistingCard } from "../src/cards/reconcile";
 
 const CONTENT_DIR = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -27,6 +29,7 @@ const CONTENT_DIR = path.resolve(
 const TAXONOMY_PATH = path.join(CONTENT_DIR, "taxonomy/taxonomy.yaml");
 const LESSONS_DIR = path.join(CONTENT_DIR, "lessons");
 const CHECKLISTS_DIR = path.join(CONTENT_DIR, "checklists");
+const CARDS_PATH = path.join(CONTENT_DIR, "cards/core.yaml");
 
 // The official CyberPatriot season currently in progress. SeasonEvent rows
 // (registration/round/state calendar, Appendix B) are seeded later once
@@ -308,11 +311,69 @@ async function syncChecklists(
   );
 }
 
+async function syncCards(knownTaxonomyNodes: DesiredNode[]): Promise<void> {
+  const text = readFileSync(CARDS_PATH, "utf-8");
+  const desired = parseCards(text);
+  validateCardRefs(desired, knownTaxonomyNodes);
+
+  const existingRows = await prisma.drillCard.findMany();
+  const existing: ExistingCard[] = existingRows.map((row) => ({
+    id: row.id,
+    skillNodeId: row.skillNodeId,
+    type: row.type,
+    front: row.front,
+    back: row.back,
+    active: row.active,
+  }));
+
+  const plan = reconcileCards(desired, existing);
+
+  await prisma.$transaction(async (tx) => {
+    for (const card of plan.toCreate) {
+      await tx.drillCard.create({
+        data: {
+          id: card.id,
+          skillNodeId: card.skillNodeId,
+          type: card.type,
+          front: card.front,
+          back: card.back,
+          active: true,
+        },
+      });
+    }
+    for (const card of [...plan.toUpdate, ...plan.toReactivate]) {
+      await tx.drillCard.update({
+        where: { id: card.id },
+        data: {
+          skillNodeId: card.skillNodeId,
+          type: card.type,
+          front: card.front,
+          back: card.back,
+          active: true,
+        },
+      });
+    }
+    for (const card of plan.toDeactivate) {
+      await tx.drillCard.update({
+        where: { id: card.id },
+        data: { active: false },
+      });
+    }
+  });
+
+  console.log(
+    `card sync — created: ${plan.toCreate.length}, updated: ${plan.toUpdate.length}, ` +
+      `deactivated: ${plan.toDeactivate.length}, reactivated: ${plan.toReactivate.length}, ` +
+      `unchanged: ${plan.unchanged.length}`,
+  );
+}
+
 async function main(): Promise<void> {
   const taxonomyNodes = await syncTaxonomy();
   const lessonSlugs = await syncLessons(taxonomyNodes);
   const seasonIds = await syncSeason();
   await syncChecklists(taxonomyNodes, lessonSlugs, seasonIds);
+  await syncCards(taxonomyNodes);
 }
 
 main()

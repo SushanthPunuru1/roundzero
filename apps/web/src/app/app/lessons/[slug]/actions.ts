@@ -8,6 +8,7 @@ import { bestScore, gradeCheck, prisma } from "@roundzero/db";
 
 import { auth } from "@/lib/auth";
 import { loadLessonBySlug } from "@/lib/lesson-content";
+import { enqueueLessonCards } from "@/lib/drill";
 
 export interface CheckResultQuestion {
   correct: boolean;
@@ -77,8 +78,11 @@ export async function submitCheck(
     },
   });
 
+  await enqueueLessonCards(session.user.id, lesson.meta.slug, new Date());
+
   revalidatePath(`/app/lessons/${lesson.meta.slug}`);
   revalidatePath("/app/lessons");
+  revalidatePath("/app/drill");
 
   return {
     result: {
