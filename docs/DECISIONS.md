@@ -506,3 +506,49 @@ on every navigation.
 
 No other new dependency. `pnpm test`/`lint` pass; `pnpm db:seed` run twice
 locally confirmed idempotency (create once, all-unchanged second run).
+
+**025 · 2026-07 · Fixed a production bug: `/app/drill` could show "all
+caught up" while cards were still genuinely due.** `DrillSession`
+(`apps/web/src/app/app/drill/drill-session.tsx`) tracked its position with a
+plain `index` against the `queue` prop it received from the server. Rating a
+card calls the `rateCard` server action, which calls `revalidatePath("/app/
+drill")` — Next.js then automatically re-renders the parent Server
+Component (`page.tsx`, which re-runs `loadDrill()`) and passes a freshly
+re-fetched, **shrunken** `queue` array back down into the already-mounted
+client component on every single rating. Since `index` kept incrementing by
+1 per rating while the live array kept shrinking by 1 (the just-rated card
+dropping out), the two drifted apart: `queue[index]` silently skipped
+ahead, and `done = index >= queue.length` could go true well before every
+card the session started with had actually been rated — stranding the
+skipped cards as still due. Reproduced deterministically with a React
+Testing Library regression test (`drill-session.test.tsx`) that rates one
+card, then re-renders the component with a shrunk `queue` prop (simulating
+the exact revalidation-driven re-render) — confirmed it fails against the
+pre-fix code (jumps straight to "Card 2 of 2" / the wrong card, skipping
+one entirely) before restoring the fix.
+
+*Fix.* `DrillSession` now freezes its queue once via `useRef` on mount and
+never resyncs from the `queue` prop again — a drill session always works
+through the exact batch (due cards + that load's daily top-up, already
+combined by `loadDrill` before the queue is returned) it started with,
+regardless of how many times the parent re-renders behind it. New cards
+introduced by a later top-up surface on the next page load, not
+mid-session. `rateCard` now also calls `revalidatePath("/app", "layout")`
+(previously only the page) so the nav due-count badge
+(`apps/web/src/app/app/layout.tsx`'s `countDueCards`) updates live as the
+user rates, instead of only on the next hard navigation — with the client
+fix in place this can no longer desync the empty-state check. Verified with
+a disposable-user integration script (drain to zero) that `loadDrill`'s
+`dueCount`, its `queue.length`, and `countDueCards`'s badge query all agree
+at 0 after a full session — confirming the data layer was never the
+problem, only the client's index/array desync was.
+
+*Copy/UX: the drill wasn't teaching that it's self-graded recall, not a
+quiz.* After reveal, the four rating buttons now show their meaning, not
+just their name — "1 Again — Didn't recall it", "2 Hard — Recalled, but it
+was a struggle", "3 Good — Recalled it correctly", "4 Easy — Recalled it
+instantly" — under a "How well did you know it?" eyebrow, still clickable
+and keyboard 1-4. The page intro now states the model directly: "Recall the
+answer, reveal it, then rate how well you knew it — you're grading your own
+memory, not taking a quiz." No new `--score`/`--penalty` use (still
+neutral/accent tokens only, per DESIGN.md). No new dependency.

@@ -86,6 +86,11 @@ export async function rateCard(input: {
   ]);
 
   revalidatePath("/app/drill");
+  // Also revalidate the shared /app layout so the nav due-count badge
+  // (computed in apps/web/src/app/app/layout.tsx) stays live as the user
+  // rates through a session, instead of only updating on the next hard
+  // navigation.
+  revalidatePath("/app", "layout");
 
   return {};
 }

@@ -18,7 +18,8 @@ export default async function DrillPage() {
     <div>
       <PageHeader eyebrow="Practice" title="Daily drill" />
       <p className="mt-1 text-sm text-text-dim">
-        A few minutes of spaced review. Space to reveal, 1&ndash;4 to rate.
+        Recall the answer, reveal it, then rate how well you knew it &mdash; you're
+        grading your own memory, not taking a quiz. Space to reveal, 1&ndash;4 to rate.
       </p>
       <StatStrip className="mt-6">
         <Stat label="Due today" value={drill.dueCount} />
