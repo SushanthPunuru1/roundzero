@@ -1,0 +1,134 @@
+# RoundZero — check file for the linux-practice image (agent/image/).
+#
+# Every check id maps 1:1 to a planted vuln or decoy documented in
+# agent/image/answer-key.yaml, and every skillNode is a real leaf id from
+# packages/content/taxonomy/taxonomy.yaml. See agent/README.md for the
+# check-file schema and how to add check #13+.
+
+version: 1
+image: linux-practice
+checks:
+  # --- Accounts ------------------------------------------------------------
+  - id: uid0-backdoor
+    title: "No unauthorized UID 0 accounts"
+    skillNode: linux.accounts.uid0
+    points: 12
+    type: user
+    params:
+      username: backdoor
+      uid: 0
+      present: false
+
+  - id: unauthorized-sudo
+    title: "No unauthorized members of the sudo group"
+    skillNode: linux.accounts.sudoers
+    points: 10
+    type: command
+    params:
+      command: "getent group sudo"
+      pattern: '\bmallory\b'
+      present: false
+
+  # --- PAM / password policy -------------------------------------------------
+  - id: pwquality-minlen
+    title: "pam_pwquality enforces a minimum password length"
+    skillNode: linux.pam.pwquality
+    points: 10
+    type: file_contains
+    params:
+      path: /etc/security/pwquality.conf
+      pattern: '(?m)^\s*minlen\s*=\s*(1[4-9]|[2-9][0-9])'
+      present: true
+
+  - id: faillock-deny
+    title: "pam_faillock enforces an account-lockout threshold"
+    skillNode: linux.pam.faillock
+    points: 8
+    type: file_contains
+    params:
+      path: /etc/security/faillock.conf
+      pattern: '(?m)^\s*deny\s*=\s*[1-9]'
+      present: true
+
+  # --- SSH -------------------------------------------------------------------
+  - id: ssh-permitrootlogin
+    title: "SSH disallows direct root login (merged config)"
+    skillNode: linux.ssh.permitrootlogin
+    points: 12
+    type: sshd_config
+    params:
+      key: permitrootlogin
+      value: "no"
+
+  # --- Services & persistence --------------------------------------------------
+  - id: cron-malicious
+    title: "No malicious cron persistence job"
+    skillNode: linux.services-persistence.cron
+    points: 12
+    type: file_contains
+    params:
+      path: /etc/cron.d/pkg-update
+      pattern: 'curl .*\|\s*bash'
+      present: false
+
+  - id: insecure-service-absent
+    title: "Prohibited telnet service is not installed"
+    skillNode: linux.services-persistence.malware
+    points: 10
+    type: package
+    params:
+      name: telnetd
+      present: false
+
+  # --- File permissions --------------------------------------------------------
+  - id: shadow-mode
+    title: "/etc/shadow is not world-readable"
+    skillNode: linux.files-perms.sensitive-modes
+    points: 8
+    type: file_mode
+    params:
+      path: /etc/shadow
+      mode: "0640"
+      compare: max
+
+  - id: rogue-suid
+    title: "No rogue SUID binary"
+    skillNode: linux.files-perms.suid
+    points: 8
+    type: command
+    params:
+      command: "find / -xdev -perm -4000 -type f 2>/dev/null"
+      pattern: '/usr/local/bin/rootbash'
+      present: false
+
+  # --- Updates & network ---------------------------------------------------------
+  - id: ufw-active
+    title: "Firewall (UFW) is enabled"
+    skillNode: linux.updates-network.ufw
+    points: 10
+    type: command
+    params:
+      command: "ufw status"
+      pattern: 'Status: active'
+      present: true
+
+  # --- Decoys: authorized state the checks above must never flag -----------------
+  - id: decoy-authorized-user
+    title: "Authorized user zzsync is present (do not remove)"
+    skillNode: linux.accounts.passwd-shadow
+    points: 0
+    type: user
+    params:
+      username: zzsync
+      present: true
+
+  - id: decoy-required-ssh
+    title: "README-required SSH service stays enabled (do not disable)"
+    skillNode: linux.services-persistence.critical
+    points: 0
+    type: service
+    params:
+      # Ubuntu 24.04 ships SSH socket-activated: ssh.socket is the unit
+      # actually enabled by default, not ssh.service directly.
+      name: ssh.socket
+      state: enabled

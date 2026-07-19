@@ -552,3 +552,86 @@ and keyboard 1-4. The page intro now states the model directly: "Recall the
 answer, reveal it, then rate how well you knew it — you're grading your own
 memory, not taking a quiz." No new `--score`/`--penalty` use (still
 neutral/accent tokens only, per DESIGN.md). No new dependency.
+
+**026 · 2026-07 · Phase 2 kickoff: agent/ Go module, check-file schema,
+merged-config decision, linux-practice vulnerable image.** First Phase 2
+build (extends 003's "agent + injector in Go" decision with the concrete
+schema/implementation). Everything runs locally against Docker; no
+orchestrator, browser terminal, or lab-container lifecycle work yet — those
+stay ROADMAP Phase 2 items for later sessions.
+
+*Check-file schema.* One `type` + `params` per check, dispatched through a
+`internal/checks` registry (`schema.go`/`registry.go`) — deliberately no
+`all:`/`any:` composition; every one of the first 10 planted vulns needs
+exactly one condition, and adding real composition ahead of a genuine need
+would be exactly the kind of premature abstraction CLAUDE.md warns against.
+7 check types shipped (`file_contains`, `file_mode`, `user`, `command`,
+`service`, `package`, `sshd_config`), each a registered `Evaluator` over an
+`internal/system.System` interface (`ReadFile`/`Mode`/`Run`) with a `Fake`
+implementation, so every check type's evaluation logic is pure and
+unit-tested without Docker or a Linux box. aeacus's YAML format remains
+design-reference only (003) — this schema and its Go implementation are
+clean-room.
+
+*Merged-config decision.* The `sshd_config` check type evaluates `sshd -T`
+(sshd's own merged/effective config) and never greps the raw file. Ubuntu
+puts `Include /etc/ssh/sshd_config.d/*.conf` as literally the first line of
+`sshd_config`, and sshd applies first-match-wins per directive, so a
+drop-in (the real Ubuntu 24.04 cloud-init pattern) can silently override
+anything the main file says — grepping the main file alone would produce
+both false negatives (a valid fix landed in the drop-in) and false
+positives (main file looks hardened, a drop-in overrides it). The
+`linux-practice` image's `ssh-permitrootlogin` check plants exactly this
+trap; `agent/scripts/prove.sh` state 4 proves a drop-in-only fix is
+credited, and a bonus demo proves a main-file-only edit is correctly still
+failing.
+
+*`service` check without a booted init.* Containers here never run systemd
+as PID 1 (no `--privileged`, no cgroup mounts, no boot race — considered and
+rejected as unnecessary complexity for what "enabled/disabled" actually
+needs). `systemctl --root=/ is-enabled <unit>` is systemd's own documented
+offline mode (used by chroot/image-building tools like mkosi/debootstrap):
+it reads unit/`.wants` symlinks directly from the filesystem, never talks to
+a running PID 1 or D-Bus. Sufficient for every check planted so far (only
+enabled/disabled, never live active/running state); live active-state
+polling is a real future requirement (Phase 2 debrief's critical-service
+uptime %, DECISIONS 013) deferred until the orchestrator runs boot-capable
+lab containers — noted as a known scope limit in `agent/README.md`, not a
+bug.
+
+*`agent/` Go module.* `github.com/roundzero/agent`, Go 1.23, one dependency:
+`gopkg.in/yaml.v3` (MIT, compiled into a static `CGO_ENABLED=0` binary — zero
+runtime deps). No local Go install is assumed anywhere in this repo or CI —
+build/vet/test all run inside a `golang:1.23` container
+(`agent/scripts/prove.sh`, and a new parallel `agent` job in
+`.github/workflows/ci.yml` using `actions/setup-go`, independent of the
+existing pnpm/Next.js job).
+
+*`linux-practice` vulnerable image + proof harness.* `agent/image/Dockerfile`
+(`ubuntu:24.04`) plants 10 vulns spanning every category in
+`packages/content/checklists/linux-core.yaml` (accounts, PAM, SSH,
+services/persistence, file perms, updates/firewall) plus 2 zero-point decoy
+checks proving the engine respects an authorization model instead of
+blanket-flagging (an odd-named but authorized sudoer; a required service
+staying enabled). `agent/image/answer-key.yaml` is the machine-readable
+manifest (distinct from `agent/checks/linux-practice.yaml`, the engine's
+actual scoring input) — every planted vuln's category/points/skillNode/
+remediation, kept in lockstep by hand per `agent/README.md`'s "how to add a
+vuln" process (Dockerfile injection + fix script + check entry + answer-key
+entry, no engine changes). `agent/scripts/prove.sh` builds the agent (in a
+`golang` container) and the image, then runs all four states from a fresh
+container each time — fresh vulnerable (0/100, exactly the 10 vulns fail),
+fully hardened (100/100), half-fixed (exactly the sum of 5 chosen fixes, no
+partial credit), and the alternate SSH fix (drop-in only, 12/100) — grepping
+each JSON report's totals and self-asserting every expected number (exit
+non-zero on any mismatch), plus the bonus main-file-only demo above.
+Containers run with `--cap-add=NET_ADMIN --cap-add=NET_RAW` (not
+`--privileged`): `ufw enable`'s iptables/nftables rule loading and network
+sysctls need these even outside a booted init, and the real orchestrator
+will need to grant lab containers the same for students to run `ufw enable`
+themselves. `RUN mkdir -p /run/sshd` in the Dockerfile is required for
+`sshd -T` to run at all in this environment — that directory is normally
+created by systemd-tmpfiles at boot, which never happens here. Verified end
+to end: `go vet`/`go test ./...` (32 unit tests) green inside a
+`golang:1.23` container; `agent/scripts/prove.sh` passes all four states +
+the bonus demo against real Docker Desktop, self-asserted, exit 0.

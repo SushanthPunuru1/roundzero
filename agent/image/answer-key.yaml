@@ -1,0 +1,122 @@
+# RoundZero — answer key for the linux-practice image.
+#
+# This is the audit/authorization manifest for THIS image: it is the
+# authoritative human+machine record of what was deliberately planted and
+# what is authorized. It is a separate document from ../checks/linux-practice.yaml
+# (the engine's scoring input) on purpose — this file is the "README" a real
+# CyberPatriot image would ship (extended with points/skillNode/remediation
+# for our own bookkeeping); the check file is what actually runs. Every
+# `checkId` here must have exactly one matching check id there, and vice
+# versa — scripts/prove.sh doesn't enforce this automatically, so keep them
+# in lockstep by hand when adding vuln #11+ (see agent/README.md).
+
+image: linux-practice
+title: "RoundZero Linux practice image v1"
+
+vulnerabilities:
+  - checkId: uid0-backdoor
+    category: accounts
+    skillNode: linux.accounts.uid0
+    points: 12
+    title: "Unauthorized UID 0 account"
+    plantedAs: "User `backdoor` created with -o -u 0 -g 0 (a second root-equivalent account)."
+    remediation: "Delete the account, or move it off uid 0 (either satisfies the check)."
+
+  - checkId: unauthorized-sudo
+    category: accounts
+    skillNode: linux.accounts.sudoers
+    points: 10
+    title: "Unauthorized member of the sudo group"
+    plantedAs: "User `mallory` added to the sudo group."
+    remediation: "Remove mallory from sudo (deluser mallory sudo)."
+
+  - checkId: pwquality-minlen
+    category: pam
+    skillNode: linux.pam.pwquality
+    points: 10
+    title: "No enforced password minimum length"
+    plantedAs: "/etc/security/pwquality.conf shipped with every directive commented out."
+    remediation: "Set minlen >= 14 (and the credit rules) in pwquality.conf."
+
+  - checkId: faillock-deny
+    category: pam
+    skillNode: linux.pam.faillock
+    points: 8
+    title: "No account-lockout threshold"
+    plantedAs: "/etc/security/faillock.conf shipped with every directive commented out."
+    remediation: "Set deny >= 1 (we recommend 5) in faillock.conf."
+
+  - checkId: ssh-permitrootlogin
+    category: ssh
+    skillNode: linux.ssh.permitrootlogin
+    points: 12
+    title: "Direct root login over SSH allowed"
+    plantedAs: >-
+      Main /etc/ssh/sshd_config sets PermitRootLogin yes, AND
+      /etc/ssh/sshd_config.d/50-cloud-init.conf (loaded first, so it wins)
+      also sets PermitRootLogin yes — mirrors the real Ubuntu 24.04
+      cloud-image trap the linux-core checklist calls out. Editing only the
+      main file does nothing; the drop-in must be fixed. The check
+      evaluates `sshd -T` (merged config), never the raw file, so it
+      credits whichever file actually wins.
+    remediation: "Set PermitRootLogin no in the file that wins — here, the 50-cloud-init.conf drop-in."
+
+  - checkId: cron-malicious
+    category: services-persistence
+    skillNode: linux.services-persistence.cron
+    points: 12
+    title: "Malicious cron persistence job"
+    plantedAs: "/etc/cron.d/pkg-update runs `curl ... | bash` against a TEST-NET-2 (RFC 5737) address every 5 minutes — inert, pattern-only."
+    remediation: "Remove /etc/cron.d/pkg-update."
+
+  - checkId: insecure-service-absent
+    category: services-persistence
+    skillNode: linux.services-persistence.malware
+    points: 10
+    title: "Prohibited telnet service installed"
+    plantedAs: "telnetd installed via apt."
+    remediation: "apt-get purge -y telnetd."
+
+  - checkId: shadow-mode
+    category: file-permissions
+    skillNode: linux.files-perms.sensitive-modes
+    points: 8
+    title: "World-readable /etc/shadow"
+    plantedAs: "/etc/shadow mode set to 0644."
+    remediation: "chmod 640 /etc/shadow (or stricter, e.g. 0600)."
+
+  - checkId: rogue-suid
+    category: file-permissions
+    skillNode: linux.files-perms.suid
+    points: 8
+    title: "Rogue SUID binary"
+    plantedAs: "/usr/local/bin/rootbash — a copy of /bin/bash with mode 4755."
+    remediation: "Remove /usr/local/bin/rootbash."
+
+  - checkId: ufw-active
+    category: updates-network
+    skillNode: linux.updates-network.ufw
+    points: 10
+    title: "Firewall disabled"
+    plantedAs: "ufw installed but left in its default inactive state."
+    remediation: "ufw enable (after confirming SSH access is allowed)."
+
+authorized:
+  - checkId: decoy-authorized-user
+    skillNode: linux.accounts.passwd-shadow
+    title: "zzsync is an authorized user — do not remove"
+    note: >-
+      Odd-named on purpose. In sudo too, but the unauthorized-sudo check
+      keys on the specific name "mallory", not "any unfamiliar sudoer" — a
+      naive engine that blanket-flagged unrecognized sudo members would
+      wrongly fail this account; ours doesn't.
+
+  - checkId: decoy-required-ssh
+    skillNode: linux.services-persistence.critical
+    title: "ssh is a required service — do not disable"
+    note: >-
+      Proves the engine credits a README-required service staying up,
+      instead of rewarding "disable everything" as a shortcut to a clean
+      scan. Checked as ssh.socket, not ssh.service: Ubuntu 24.04 ships SSH
+      socket-activated, so ssh.socket is the unit actually enabled by
+      default (multi-user.target.wants never gets an ssh.service symlink).
