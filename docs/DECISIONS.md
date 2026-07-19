@@ -635,3 +635,122 @@ created by systemd-tmpfiles at boot, which never happens here. Verified end
 to end: `go vet`/`go test ./...` (32 unit tests) green inside a
 `golang:1.23` container; `agent/scripts/prove.sh` passes all four states +
 the bonus demo against real Docker Desktop, self-asserted, exit 0.
+
+**027 · 2026-07 · In-browser lab terminal: `lab-broker/` (Node/TS, standalone)
++ `TerminalFrame`/`ScoreLine` in `packages/ui` + `/app/lab`. Local-only.**
+The first end-to-end Phase 2 loop a student actually touches: launch a
+practice lab, get a live root shell in the `linux-practice` container from
+inside the browser, harden it, click Score, see the report. Scope
+deliberately stayed local + single-lab (no multi-tenant isolation, gVisor,
+pooling, or cloud — those are the orchestrator, a later session).
+
+*Why a separate service, not Next.js.* Vercel is serverless (no container
+host, no persistent socket) and reaching Docker from the Next dev server
+locally is fragile. `lab-broker/` owns all container lifecycle + the
+terminal bridge and is the earliest seed of the Phase 2 orchestrator —
+config-driven (`HOST`/`PORT`/`RZ_IMAGE`/etc., see `lab-broker/README.md`) so
+it can move to a remote host later without an app-side rewrite.
+
+*Node/TS, standalone outside the pnpm workspace, dockerode over shelling
+out.* Node/TS for cohesion with the rest of the repo — `agent/` is Go
+specifically because 003's rationale (static binary, zero runtime deps,
+drops into any container) doesn't apply to a long-running host service.
+Standalone (own `package.json`, own `npm install`) rather than a workspace
+package: keeps Docker-facing dependencies (`dockerode`, `ws`) out of
+`apps/web`'s install and the Vercel bundle entirely, mirroring how `agent/`
+is already a separate Go module with its own CI job. The interactive shell
+is `docker exec` with `Tty: true` over `dockerode` (the Docker Engine HTTP
+API) — the container's *own* PTY comes back over a hijacked connection, so
+this needs no *local* PTY and therefore no `node-pty` (native bindings,
+historically the fragile part of Node terminal bridges on Windows/WSL).
+dockerode's default socket detection (`/var/run/docker.sock` on Linux/WSL,
+the `//./pipe/docker_engine` named pipe on Windows) means the same code runs
+in the WSL target and was proven here directly against Docker Desktop on
+Windows. The one place this reaches for the `docker` CLI instead of the
+Engine API is copying `rzagent` + the check file into a fresh container
+(`docker cp`) — dockerode's `putArchive` wants a tar stream, and shelling
+out reuses the exact command `agent/scripts/prove.sh` already proves works,
+avoiding a `tar-stream` dependency for one call site.
+
+*Terminal WS protocol.* Client→broker binary frames = raw stdin bytes;
+client→broker text frames = JSON `{type:"resize",cols,rows}`; broker→client
+binary = raw container stdout (a real TTY, so Docker never multiplexes it).
+Found via `lab-broker/scripts/prove.mjs` during this session: the server's
+`ws.on("message", ...)` listener was originally attached *after* `await
+docker.openShell(...)` — since `docker exec` create is a real network call,
+the client's initial resize + first keystrokes (sent immediately on WS
+`open`) arrived before that listener existed and were silently dropped
+(`EventEmitter` doesn't queue events with no listener). Fixed by attaching
+the message listener synchronously before the await and buffering
+input/resize until the shell exists, then flushing — `server.ts`'s
+`attachTerminal`.
+
+*`packages/ui`: `ScoreLine` (first real use of the DESIGN.md signature
+grammar) and `TerminalFrame` (`@xterm/xterm@6.0.0` +
+`@xterm/addon-fit@0.11.0`, new dependency — the DESIGN.md v1 inventory item,
+built for real now instead of chrome-only). `TerminalFrame` is a pure
+primitive: it owns the `Terminal`/`FitAddon` instance and exposes
+`write`/`clear`/`focus`/`fit` via ref plus `onData`/`onResize` props, but
+never opens a socket — `apps/web`'s `lab-console.tsx` owns the WebSocket.
+Its background/foreground/cursor/selection colors are the DESIGN.md token
+hexes as literal strings, not `var(--token)` — xterm renders to `<canvas>`,
+whose 2D context needs a resolved color, not a CSS custom property. The
+16-slot ANSI palette (a shell's own `ls --color`, prompt colors) is
+deliberately left at xterm's built-in default rather than mapped to
+`--score`/`--penalty`: those tokens are reserved exclusively for scoring
+semantics (DESIGN.md hard rule) and a shell's red/green is the machine's own
+language, not a RoundZero scoring signal. `ScoreLine` maps a check's
+`pass`/`earned` into `found`/`missed` (the Go agent has no penalty-type
+check yet, so `penalty` is implemented per DESIGN.md's grammar but unused
+by this feature).
+
+*Score enrichment stays server-side.* `apps/web/src/app/app/lab/actions.ts`'s
+`scoreLab` takes the broker's raw report (id/title/skillNode/points/earned/
+pass/detail) and resolves each `skillNode` against Prisma
+(`SkillNode.parent.title` for the category chip, `LessonSkill` for a
+published lesson link) the same way `checklists/[id]/page.tsx` already does
+— the taxonomy spine (CLAUDE.md rule 2) stays the single source for
+category/lesson mapping; `lab-broker` itself never touches the app DB.
+
+*Browser talks to the broker two ways.* The terminal WebSocket connects
+**directly** from the browser to `LAB_BROKER_URL` (a WebSocket can't be
+proxied through a Vercel serverless function, and this feature is
+local-only anyway) — `launchLab()` hands back the exact `ws://` URL derived
+server-side so `LAB_BROKER_URL` itself never has to be a `NEXT_PUBLIC_` var.
+Lifecycle/score calls (`POST /labs`, `POST /labs/:id/score`, `DELETE
+/labs/:id`) go through Next server actions instead, both to keep the broker
+URL server-side and because scoring needs the Prisma enrichment above. No
+CORS handling in `lab-broker`: the JSON endpoints are server-to-server and
+the WebSocket protocol isn't subject to CORS.
+
+*Local-only — does not work on the Vercel deploy.* `apps/web` builds and
+deploys exactly as before with `LAB_BROKER_URL` unset; `/app/lab` renders a
+designed "lab isn't configured" error state instead of crashing. Verified:
+`pnpm build` with the same placeholder env vars CI uses (no
+`LAB_BROKER_URL`) succeeds and includes the `/app/lab` route. Production is
+unblocked only by the Phase 2 orchestrator running on a real host — not
+scoped to this session.
+
+*Root `eslint.config.mjs`* gained a scoped override for `**/*.mjs` files
+(`console`/`process`/`fetch`/timers/`Buffer` as globals) — `.ts` files
+already get these for free from `@typescript-eslint`'s recommended
+eslint-recommended override, but `lab-broker/scripts/prove.mjs` is plain JS
+and has no such override, so `no-undef` needs the Node globals spelled out
+by hand rather than pulling in the `globals` package for one file.
+
+Verified end to end: `lab-broker`'s `vitest` (16 tests: `registry.ts`
+lifecycle/idle-sweep bookkeeping against a fake driver+clock, `score.ts`
+parse/shape against captured rzagent JSON shapes) and `tsc --noEmit` both
+green, no Docker required. `npm run prove` (`lab-broker/scripts/prove.mjs`)
+against real Docker + the real `linux-practice` image: launches a lab,
+scores it fresh (0/100, matching `agent/README.md`'s known state), runs
+`userdel -f backdoor` and `ufw --force enable` through the actual terminal
+WebSocket, re-scores and asserts the total rose by exactly +22 (the two
+fixed checks, no partial credit) and that both check ids flipped to
+`pass:true`, deletes the lab, and asserts `docker ps -a` no longer lists the
+container — self-asserting, exit 0. `pnpm lint`/`pnpm test` (170 tests
+across `packages/db`/`apps/web`, unchanged — this session added no new
+apps/web-side unit tests; `TerminalFrame`/`ScoreLine`/`lab-console.tsx` are
+presentational/thin-glue, and the loop's real logic lives in `lab-broker`'s
+own suite above) pass; `pnpm build` (root) succeeds both with and without
+`LAB_BROKER_URL` set.

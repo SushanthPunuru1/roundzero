@@ -6,10 +6,14 @@ Full product spec: `docs/spec.md`. Roadmap and gates: `docs/ROADMAP.md`.
 
 ## Current focus
 
-**Phase 1, Milestone 1** — auth, teams, taxonomy, lesson rendering.
-See `docs/ROADMAP.md` for the definition of done. Do not build anything
-outside the current milestone. If a task drifts toward later phases, stop
-and flag it instead of building it.
+**Phase 2 — Linux live labs.** Phase 1 (M1-M4) is done. The Go scoring
+agent + `linux-practice` vulnerable image (`agent/`) are done and proven.
+Current slice: the in-browser lab terminal — `lab-broker/` (local container
+lifecycle + terminal bridge) and `apps/web`'s `/app/lab` surface. See
+`docs/ROADMAP.md` for the full Phase 2 gate. Do not build ahead of it
+(multi-tenant isolation, gVisor, pooling, the real orchestrator, cloud
+deploy — those are explicitly later sessions). If a task drifts past the
+current slice, stop and flag it instead of building it.
 
 ## Golden rules
 
@@ -45,8 +49,9 @@ and flag it instead of building it.
   Better Auth organization == one team
 - ts-fsrs for spaced-repetition scheduling
 - Deployed on Vercel; every PR gets a preview
-- Later (Phase 2, do not scaffold yet): Go scoring agent + injector,
-  orchestrator service on a Hetzner box
+- Phase 2: Go scoring agent + injector (`agent/`, done). `lab-broker/`
+  (Node/TS) is the local, single-lab seed of the eventual orchestrator
+  service on a Hetzner box — see `docs/DECISIONS.md` 027.
 
 ## Repo layout
 
@@ -56,7 +61,12 @@ packages/ui           Component library — the only source of UI primitives
 packages/db           Prisma schema, client singleton, seed scripts
 packages/content      taxonomy.yaml, MDX lessons, checklist YAML, drill cards
 docs/                 spec.md, ROADMAP.md, DECISIONS.md
-agent/                RESERVED for Phase 2 Go agent. Do not create yet.
+agent/                Go scoring agent + linux-practice vulnerable image (done)
+lab-broker/           Local Docker lifecycle + terminal bridge for /app/lab.
+                      Standalone (outside the pnpm workspace) — see its
+                      README.md and docs/DECISIONS.md 027. Local-only; the
+                      real orchestrator (remote host, multi-tenant) is a
+                      later Phase 2 session.
 ```
 
 ## Conventions

@@ -11,6 +11,7 @@ const NAV_LINKS = [
   { href: "/app/lessons", label: "Lessons" },
   { href: "/app/checklists", label: "Checklists" },
   { href: "/app/drill", label: "Drill" },
+  { href: "/app/lab", label: "Lab" },
 ];
 
 function isActive(pathname: string, href: string): boolean {

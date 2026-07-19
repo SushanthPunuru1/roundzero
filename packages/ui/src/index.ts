@@ -13,4 +13,11 @@ export { PageHeader, type PageHeaderProps } from "./components/ui/page-header";
 export { Avatar, avatarVariants, initials, type AvatarProps } from "./components/ui/avatar";
 export { Stat, StatStrip, type StatProps, type StatStripProps } from "./components/ui/stat-strip";
 export { EmptyState, type EmptyStateProps } from "./components/ui/empty-state";
+export { ScoreLine, type ScoreLineProps, type ScoreLineState } from "./components/ui/score-line";
+export {
+  TerminalFrame,
+  type TerminalFrameHandle,
+  type TerminalFrameProps,
+  type TerminalFrameStatus,
+} from "./components/ui/terminal-frame";
 export { cn } from "./lib/utils";
