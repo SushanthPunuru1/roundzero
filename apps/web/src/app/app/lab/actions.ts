@@ -6,6 +6,7 @@ import { prisma } from "@roundzero/db";
 import type { ScoreLineState } from "@roundzero/ui";
 
 import { auth } from "@/lib/auth";
+import { enqueueSkillNodeCards } from "@/lib/drill";
 
 const BROKER_TIMEOUT_MS = 5000;
 
@@ -88,6 +89,7 @@ export interface ScoreRow {
   title: string;
   why: string;
   lessonHref?: string;
+  skillNode: string;
 }
 
 export interface ScoreLabResult {
@@ -144,6 +146,7 @@ export async function scoreLab(labId: string): Promise<ScoreLabResult> {
         title: check.title,
         why: check.error || check.detail,
         lessonHref: lessonSlug ? `/app/lessons/${lessonSlug}` : undefined,
+        skillNode: check.skillNode,
       };
     });
 
@@ -168,4 +171,20 @@ export async function stopLab(labId: string): Promise<StopLabResult> {
   } catch (err) {
     return { error: err instanceof BrokerUnavailableError ? err.message : "Couldn't stop the lab." };
   }
+}
+
+export interface EnqueueMissedDrillsResult {
+  enqueuedCount: number;
+}
+
+/**
+ * Enqueues the missed checks' skill nodes' drill cards into the user's SRS
+ * queue — mirrors lesson completion's `enqueueLessonCards`. Called once the
+ * debrief renders; idempotent (safe to call again on re-score or re-viewing
+ * the same debrief — only genuinely new cards count toward the result).
+ */
+export async function enqueueMissedDrills(skillNodeIds: string[]): Promise<EnqueueMissedDrillsResult> {
+  const session = await requireSession();
+  const enqueuedCount = await enqueueSkillNodeCards(session.user.id, skillNodeIds, new Date());
+  return { enqueuedCount };
 }

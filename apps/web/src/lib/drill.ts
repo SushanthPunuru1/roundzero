@@ -33,12 +33,38 @@ function freshStateRow(userId: string, cardId: string, now: Date) {
 }
 
 /**
- * Enqueues a completed lesson's cards for the user: every active DrillCard
- * whose skillNodeId belongs to this lesson, that the user doesn't already
- * have a UserCardState for. Not subject to the daily new-card cap —
- * completing a lesson should surface its cards right away. Safe to call on
- * every completion (including retakes): the unique (userId, cardId)
- * constraint makes it idempotent via skipDuplicates.
+ * Enqueues every active DrillCard for the given skill nodes that the user
+ * doesn't already have a UserCardState for. Not subject to the daily
+ * new-card cap — an explicit signal (a lesson completion, a missed lab
+ * check) should surface its cards right away. Idempotent via the unique
+ * (userId, cardId) constraint + skipDuplicates — safe to call repeatedly
+ * (retakes, re-scoring a lab). Returns the number of cards actually
+ * enqueued (0 on a repeat call once everything's already queued).
+ */
+export async function enqueueSkillNodeCards(
+  userId: string,
+  skillNodeIds: string[],
+  now: Date,
+): Promise<number> {
+  const uniqueIds = [...new Set(skillNodeIds)];
+  if (uniqueIds.length === 0) return 0;
+
+  const cards = await prisma.drillCard.findMany({
+    where: { active: true, skillNodeId: { in: uniqueIds } },
+    select: { id: true },
+  });
+  if (cards.length === 0) return 0;
+
+  const result = await prisma.userCardState.createMany({
+    data: cards.map((card) => freshStateRow(userId, card.id, now)),
+    skipDuplicates: true,
+  });
+  return result.count;
+}
+
+/**
+ * Enqueues a completed lesson's cards for the user. See
+ * `enqueueSkillNodeCards` for the enqueue semantics.
  */
 export async function enqueueLessonCards(
   userId: string,
@@ -49,18 +75,11 @@ export async function enqueueLessonCards(
     where: { lessonSlug },
     select: { skillNodeId: true },
   });
-  if (skills.length === 0) return;
-
-  const cards = await prisma.drillCard.findMany({
-    where: { active: true, skillNodeId: { in: skills.map((s) => s.skillNodeId) } },
-    select: { id: true },
-  });
-  if (cards.length === 0) return;
-
-  await prisma.userCardState.createMany({
-    data: cards.map((card) => freshStateRow(userId, card.id, now)),
-    skipDuplicates: true,
-  });
+  await enqueueSkillNodeCards(
+    userId,
+    skills.map((s) => s.skillNodeId),
+    now,
+  );
 }
 
 /**

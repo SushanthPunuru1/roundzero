@@ -754,3 +754,118 @@ apps/web-side unit tests; `TerminalFrame`/`ScoreLine`/`lab-console.tsx` are
 presentational/thin-glue, and the loop's real logic lives in `lab-broker`'s
 own suite above) pass; `pnpm build` (root) succeeds both with and without
 `LAB_BROKER_URL` set.
+
+**028 · 2026-07 · The flight-recorder debrief (`DebriefView`): the Phase 2
+showpiece per DECISIONS 010/013.** `/app/lab` now transitions into a full
+debrief after a run — count-up score header, gauge strip, run-trajectory
+chart, the `ScoreLine` list, and a footer that funnels missed checks into the
+SRS drill. This is the new top-of-range craft reference (DESIGN.md's Screen
+craft checklist) other screens get leveled toward.
+
+*Score history is client-session, not broker- or DB-backed — and that's an
+explicit, temporary choice, not an oversight.* `LabConsole`
+(`apps/web/src/app/app/lab/lab-console.tsx`) accumulates a `ScoreSnapshot[]`
+in React state (`elapsedMs` off a `launchedAtRef` captured on WS `open`,
+`totalEarned`/`totalPossible`, `passedIds`) each time `scoreLab` succeeds.
+`lab-broker` is **completely unchanged** by this session — it already returns
+everything a trajectory needs per score call, and the client was judged
+sufficient for a local, single-user build. Consequence, stated plainly: **the
+trajectory is lost on a page refresh.** Persistent debriefs — a `LabRun` +
+`LabScoreSnapshot` Postgres model so a run survives a refresh and a coach can
+review it later — are deliberately deferred to the hosting/launch session;
+that work is the trigger for moving score history server-side (the
+orchestrator, not the client, owns run history from that point on), not
+before.
+
+*New `packages/ui` primitives, tokenized, no new colors.* `CountUp`
+(`count-up.tsx`) is DESIGN.md's one expressive motion: `useState`'s initial
+render is always the final `value` (matches whatever SSR emitted, no
+hydration mismatch), and only a post-mount effect animates 0→value over
+400ms with a `--score` text flash — `prefers-reduced-motion` (guarded against
+`matchMedia` being unavailable, which jsdom doesn't implement and a test
+below caught) skips the animation and leaves the correct value in place, at
+rest, immediately. `RunTrajectoryChart` (`run-trajectory-chart.tsx`) wraps
+`recharts` (new dependency, `3.10.0`, MIT, React-19-compatible) in a thin,
+fully-controlled primitive: a `stepAfter` line seeded with a synthetic
+`(0, 0)` launch point, DESIGN tokens passed as literal `var(--x)` strings
+(SVG presentation attributes resolve CSS custom properties directly, unlike
+`TerminalFrame`'s canvas — see 027), no entrance animation
+(`isAnimationActive={!prefersReducedMotion()}`). The whole chart is wrapped
+`aria-hidden="true"` with a `<figcaption class="sr-only">` numeric summary —
+it's enhancement only, the `ScoreLine` list is the at-rest source of truth,
+and nothing about reading the run depends on the chart rendering or
+animating at all. `accessibilityLayer={false}` is set on `LineChart`
+explicitly: recharts v3 defaults that to `true` and puts a keyboard-focusable
+`tabIndex` on the root `<svg>` regardless of an `aria-hidden` ancestor —
+without this override, a Playwright keyboard-tab audit during this session's
+verification caught a real dead tab stop (focusable, but invisible to
+assistive tech). Optional `activeCheckIds`/`onActiveCheckIdsChange` props
+give hover **and** row-hover a shared highlight (a hovered `ScoreLine` row
+highlights its chart point and vice versa) — mouse-only by design, since the
+event list already has full keyboard access on its own merits (the
+`ScoreLine` rows themselves aren't made artificially focusable just to drive
+the chart).
+
+*Missed checks auto-enqueue to the SRS drill.* `enqueueSkillNodeCards`
+(`apps/web/src/lib/drill.ts`) generalizes the existing lesson-completion
+enqueue path (`enqueueLessonCards` now just calls it) — idempotent via the
+`(userId, cardId)` unique constraint + `skipDuplicates`, same as before. A
+new server action, `enqueueMissedDrills` (`apps/web/src/app/app/lab/
+actions.ts`), is called once the debrief mounts; the footer reports the
+number actually enqueued, or falls back to a plain missed-count line once
+everything's already queued (re-viewing the same debrief, or re-scoring).
+
+*Critical-service uptime gauge: omitted, not stubbed.* DECISIONS 026 already
+scoped live active/running-state polling as a known limit until the
+orchestrator runs boot-capable containers — the gauge strip conditionally
+omits that `Stat` entirely (screen-craft checklist: no dead columns) rather
+than rendering a placeholder. Same treatment for the penalties `Stat` — the
+Go agent has no penalty-type check yet (027), so it's only rendered when
+`penaltyRows.length > 0`.
+
+*The terminal stays mounted (hidden), not unmounted, while the debrief is
+showing.* `LabConsole` gained a `"debrief"` phase. Entering it just
+CSS-hides the `TerminalFrame` block (`hidden` class) instead of conditionally
+unrendering it — unmounting would dispose the live `xterm.js` `Terminal`
+instance while the WebSocket (owned by `LabConsole`, independent of
+`TerminalFrame`) keeps running, silently dropping any container output that
+arrives while the debrief is on screen. "Back to lab" re-shows it and
+re-`fit()`s (a hidden container has zero measured size, so `ResizeObserver`
+alone won't catch the reveal). "Retry" stops the current lab and launches a
+fresh one, resetting history.
+
+Verified end to end against a **real** run: started `lab-broker` + `next dev`
+locally against real Docker (`rz-practice:latest` + `agent/rzagent`, both
+already built), drove a real lab over the exact WS terminal protocol the
+browser uses (launch → score fresh 0/100 → `userdel -f backdoor` + `ufw
+--force enable` → score 22/100 → two more inert commands → score 22/100
+again, deliberately proving the chart's plateau rendering too), captured the
+three real `rzagent` JSON reports. `/app/lab` itself is session-gated and
+this sandbox has no way to drive real interactive Google OAuth or read a
+magic-link email — rather than skip verification, a throwaway local account
+was created and signed in through the app's **own** magic-link API (a token
+read from that one throwaway account's own `Verification` row, not any real
+user's credentials), the real `DebriefView` was rendered against the
+captured report data (enriched through the same Prisma taxonomy/lesson
+lookups `scoreLab` uses) via a temporary, uncommitted preview route
+(deleted before commit, same pattern as 019/022/027), then the throwaway
+user/session/account rows were deleted afterward. Confirmed via Playwright
+(ephemeral `npx`, not added to any `package.json`, per 019's precedent): the
+trajectory chart's shape matches the real 0→22→22 progression; the score
+header shows `22` immediately under `reducedMotion: "reduce"` (not `0` or a
+mid-animation value); no horizontal overflow at 1024px (the narrowest real
+Chromebook width, per 022); a keyboard tab sweep reaches "Back to lab" and
+"Retry" with visible focus rings and no dead stops (after the
+`accessibilityLayer` fix above); hovering a found `ScoreLine` row visibly
+highlights its chart point. The dev server log confirmed `enqueueMissedDrills`
+ran successfully server-side against the real dev DB. Added
+`apps/web/src/app/app/lab/count-up.test.tsx` (2 tests, jsdom): `CountUp`'s
+synchronous pre-effect render already shows the final value, not `0`/blank —
+this repo has no `packages/ui`-level test infra and "UI gets tested by use,
+not snapshots" (CLAUDE.md), so this lives in `apps/web` against the existing
+vitest+jsdom+testing-library setup rather than standing up new
+infrastructure for one component. `pnpm lint`/`pnpm typecheck`/`pnpm test`
+(172 tests across `packages/db`/`apps/web`) pass; `pnpm build` (root)
+succeeds with the exact CI placeholder env vars and no `LAB_BROKER_URL` set
+(the Vercel-deploy scenario — the lab feature stays dark, everything else
+still compiles).

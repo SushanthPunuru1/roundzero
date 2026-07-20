@@ -20,4 +20,11 @@ export {
   type TerminalFrameProps,
   type TerminalFrameStatus,
 } from "./components/ui/terminal-frame";
+export { CountUp, type CountUpProps } from "./components/ui/count-up";
+export {
+  RunTrajectoryChart,
+  formatElapsed,
+  type RunTrajectoryChartProps,
+  type TrajectoryPoint,
+} from "./components/ui/run-trajectory-chart";
 export { cn } from "./lib/utils";

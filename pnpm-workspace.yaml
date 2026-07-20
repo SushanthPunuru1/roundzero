@@ -11,3 +11,4 @@ allowBuilds:
   unrs-resolver: true
 minimumReleaseAgeExclude:
   - lucide-react@1.24.0
+  - recharts@3.10.0

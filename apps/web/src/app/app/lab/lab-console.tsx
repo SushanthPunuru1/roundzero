@@ -1,19 +1,23 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Container, Gauge, Square, Terminal as TerminalIcon, TriangleAlert } from "lucide-react";
+import { ClipboardList, Container, Gauge, Square, Terminal as TerminalIcon, TriangleAlert } from "lucide-react";
 import {
   Button,
   EmptyState,
-  ScoreLine,
   TerminalFrame,
+  cn,
   type TerminalFrameHandle,
   type TerminalFrameStatus,
 } from "@roundzero/ui";
 
 import { launchLab, scoreLab, stopLab, type ScoreRow } from "./actions";
+import { DebriefView, type ScoreSnapshot } from "./debrief-view";
 
-type Phase = "idle" | "launching" | "connecting" | "ready" | "stopped" | "error";
+const LAB_IMAGE_NAME = "linux-practice";
+const LAB_MODE = "Practice";
+
+type Phase = "idle" | "launching" | "connecting" | "ready" | "stopped" | "error" | "debrief";
 
 interface ScoreReport {
   totalEarned: number;
@@ -51,10 +55,13 @@ export function LabConsole() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [scoring, setScoring] = useState(false);
   const [stopping, setStopping] = useState(false);
+  const [retrying, setRetrying] = useState(false);
   const [report, setReport] = useState<ScoreReport | null>(null);
+  const [history, setHistory] = useState<ScoreSnapshot[]>([]);
 
   const termRef = useRef<TerminalFrameHandle>(null);
   const wsRef = useRef<WebSocket | null>(null);
+  const launchedAtRef = useRef<number | null>(null);
 
   const closeSocket = useCallback(() => {
     if (wsRef.current) {
@@ -72,6 +79,8 @@ export function LabConsole() {
   const handleLaunch = useCallback(async () => {
     setErrorMessage(null);
     setReport(null);
+    setHistory([]);
+    launchedAtRef.current = null;
     setPhase("launching");
 
     const result = await launchLab();
@@ -89,6 +98,7 @@ export function LabConsole() {
     wsRef.current = ws;
 
     ws.onopen = () => {
+      launchedAtRef.current = Date.now();
       setPhase("ready");
       termRef.current?.fit();
       termRef.current?.focus();
@@ -141,6 +151,15 @@ export function LabConsole() {
       return;
     }
     setReport({ totalEarned: result.totalEarned, totalPossible: result.totalPossible, rows: result.rows });
+    setHistory((prev) => [
+      ...prev,
+      {
+        elapsedMs: launchedAtRef.current ? Date.now() - launchedAtRef.current : 0,
+        totalEarned: result.totalEarned!,
+        totalPossible: result.totalPossible!,
+        passedIds: result.rows!.filter((row) => row.state === "found").map((row) => row.id),
+      },
+    ]);
   }, [labId]);
 
   const handleStop = useCallback(async () => {
@@ -153,11 +172,29 @@ export function LabConsole() {
       setErrorMessage(result.error);
     }
     setLabId(null);
-    setReport(null);
-    setPhase("stopped");
-  }, [labId, closeSocket]);
+    const goToDebrief = history.length > 0 && report !== null;
+    setPhase(goToDebrief ? "debrief" : "stopped");
+    if (!goToDebrief) setReport(null);
+  }, [labId, closeSocket, history, report]);
 
-  const showTerminal = phase === "connecting" || phase === "ready" || (phase === "error" && labId);
+  const handleRetry = useCallback(async () => {
+    setRetrying(true);
+    closeSocket();
+    if (labId) {
+      await stopLab(labId).catch(() => undefined);
+    }
+    setLabId(null);
+    setRetrying(false);
+    await handleLaunch();
+  }, [labId, closeSocket, handleLaunch]);
+
+  const handleBackToLab = useCallback(() => {
+    setPhase(wsRef.current?.readyState === WebSocket.OPEN ? "ready" : "stopped");
+    requestAnimationFrame(() => termRef.current?.fit());
+  }, []);
+
+  const terminalActive =
+    phase === "connecting" || phase === "ready" || phase === "debrief" || (phase === "error" && labId);
 
   return (
     <div className="mt-8 flex flex-col gap-6">
@@ -189,12 +226,16 @@ export function LabConsole() {
         />
       )}
 
-      {showTerminal && (
-        <div className="flex flex-col gap-3">
+      {terminalActive && (
+        // Kept mounted (not unmounted) while the debrief is showing, just
+        // visually hidden — the WebSocket lives on this component, and an
+        // unmounted TerminalFrame would drop any container output that
+        // arrives while the debrief is on screen. See DECISIONS.md 028.
+        <div className={cn("flex flex-col gap-3", phase === "debrief" && "hidden")}>
           <TerminalFrame
             ref={termRef}
             status={terminalStatus(phase)}
-            title="linux-practice"
+            title={LAB_IMAGE_NAME}
             subtitle={labId ?? undefined}
             onData={handleTermData}
             onResize={handleTermResize}
@@ -213,29 +254,27 @@ export function LabConsole() {
               <Square className="size-4" strokeWidth={1.75} aria-hidden="true" />
               {stopping ? "Stopping…" : "Stop lab"}
             </Button>
+            {history.length > 0 && (
+              <Button variant="ghost" onClick={() => setPhase("debrief")} disabled={phase === "debrief"}>
+                <ClipboardList className="size-4" strokeWidth={1.75} aria-hidden="true" />
+                View debrief
+              </Button>
+            )}
           </div>
         </div>
       )}
 
-      {report && (
-        <div className="flex flex-col gap-1 border-t border-hairline pt-6">
-          <p className="font-mono text-sm tabular-nums text-text">
-            Score: <span className="text-accent">{report.totalEarned}</span> / {report.totalPossible}
-          </p>
-          <div className="mt-2 flex flex-col divide-y divide-hairline">
-            {report.rows.map((row) => (
-              <ScoreLine
-                key={row.id}
-                state={row.state}
-                points={row.points}
-                possiblePoints={row.possiblePoints}
-                category={row.category}
-                title={row.title}
-                why={row.why}
-                lessonHref={row.lessonHref}
-              />
-            ))}
-          </div>
+      {phase === "debrief" && report && (
+        <div className="border-t border-hairline pt-6">
+          <DebriefView
+            imageName={LAB_IMAGE_NAME}
+            mode={LAB_MODE}
+            history={history}
+            rows={report.rows}
+            onRetry={() => void handleRetry()}
+            onBack={handleBackToLab}
+            retrying={retrying}
+          />
         </div>
       )}
     </div>
