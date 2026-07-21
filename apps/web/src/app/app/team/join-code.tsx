@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Check, Copy } from "lucide-react";
-import { Button, cn } from "@roundzero/ui";
+import { Button, Eyebrow, cn } from "@roundzero/ui";
 
 export function JoinCode({
   code,
@@ -23,9 +23,7 @@ export function JoinCode({
     return (
       <div className="flex items-center justify-between gap-4 rounded-md border border-hairline bg-surface-2 px-5 py-4">
         <div>
-          <p className="text-[11px] uppercase tracking-[0.06em] text-text-dim">
-            Join code
-          </p>
+          <Eyebrow>Join code</Eyebrow>
           <p className="mt-1 font-mono text-lg text-text">{code}</p>
         </div>
         <Button type="button" onClick={handleCopy} className="w-auto">
@@ -47,9 +45,7 @@ export function JoinCode({
 
   return (
     <div className="flex items-center gap-3 rounded-md border border-hairline bg-surface-2 py-1 pl-3 pr-1.5">
-      <span className="text-[11px] uppercase tracking-[0.06em] text-text-dim">
-        Join code
-      </span>
+      <Eyebrow as="span">Join code</Eyebrow>
       <span className="font-mono text-sm text-text">{code}</span>
       <div className="relative flex items-center">
         <span

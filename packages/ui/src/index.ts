@@ -13,6 +13,9 @@ export { PageHeader, type PageHeaderProps } from "./components/ui/page-header";
 export { Avatar, avatarVariants, initials, type AvatarProps } from "./components/ui/avatar";
 export { Stat, StatStrip, type StatProps, type StatStripProps } from "./components/ui/stat-strip";
 export { EmptyState, type EmptyStateProps } from "./components/ui/empty-state";
+export { Eyebrow, type EyebrowProps } from "./components/ui/eyebrow";
+export { ErrorNote, type ErrorNoteProps } from "./components/ui/error-note";
+export { Kbd, type KbdProps } from "./components/ui/kbd";
 export { ScoreLine, type ScoreLineProps, type ScoreLineState } from "./components/ui/score-line";
 export {
   TerminalFrame,

@@ -13,11 +13,11 @@ export default async function LabPage() {
 
   return (
     <div>
-      <PageHeader eyebrow="Practice" title="Lab" />
-      <p className="mt-1 text-sm text-text-dim">
-        Launch a real, intentionally vulnerable Linux box and get a live shell right here in the
-        browser. Harden it, then score it to see what you found and what you missed.
-      </p>
+      <PageHeader
+        eyebrow="Practice"
+        title="Lab"
+        support="Launch a real, intentionally vulnerable Linux box and get a live shell right here in the browser. Harden it, then score it to see what you found and what you missed."
+      />
       <p className="mt-1 text-xs text-text-dim">
         Local-only for now — this works while you're running the lab broker on your own machine
         (see <span className="font-mono">lab-broker/README.md</span>); it isn't available on the

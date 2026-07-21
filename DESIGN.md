@@ -99,12 +99,20 @@ Build it once in `packages/ui`, prop-driven, before any screen uses it.
 
 ## packages/ui v1 inventory
 
-Button (primary / ghost / destructive) · Input, Select, Checkbox · Card ·
-DataTable (13px, sticky header, tabular-nums) · Badge/Chip (category,
-division, level) · ScoreLine · TerminalFrame (xterm.js wrapper shell —
-visual shell only in Phase 1) · EmptyState (icon, one sentence, one action)
-· Toast · Dialog · CommandPalette (⌘K) · PageHeader (title, eyebrow,
-actions) · Skeleton.
+Built: Button (primary / ghost / destructive) · Input · Select · Card ·
+Badge/Chip (category, division, level) · Avatar (deterministic initials) ·
+PageHeader (eyebrow, title, support line, actions) · Eyebrow (the small-caps
+label — PageHeader and Stat both compose it) · Stat/StatStrip (the
+gauge-strip row) · EmptyState (icon, one sentence, one action) · ErrorNote
+(bordered AlertCircle note, neutral — not `--penalty`) · Kbd (keyboard-hint
+chip) · ScoreLine (the signature grammar) · TerminalFrame (xterm.js wrapper
+shell) · CountUp (the one expressive motion) · RunTrajectoryChart
+(enhancement-only trajectory chart, `aria-hidden`).
+
+Not yet built: Checkbox · DataTable (13px, sticky header, tabular-nums,
+currently hand-rolled per-screen — team's roster-table is the closest
+precedent) · Toast · Dialog · CommandPalette (⌘K, Kbd above is a building
+block for it).
 
 Every screen composes from these. New primitive → add here, tokenized,
 then use.
@@ -133,7 +141,11 @@ Every user-facing screen must pass this before a session ends:
 - **Frame present** — no content floats loose in the viewport; it sits
   inside the persistent app shell/container.
 - **Hierarchy** — eyebrow / title / support line read in that order at a
-  glance.
+  glance. Use `PageHeader`'s `eyebrow`/`support` props rather than
+  hand-rolling either.
+- **Section rhythm** — major sections (header → gauge strip → primary
+  content → footer) are a `flex flex-col gap-8` column, not ad-hoc
+  `mt-*` stacking. One rhythm, everywhere.
 - **Density appropriate to the data** — dense tables stay dense (13px,
   tight padding); sparse screens get room to breathe. Neither crowds nor
   pads out the actual content.

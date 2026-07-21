@@ -4,7 +4,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { compileMDX } from "next-mdx-remote/rsc";
 import { prisma } from "@roundzero/db";
-import { Badge } from "@roundzero/ui";
+import { Badge, PageHeader } from "@roundzero/ui";
 
 import { auth } from "@/lib/auth";
 import { loadLessonBySlug } from "@/lib/lesson-content";
@@ -46,13 +46,18 @@ export default async function LessonPage({
         Lessons
       </Link>
 
-      <h1 className="mt-3 text-[25px] font-semibold leading-[32px] text-text">
-        {lesson.meta.title}
-      </h1>
-      <div className="mt-2 flex items-center gap-3 text-sm text-text-dim">
-        <Badge>{levelLabel(lesson.meta.level)}</Badge>
-        <span className="font-mono tabular-nums">{lesson.meta.minutes} min</span>
-      </div>
+      <PageHeader
+        className="mt-3"
+        title={
+          <span className="flex flex-wrap items-center gap-3">
+            {lesson.meta.title}
+            <Badge>{levelLabel(lesson.meta.level)}</Badge>
+            <span className="font-mono text-sm tabular-nums text-text-dim">
+              {lesson.meta.minutes} min
+            </span>
+          </span>
+        }
+      />
 
       <article className="mt-8 max-w-[68ch]">{content}</article>
 

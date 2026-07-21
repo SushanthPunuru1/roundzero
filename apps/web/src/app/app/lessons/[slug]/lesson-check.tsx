@@ -1,8 +1,8 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { Check, X } from "lucide-react";
-import { Button } from "@roundzero/ui";
+import { Circle, CircleCheck } from "lucide-react";
+import { Button, ErrorNote, Stat, StatStrip } from "@roundzero/ui";
 
 import { submitCheck, type CheckActionState } from "./actions";
 
@@ -48,12 +48,21 @@ export function LessonCheck({
       </p>
 
       {revealed && state.result ? (
-        <div className="mt-6 flex flex-col gap-4">
-          <p className="font-mono text-2xl tabular-nums text-text">
-            <span className={state.result.score >= 70 ? "text-score" : "text-penalty"}>
-              {state.result.score}%
-            </span>
-          </p>
+        <div className="mt-6 flex flex-col gap-6">
+          <StatStrip>
+            <Stat
+              label="Score"
+              value={
+                <span className={state.result.score >= 70 ? "text-score" : "text-penalty"}>
+                  {state.result.score}%
+                </span>
+              }
+            />
+            <Stat
+              label="Correct"
+              value={`${state.result.questions.filter((q) => q.correct).length} / ${questions.length}`}
+            />
+          </StatStrip>
           <div className="flex flex-col gap-3">
             {questions.map((question, index) => {
               const result = state.result!.questions[index]!;
@@ -64,9 +73,9 @@ export function LessonCheck({
                 >
                   <div className="flex items-start gap-2">
                     {result.correct ? (
-                      <Check className="mt-0.5 size-4 shrink-0 text-score" strokeWidth={1.75} aria-hidden="true" />
+                      <CircleCheck className="mt-0.5 size-4 shrink-0 text-score" strokeWidth={1.75} aria-hidden="true" />
                     ) : (
-                      <X className="mt-0.5 size-4 shrink-0 text-penalty" strokeWidth={1.75} aria-hidden="true" />
+                      <Circle className="mt-0.5 size-4 shrink-0 text-text-dim" strokeWidth={1.75} aria-hidden="true" />
                     )}
                     <div>
                       <p className="text-sm font-medium text-text">{question.q}</p>
@@ -119,7 +128,7 @@ export function LessonCheck({
             </fieldset>
           ))}
 
-          {state.error && <p className="text-sm text-penalty">{state.error}</p>}
+          {state.error && <ErrorNote>{state.error}</ErrorNote>}
 
           <Button type="submit" disabled={!allAnswered || pending} className="w-fit">
             {pending ? "Grading…" : "Submit answers"}

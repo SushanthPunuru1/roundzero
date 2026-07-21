@@ -1,8 +1,7 @@
 "use client";
 
 import { startTransition, useActionState, useState } from "react";
-import { AlertCircle } from "lucide-react";
-import { Avatar, Badge, Button, Select } from "@roundzero/ui";
+import { Avatar, Badge, Button, ErrorNote, Select } from "@roundzero/ui";
 
 import {
   promoteToCaptain,
@@ -32,7 +31,7 @@ export function RosterTable({
   return (
     <div className="overflow-hidden rounded-md border border-hairline">
       <table className="w-full border-collapse text-left text-sm">
-        <thead className="bg-surface-2 text-xs text-text-dim">
+        <thead className="bg-surface-2 text-[13px] text-text-dim">
           <tr>
             <th className="px-4 py-2 font-medium">Name</th>
             <th className="px-4 py-2 font-medium">Role</th>
@@ -204,14 +203,7 @@ function RosterRow({
       {rowError && (
         <tr>
           <td colSpan={columnCount} className="px-4 pb-3">
-            <div className="flex items-start gap-2 rounded-md border border-hairline bg-surface-2 p-3">
-              <AlertCircle
-                className="mt-0.5 size-4 shrink-0 text-text-dim"
-                strokeWidth={1.75}
-                aria-hidden="true"
-              />
-              <p className="text-sm text-text">{rowError}</p>
-            </div>
+            <ErrorNote>{rowError}</ErrorNote>
           </td>
         </tr>
       )}

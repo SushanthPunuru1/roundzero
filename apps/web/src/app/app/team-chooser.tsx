@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { AlertCircle, ArrowLeft, KeyRound, Users } from "lucide-react";
+import { ArrowLeft, KeyRound, Users } from "lucide-react";
 import {
   Button,
   Card,
@@ -9,6 +9,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  ErrorNote,
   Input,
   Select,
 } from "@roundzero/ui";
@@ -90,24 +91,11 @@ function BackButton({ onBack }: { onBack: () => void }) {
     <button
       type="button"
       onClick={onBack}
-      className="flex w-fit items-center gap-1 text-xs text-text-dim transition-colors duration-150 ease-[cubic-bezier(0.2,0,0,1)] hover:text-text"
+      className="inline-flex w-fit items-center gap-1.5 text-sm text-text-dim hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
     >
       <ArrowLeft className="size-3.5" strokeWidth={1.75} aria-hidden="true" />
       Back
     </button>
-  );
-}
-
-function ErrorNote({ message }: { message: string }) {
-  return (
-    <div className="flex items-start gap-2 rounded-md border border-hairline bg-surface-2 p-3">
-      <AlertCircle
-        className="mt-0.5 size-4 shrink-0 text-text-dim"
-        strokeWidth={1.75}
-        aria-hidden="true"
-      />
-      <p className="text-sm text-text">{message}</p>
-    </div>
   );
 }
 
@@ -157,7 +145,7 @@ function CreateTeamCard({ onBack }: { onBack: () => void }) {
           <Button type="submit" disabled={pending} className="w-full">
             {pending ? "Creating…" : "Create team"}
           </Button>
-          {state.error && <ErrorNote message={state.error} />}
+          {state.error && <ErrorNote>{state.error}</ErrorNote>}
         </form>
       </CardContent>
     </Card>
@@ -194,7 +182,7 @@ function JoinTeamCard({ onBack }: { onBack: () => void }) {
           <Button type="submit" disabled={pending} className="w-full">
             {pending ? "Joining…" : "Join team"}
           </Button>
-          {state.error && <ErrorNote message={state.error} />}
+          {state.error && <ErrorNote>{state.error}</ErrorNote>}
         </form>
       </CardContent>
     </Card>

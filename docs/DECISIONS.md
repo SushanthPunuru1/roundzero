@@ -869,3 +869,112 @@ infrastructure for one component. `pnpm lint`/`pnpm typecheck`/`pnpm test`
 succeeds with the exact CI placeholder env vars and no `LAB_BROKER_URL` set
 (the Vercel-deploy scenario — the lab feature stays dark, everything else
 still compiles).
+
+**029 · 2026-07 · Craft pass: every screen leveled to the debrief's bar.**
+Presentation only — no route/data/server-logic changes. Three parallel
+audits (lessons+checklists, drill+team, app-shell+landing) found the same
+handful of gaps recurring everywhere rather than screen-specific problems,
+so this pass fixed each systemically as a `packages/ui` primitive, then
+applied it screen by screen.
+
+*New primitives, tokenized, no new colors/motion.* `Eyebrow` (the 11px/
+uppercase/tracked/text-dim label, polymorphic via an `as` prop) replaces
+seven-plus hand-copied instances of the same class string (PageHeader,
+Stat, debrief-view, lessons' domain heading, checklist TOC, join-code,
+drill-session ×2) — `PageHeader` and `Stat` now compose it internally.
+`ErrorNote` (AlertCircle + bordered note, deliberately neutral — DESIGN.md
+reserves `--penalty` for scoring, not form errors) was extracted verbatim
+from team-chooser's local copy/roster-table's inline block and adopted by
+both plus drill-session, lesson-check, and lab-console's error lines (the
+last of which was actually misusing `text-penalty` for a connection error —
+a real, if minor, violation of the scoring-color rule, now fixed as a
+side effect). `Kbd` (keyboard-hint chip) was extracted from drill-session's
+3 duplicates. `PageHeader` gained an optional `support` prop (the `<p
+class="mt-1 text-sm text-text-dim">` description line every screen was
+repeating by hand), killing ~5 duplicate lines.
+
+*Deliberately not adopted: `ScoreLine` on checklist items or lesson-check
+results.* The audit suggested both as reuse targets (DESIGN.md's ScoreLine
+section mentions "checklist cross-reference" as a future surface). On
+inspection, neither is a scored item — no points, no found/missed-against-
+a-round semantics, just reference actions and quiz correctness — so forcing
+`--score`/`--penalty` grammar onto them would be exactly the decorative
+misuse DESIGN.md's hard rule forbids. Both got lighter, purpose-built
+polish instead: checklist item rows gained a neutral leading `ChevronRight`
+glyph (rhythm parity with every other glyph-led row, no scoring tone);
+lesson-check's result rows swapped `Check`/`X` for `CircleCheck`/`Circle`
+(matching ScoreLine's own glyph vocabulary without borrowing its points/
+category machinery) and gained a `StatStrip` (Score / Correct) above the
+list, mirroring the gauge-strip treatment used everywhere else.
+
+*`RunTrajectoryChart` fix — the actual bug, caught live in review.* The
+chart read as mostly empty on a typical low-scoring run: the Y-axis was
+meant to be `[0, Math.max(totalPossible, finalEarned)]`, but the
+`ReferenceLine`'s `ifOverflow="extendDomain"` was silently overriding that
+and forcing the axis to span the full 0–100 regardless — a 22-point run left
+~3/4 of the chart empty. Fixed three ways: (1) the Y-axis now auto-ranges
+via a domain function, `[0, (dataMax) => Math.min(totalPossible,
+Math.max(Math.ceil(dataMax * 1.25), 10))]` — 25% headroom above the run's
+own max, floored at 10 so a flat-zero run still breathes, clamped so it
+never exceeds `totalPossible` (a near-complete run still uses the full
+range, unchanged); (2) `ifOverflow` switched to `"hidden"` so the ceiling
+line only renders when the run's own range naturally reaches it, never
+forcing empty headroom; (3) `<Line>` became a single `<Area>` (recharts
+`AreaChart`) with a `var(--score)` fill at 12% opacity under the `stepAfter`
+stroke, and every snapshot now gets a marker (not just found-events) —
+`markerKind()` classes each point `found` (bright `--score`/`--accent`
+dot), `start` (the synthetic 0-point, dim), or `rescore` (scored again,
+nothing changed, dim) — so the chart reads as the whole run, not just its
+high points. `aria-hidden`, `accessibilityLayer={false}`, reduced-motion
+handling, and the hover/row-linking API are all unchanged.
+
+*Font-hosting TODO (DECISIONS 012) explicitly left open.* The shell audit
+flagged it as the single biggest remaining gap (Switzer/IBM Plex Mono still
+fall back to system fonts), but it's an asset/licensing acquisition, not a
+presentation-consistency fix, and unattended third-party font fetches were
+already rejected once during scaffolding — out of scope for a craft pass,
+revisit deliberately.
+
+*Per-screen, mechanical once the primitives existed:* `/app/lab` +
+`lab-console.tsx` gained a `StatStrip` (Status / Container / Runs scored —
+all from existing state, no new logic) above `TerminalFrame` plus a
+`border-t` separator on the action row, giving the pre-debrief console the
+same gauge-context the debrief has. `lessons/page.tsx` and
+`checklists/page.tsx`'s hand-rolled empty-state `Card`s became `EmptyState`.
+`lessons/[slug]/page.tsx`'s inline `<h1>`+Badge became `PageHeader`,
+matching checklists/[id]'s already-correct pattern (title-tier
+consistency). `team/page.tsx` gained `eyebrow="Team"` (the only main
+PageHeader missing one) and the `support` prop. `roster-table.tsx`'s header
+went `text-xs` → `text-[13px]` (DESIGN's 13/20 dense-data spec).
+`team-chooser.tsx`'s `BackButton` gained the `:focus-visible` ring it was
+missing (a real a11y gap) and matched the established back-link sizing.
+`/app/page.tsx` (dashboard) — the one screen the shell audit flagged as the
+clear outlier, a bare `<h1>` with no eyebrow at all — now uses `PageHeader`.
+
+*DESIGN.md.* The "packages/ui v1 inventory" list had drifted stale across
+several sessions (missing Avatar/Stat-StatStrip/CountUp/RunTrajectoryChart
+entirely) — reconciled against the actual `packages/ui/src/index.ts`
+exports, not just appended to. Screen craft checklist gained a line
+codifying `gap-8` as the standard section rhythm (debrief's dialect) now
+that this pass establishes it everywhere, replacing the `mt-6`/`mt-8`
+stacking half the app used.
+
+Verified: `pnpm lint`/`typecheck`/`test` (same 172 tests — presentation-
+only, no new logic to test) and `pnpm build` (root, CI placeholder env,
+no `LAB_BROKER_URL`) all green. Screenshotted every screen in scope at
+1280px and 1024px via Playwright (ephemeral `npx`, no `package.json`
+change) against real seeded dev-DB data: a throwaway local account created
+through the app's own magic-link API (token read from its own
+`Verification` row, never a real user's credentials), used to create a
+real n=1 team (exercising the coach-panel state), answer a real lesson
+check (exercising both `CircleCheck`/`Circle` result states and the new
+`StatStrip`), and drill a real due queue — then the throwaway user, team,
+and all related rows deleted afterward. `/app/lab` + the debrief were
+verified against a real run through `lab-broker` + Docker (launch → score
+0/100 → real fixes via the terminal WS → score 22/100), confirming the
+reworked chart's auto-ranged axis, area fill, and per-point markers render
+correctly against real data, and that the container was cleanly stopped
+afterward (`docker ps -a` empty, broker's `/labs` empty). No horizontal
+overflow at 1024px on any screen. No preview-route scaffolding was needed
+this session (unlike 019/022/027) since every screen in scope was already
+reachable through real auth.

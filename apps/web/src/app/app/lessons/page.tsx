@@ -1,9 +1,9 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { CircleCheck, Circle } from "lucide-react";
+import { BookOpen, CircleCheck, Circle } from "lucide-react";
 import { prisma } from "@roundzero/db";
-import { Badge, Card, PageHeader, Stat, StatStrip } from "@roundzero/ui";
+import { Badge, EmptyState, Eyebrow, PageHeader, Stat, StatStrip } from "@roundzero/ui";
 
 import { auth } from "@/lib/auth";
 import { groupLessonsByDomain, levelLabel } from "@/lib/lessons";
@@ -42,18 +42,14 @@ export default async function LessonsPage() {
 
       <div className="mt-8 flex flex-col gap-8">
         {groups.length === 0 ? (
-          <Card className="flex flex-col items-start gap-1 p-8">
-            <p className="text-base font-semibold text-text">No lessons published yet</p>
-            <p className="text-sm text-text-dim">
-              Check back soon — new lessons are added regularly.
-            </p>
-          </Card>
+          <EmptyState
+            icon={BookOpen}
+            message="No lessons published yet — check back soon, new lessons are added regularly."
+          />
         ) : (
           groups.map((group) => (
             <section key={group.domainId}>
-              <h2 className="text-[11px] uppercase tracking-[0.06em] text-text-dim">
-                {group.domainTitle}
-              </h2>
+              <Eyebrow as="h2">{group.domainTitle}</Eyebrow>
               <div className="mt-3 flex flex-col gap-2">
                 {group.lessons.map((lesson) => {
                   const best = progressBySlug.get(lesson.slug);

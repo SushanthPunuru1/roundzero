@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { CircleCheck } from "lucide-react";
-import { Button, Card, EmptyState } from "@roundzero/ui";
+import { Button, Card, EmptyState, ErrorNote, Eyebrow, Kbd } from "@roundzero/ui";
 
 import { rateCard } from "./actions";
 import type { DrillCardView } from "@/lib/drill";
@@ -99,9 +99,7 @@ export function DrillSession({ queue: liveQueue }: { queue: DrillCardView[] }) {
       </p>
 
       <Card className="p-8">
-        <p className="text-[11px] uppercase tracking-[0.06em] text-text-dim">
-          {typeLabel(current!.type)}
-        </p>
+        <Eyebrow>{typeLabel(current!.type)}</Eyebrow>
         <p className="mt-3 text-base leading-[24px] text-text">{current!.front}</p>
 
         {revealed && (
@@ -117,7 +115,7 @@ export function DrillSession({ queue: liveQueue }: { queue: DrillCardView[] }) {
         )}
       </Card>
 
-      {error && <p className="text-sm text-penalty">{error}</p>}
+      {error && <ErrorNote>{error}</ErrorNote>}
 
       {!revealed ? (
         <div className="flex flex-col items-start gap-2">
@@ -125,14 +123,12 @@ export function DrillSession({ queue: liveQueue }: { queue: DrillCardView[] }) {
             Reveal
           </Button>
           <p className="text-xs text-text-dim">
-            Press <kbd className="rounded-[3px] border border-hairline bg-surface-2 px-1 py-0.5 font-mono">Space</kbd>
+            Press <Kbd>Space</Kbd>
           </p>
         </div>
       ) : (
         <div className="flex flex-col gap-2">
-          <p className="text-[11px] uppercase tracking-[0.06em] text-text-dim">
-            How well did you know it?
-          </p>
+          <Eyebrow>How well did you know it?</Eyebrow>
           <div className="flex flex-wrap gap-2">
             {RATINGS.map((rating) => (
               <button
@@ -149,14 +145,7 @@ export function DrillSession({ queue: liveQueue }: { queue: DrillCardView[] }) {
             ))}
           </div>
           <p className="text-xs text-text-dim">
-            Press{" "}
-            <kbd className="rounded-[3px] border border-hairline bg-surface-2 px-1 py-0.5 font-mono">
-              1
-            </kbd>
-            &ndash;
-            <kbd className="rounded-[3px] border border-hairline bg-surface-2 px-1 py-0.5 font-mono">
-              4
-            </kbd>
+            Press <Kbd>1</Kbd>&ndash;<Kbd>4</Kbd>
           </p>
         </div>
       )}

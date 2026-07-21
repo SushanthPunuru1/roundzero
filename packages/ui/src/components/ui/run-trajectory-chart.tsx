@@ -2,9 +2,9 @@
 
 import * as React from "react";
 import {
+  Area,
+  AreaChart,
   CartesianGrid,
-  Line,
-  LineChart,
   ReferenceLine,
   ResponsiveContainer,
   Tooltip,
@@ -66,25 +66,38 @@ interface DotProps {
   payload?: TrajectoryPoint;
 }
 
+type MarkerKind = "found" | "start" | "rescore";
+
+/** Every snapshot gets a marker, not just ones that moved the score — the
+ * flight recorder should show the whole run, including "scored again,
+ * nothing changed" and the 0-point launch. */
+function markerKind(point: TrajectoryPoint, index: number): MarkerKind {
+  if (point.newlyFoundIds.length > 0) return "found";
+  if (index === 0) return "start";
+  return "rescore";
+}
+
 function makeDot(
   activeCheckIds: string[],
   onActiveCheckIdsChange: ((ids: string[]) => void) | undefined,
 ) {
-  function Dot({ cx, cy, payload }: DotProps) {
-    if (cx === undefined || cy === undefined || !payload) return null;
-    const isEvent = payload.newlyFoundIds.length > 0;
-    if (!isEvent) return null;
-    const isActive = payload.newlyFoundIds.some((id) => activeCheckIds.includes(id));
+  function Dot({ cx, cy, index, payload }: DotProps) {
+    if (cx === undefined || cy === undefined || index === undefined || !payload) return null;
+    const kind = markerKind(payload, index);
+    const isActive = kind === "found" && payload.newlyFoundIds.some((id) => activeCheckIds.includes(id));
+    const radius = isActive ? 5 : kind === "found" ? 3.5 : 2.5;
+    const fill = isActive ? "var(--accent)" : kind === "found" ? "var(--score)" : "var(--text-dim)";
     return (
       <circle
         cx={cx}
         cy={cy}
-        r={isActive ? 5 : 3.5}
-        fill={isActive ? "var(--accent)" : "var(--score)"}
+        r={radius}
+        fill={fill}
+        fillOpacity={kind === "rescore" ? 0.6 : 1}
         stroke="var(--bg)"
         strokeWidth={1.5}
-        onMouseEnter={() => onActiveCheckIdsChange?.(payload.newlyFoundIds)}
-        onMouseLeave={() => onActiveCheckIdsChange?.([])}
+        onMouseEnter={kind === "found" ? () => onActiveCheckIdsChange?.(payload.newlyFoundIds) : undefined}
+        onMouseLeave={kind === "found" ? () => onActiveCheckIdsChange?.([]) : undefined}
       />
     );
   }
@@ -93,7 +106,9 @@ function makeDot(
 
 /**
  * THE signature element (DECISIONS 013 "flight recorder"): points earned
- * over elapsed time, stepping up at each found item. Enhancement only — the
+ * over elapsed time, stepping up at each found item, with a low-opacity
+ * --score fill under the climb so progress carries the visual weight
+ * instead of a bare line in mostly-empty space. Enhancement only — the
  * ScoreLine list below is the at-rest source of truth; this chart is
  * decorative to assistive tech (`aria-hidden`, paired with a plain-text
  * caption) and never the only way to read the run. No entrance animation:
@@ -120,7 +135,7 @@ function RunTrajectoryChart({
       <figcaption className="sr-only">{caption}</figcaption>
       <div className="h-[220px] w-full" aria-hidden="true">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart
+          <AreaChart
             data={points}
             margin={{ top: 8, right: 12, bottom: 0, left: 0 }}
             accessibilityLayer={false}
@@ -137,7 +152,13 @@ function RunTrajectoryChart({
             />
             <YAxis
               dataKey="totalEarned"
-              domain={[0, Math.max(totalPossible, finalEarned)]}
+              // Auto-range to the run itself (25% headroom above its own
+              // max, floored so a flat-zero run still breathes) rather than
+              // always spanning the full 0-totalPossible — a typical low-
+              // scoring run used to leave ~3/4 of the chart empty. Never
+              // exceeds totalPossible: a near-complete run still uses the
+              // full range, unchanged from before.
+              domain={[0, (dataMax: number) => Math.min(totalPossible, Math.max(Math.ceil(dataMax * 1.25), 10))]}
               tick={{ fill: "var(--text-dim)", fontSize: 11, fontFamily: "var(--font-mono)" }}
               axisLine={{ stroke: "var(--hairline)" }}
               tickLine={{ stroke: "var(--hairline)" }}
@@ -147,14 +168,20 @@ function RunTrajectoryChart({
               y={totalPossible}
               stroke="var(--text-dim)"
               strokeDasharray="3 3"
-              ifOverflow="extendDomain"
+              // "hidden", not "extendDomain": the line only renders when the
+              // run's own auto-ranged domain naturally reaches it (a
+              // near-full run) — it must never force the axis to stretch to
+              // 100 for a low-scoring run, which was the actual bug.
+              ifOverflow="hidden"
             />
             <Tooltip content={(props) => <CustomTooltip {...props} />} cursor={{ stroke: "var(--hairline)" }} />
-            <Line
+            <Area
               type="stepAfter"
               dataKey="totalEarned"
               stroke="var(--accent)"
               strokeWidth={2}
+              fill="var(--score)"
+              fillOpacity={0.12}
               dot={(props) => <Dot {...props} />}
               activeDot={{
                 r: 5,
@@ -165,7 +192,7 @@ function RunTrajectoryChart({
               isAnimationActive={!prefersReducedMotion()}
               animationDuration={400}
             />
-          </LineChart>
+          </AreaChart>
         </ResponsiveContainer>
       </div>
     </figure>

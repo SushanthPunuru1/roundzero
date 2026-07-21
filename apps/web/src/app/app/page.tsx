@@ -1,6 +1,7 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { prisma } from "@roundzero/db";
+import { PageHeader } from "@roundzero/ui";
 
 import { auth } from "@/lib/auth";
 import { TeamChooser } from "./team-chooser";
@@ -20,12 +21,11 @@ export default async function AppPage() {
 
   return (
     <div>
-      <h1 className="text-[25px] font-semibold leading-[32px] text-text">
-        Set up your team
-      </h1>
-      <p className="mt-1 text-sm text-text-dim">
-        Create a new roster as coach, or join one with a code from your team.
-      </p>
+      <PageHeader
+        eyebrow="Team setup"
+        title="Set up your team"
+        support="Create a new roster as coach, or join one with a code from your team."
+      />
       <div className="mt-8">
         <TeamChooser />
       </div>

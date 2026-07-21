@@ -1,6 +1,7 @@
 import * as React from "react";
 
 import { cn } from "../../lib/utils";
+import { Eyebrow } from "./eyebrow";
 
 export interface StatProps {
   label: React.ReactNode;
@@ -11,9 +12,7 @@ export interface StatProps {
 function Stat({ label, value, className }: StatProps) {
   return (
     <div className={cn("flex flex-col gap-1", className)}>
-      <span className="text-[11px] uppercase tracking-[0.06em] text-text-dim">
-        {label}
-      </span>
+      <Eyebrow as="span">{label}</Eyebrow>
       <span className="font-mono text-sm tabular-nums text-text">{value}</span>
     </div>
   );

@@ -1,9 +1,9 @@
 import { headers } from "next/headers";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, TriangleAlert } from "lucide-react";
+import { ArrowLeft, ChevronRight, TriangleAlert } from "lucide-react";
 import { prisma } from "@roundzero/db";
-import { Badge, PageHeader } from "@roundzero/ui";
+import { Badge, Eyebrow, PageHeader } from "@roundzero/ui";
 
 import { auth } from "@/lib/auth";
 import {
@@ -87,7 +87,7 @@ export default async function ChecklistDetailPage({
             aria-label="Sections on this page"
             className="shrink-0 md:sticky md:top-20 md:w-56"
           >
-            <p className="text-[11px] uppercase tracking-[0.06em] text-text-dim">On this page</p>
+            <Eyebrow>On this page</Eyebrow>
             <ul className="mt-2 flex flex-col gap-0.5">
               {tocSections.map((section) => (
                 <li key={section.anchor}>
@@ -118,37 +118,44 @@ export default async function ChecklistDetailPage({
               )}
               <div className="divide-y divide-hairline border-y border-hairline first:mt-4 [&:not(:first-child)]:mt-4">
                 {section.items.map((item) => (
-                  <div key={item.id} className="py-4">
-                    <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1.5">
-                      <p className="text-sm font-medium text-text">{item.action}</p>
-                      <Badge className="shrink-0">{item.categoryTitle}</Badge>
-                    </div>
-                    <p className="mt-1 text-sm leading-[20px] text-text-dim">{item.why}</p>
-
-                    {item.caution && (
-                      <div className="mt-2 flex items-start gap-2 rounded-md border border-accent/40 bg-accent/10 px-3 py-2 text-sm text-text">
-                        <TriangleAlert
-                          className="mt-0.5 size-4 shrink-0 text-accent"
-                          strokeWidth={1.75}
-                          aria-hidden="true"
-                        />
-                        <span>{item.caution}</span>
+                  <div key={item.id} className="flex items-start gap-3 py-4">
+                    <ChevronRight
+                      className="mt-0.5 size-4 shrink-0 text-text-dim"
+                      strokeWidth={1.75}
+                      aria-hidden="true"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1.5">
+                        <p className="text-sm font-medium text-text">{item.action}</p>
+                        <Badge className="shrink-0">{item.categoryTitle}</Badge>
                       </div>
-                    )}
+                      <p className="mt-1 text-sm leading-[20px] text-text-dim">{item.why}</p>
 
-                    {item.lessonSlug && (
-                      <Link
-                        href={`/app/lessons/${item.lessonSlug}`}
-                        className="mt-2 inline-block text-sm text-accent underline underline-offset-2 hover:text-accent-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
-                      >
-                        Lesson &rarr;
-                      </Link>
-                    )}
+                      {item.caution && (
+                        <div className="mt-2 flex items-start gap-2 rounded-md border border-accent/40 bg-accent/10 px-3 py-2 text-sm text-text">
+                          <TriangleAlert
+                            className="mt-0.5 size-4 shrink-0 text-accent"
+                            strokeWidth={1.75}
+                            aria-hidden="true"
+                          />
+                          <span>{item.caution}</span>
+                        </div>
+                      )}
 
-                    <div className="mt-3 flex flex-col gap-2">
-                      {commandEntries(item.commands).map(([key, command]) => (
-                        <CommandBlock key={key} label={commandLabel(key)} command={command} />
-                      ))}
+                      {item.lessonSlug && (
+                        <Link
+                          href={`/app/lessons/${item.lessonSlug}`}
+                          className="mt-2 inline-block text-sm text-accent underline underline-offset-2 hover:text-accent-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
+                        >
+                          Lesson &rarr;
+                        </Link>
+                      )}
+
+                      <div className="mt-3 flex flex-col gap-2">
+                        {commandEntries(item.commands).map(([key, command]) => (
+                          <CommandBlock key={key} label={commandLabel(key)} command={command} />
+                        ))}
+                      </div>
                     </div>
                   </div>
                 ))}

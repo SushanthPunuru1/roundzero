@@ -5,6 +5,9 @@ import { ClipboardList, Container, Gauge, Square, Terminal as TerminalIcon, Tria
 import {
   Button,
   EmptyState,
+  ErrorNote,
+  Stat,
+  StatStrip,
   TerminalFrame,
   cn,
   type TerminalFrameHandle,
@@ -47,6 +50,20 @@ function terminalStatus(phase: Phase): TerminalFrameStatus {
     default:
       return "stopped";
   }
+}
+
+const STATUS_LABEL: Record<Phase, string> = {
+  idle: "Not started",
+  launching: "Starting…",
+  connecting: "Connecting…",
+  ready: "Connected",
+  stopped: "Stopped",
+  error: "Connection error",
+  debrief: "Debrief",
+};
+
+function shortId(id: string): string {
+  return id.slice(0, 8);
 }
 
 export function LabConsole() {
@@ -231,35 +248,41 @@ export function LabConsole() {
         // visually hidden — the WebSocket lives on this component, and an
         // unmounted TerminalFrame would drop any container output that
         // arrives while the debrief is on screen. See DECISIONS.md 028.
-        <div className={cn("flex flex-col gap-3", phase === "debrief" && "hidden")}>
-          <TerminalFrame
-            ref={termRef}
-            status={terminalStatus(phase)}
-            title={LAB_IMAGE_NAME}
-            subtitle={labId ?? undefined}
-            onData={handleTermData}
-            onResize={handleTermResize}
-          />
+        <div className={cn("flex flex-col gap-6", phase === "debrief" && "hidden")}>
+          <StatStrip>
+            <Stat label="Status" value={STATUS_LABEL[phase]} />
+            <Stat label="Container" value={labId ? shortId(labId) : "—"} />
+            <Stat label="Runs scored" value={history.length} />
+          </StatStrip>
 
-          {errorMessage && phase === "error" && (
-            <p className="text-sm text-penalty">{errorMessage}</p>
-          )}
+          <div className="flex flex-col gap-3">
+            <TerminalFrame
+              ref={termRef}
+              status={terminalStatus(phase)}
+              title={LAB_IMAGE_NAME}
+              subtitle={labId ?? undefined}
+              onData={handleTermData}
+              onResize={handleTermResize}
+            />
 
-          <div className="flex flex-wrap items-center gap-2">
-            <Button onClick={() => void handleScore()} disabled={phase !== "ready" || scoring}>
-              <Gauge className="size-4" strokeWidth={1.75} aria-hidden="true" />
-              {scoring ? "Scoring…" : "Score"}
-            </Button>
-            <Button variant="ghost" onClick={() => void handleStop()} disabled={stopping}>
-              <Square className="size-4" strokeWidth={1.75} aria-hidden="true" />
-              {stopping ? "Stopping…" : "Stop lab"}
-            </Button>
-            {history.length > 0 && (
-              <Button variant="ghost" onClick={() => setPhase("debrief")} disabled={phase === "debrief"}>
-                <ClipboardList className="size-4" strokeWidth={1.75} aria-hidden="true" />
-                View debrief
+            {errorMessage && phase === "error" && <ErrorNote>{errorMessage}</ErrorNote>}
+
+            <div className="flex flex-wrap items-center gap-2 border-t border-hairline pt-4">
+              <Button onClick={() => void handleScore()} disabled={phase !== "ready" || scoring}>
+                <Gauge className="size-4" strokeWidth={1.75} aria-hidden="true" />
+                {scoring ? "Scoring…" : "Score"}
               </Button>
-            )}
+              <Button variant="ghost" onClick={() => void handleStop()} disabled={stopping}>
+                <Square className="size-4" strokeWidth={1.75} aria-hidden="true" />
+                {stopping ? "Stopping…" : "Stop lab"}
+              </Button>
+              {history.length > 0 && (
+                <Button variant="ghost" onClick={() => setPhase("debrief")} disabled={phase === "debrief"}>
+                  <ClipboardList className="size-4" strokeWidth={1.75} aria-hidden="true" />
+                  View debrief
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       )}

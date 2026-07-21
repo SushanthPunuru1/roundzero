@@ -36,21 +36,20 @@ export default async function TeamPage() {
   return (
     <div>
       <PageHeader
+        eyebrow="Team"
         title={
           <span className="flex flex-wrap items-center gap-3">
             {membership.organization.name}
             <Badge>{divisionLabel(membership.organization.division)}</Badge>
           </span>
         }
+        support={`${roster.length} ${roster.length === 1 ? "member" : "members"}`}
         actions={
           isCoach && roster.length > 1 ? (
             <JoinCode code={membership.organization.joinCode} />
           ) : undefined
         }
       />
-      <p className="mt-1 text-sm text-text-dim">
-        {roster.length} {roster.length === 1 ? "member" : "members"}
-      </p>
       <StatStrip className="mt-6">
         <Stat label="Members" value={roster.length} />
         <Stat label="Roles filled" value={`${rolesFilled}/3`} />

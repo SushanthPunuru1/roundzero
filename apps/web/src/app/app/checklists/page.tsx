@@ -1,8 +1,9 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { ClipboardList } from "lucide-react";
 import { prisma } from "@roundzero/db";
-import { Badge, Card, PageHeader, Stat, StatStrip } from "@roundzero/ui";
+import { Badge, EmptyState, PageHeader, Stat, StatStrip } from "@roundzero/ui";
 
 import { auth } from "@/lib/auth";
 import { osLabel } from "@/lib/checklists";
@@ -35,10 +36,7 @@ export default async function ChecklistsPage() {
 
       <div className="mt-8 flex flex-col gap-2">
         {templates.length === 0 ? (
-          <Card className="flex flex-col items-start gap-1 p-8">
-            <p className="text-base font-semibold text-text">No checklists published yet</p>
-            <p className="text-sm text-text-dim">Check back soon.</p>
-          </Card>
+          <EmptyState icon={ClipboardList} message="No checklists published yet — check back soon." />
         ) : (
           templates.map((template) => (
             <Link
