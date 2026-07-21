@@ -978,3 +978,79 @@ afterward (`docker ps -a` empty, broker's `/labs` empty). No horizontal
 overflow at 1024px on any screen. No preview-route scaffolding was needed
 this session (unlike 019/022/027) since every screen in scope was already
 reachable through real auth.
+
+**030 · 2026-07 · linux-practice vuln expansion: 10 → 30.** Content wiring
+only — `agent/VULN_EXPANSION_SPEC.md`'s 20 new planted vulns + 1 new decoy,
+all reusing the existing 7 check types (`user`, `command`, `file_contains`,
+`file_mode`, `package`, `service`, `sshd_config`); zero engine/Go changes,
+zero new taxonomy IDs. Verified the spec's tricky wiring caveats live
+against `ubuntu:24.04` before writing any check (login.defs's default
+`PASS_MAX_DAYS 99999`, pwhistory.conf shipping fully commented, `sshd -T`
+defaults, sudoers.d/README's clean grep, and — the one genuine unknown —
+that `systemctl disable rpcbind.service` **without `--now`** works offline
+in a non-booted container (exit 0, flips `is-enabled`) while `--now` fails
+trying to reach a live D-Bus; confirmed by direct `docker exec` probes, not
+assumed from the spec's caveat text alone).
+
+*Points: 176 new / 276 total, not the spec's floated "~200/300."* The
+spec's own per-item point list (8–12 each, as instructed) sums to 176, not
+200 — it explicitly delegates the exact total ("the session may
+rescale... whatever the total, the 4-state proof must still assert exact
+sums"). Kept the spec's own per-item weights rather than padding to a
+vanity round number: `totalPossible` is 276 (100 existing + 176 new), 30
+scored checks + 3 decoys (33 total). `prove.sh` asserts 276 exactly.
+
+*Two checks needed a real design call to fit the "no `all:`/`any:`
+composition" engine (schema.go):* `pwquality-credits` counts the four
+credit-class lines via a `command` check (`grep -oE
+'^[[:space:]]*(dcredit|ucredit|ocredit|lcredit)...' | sort -u | wc -l`,
+pattern `4`) rather than a single `file_contains` regex, since Go's RE2
+regexp has no lookahead to assert "all four present, any order." It's
+credited by the *existing* `fix-pwquality.sh` (already writes all five
+lines together) — a deliberate, realistic overlap, not a bug: an admin sets
+minlen and the credits in one edit. `pwhistory-remember` needed to credit
+either of two files (24.04's own `pwhistory.conf` reader, or an explicit
+`pam_pwhistory.so remember=` in `common-password`) — implemented as a
+`command` check that filters out comment lines from both files
+(`grep -v '^\s*#'`-equivalent) then searches the combined remainder, the
+same "compute the effective state via a command" trick `sshd_config`
+already uses for merged config. `scripts/prove.sh`'s alternate-fix state
+proves the alternate location actually credits (`fix-pwhistory-alt.sh`,
+demo-only, not in `fix-all.sh`).
+
+*A new SSH drop-in trap, not just two new directives.* `ssh-maxauthtries`
+and `ssh-x11forwarding` plant `MaxAuthTries 6` / `X11Forwarding yes` in a
+**new** `/etc/ssh/sshd_config.d/60-devops-limits.conf` — the same
+Include-order trap as the existing `ssh-permitrootlogin`/50-cloud-init.conf
+— rather than relying on the (also-vulnerable) unset/stock-file defaults,
+so the lesson stays "find and fix the file that actually wins," not just
+"set a directive." `prove.sh`'s bonus trap-demo was extended to prove
+editing only the main `sshd_config` fixes none of the three SSH checks.
+
+*`fix-half.sh` redefined* (66 pts: uid0 12 + unauthorized-sudo 10 +
+pwquality-minlen 10 + pwquality-credits 10 + faillock-deny 8 + shadow-mode
+8 + sysctl-ip-forward 8) to add a genuine **partial-credit-within-one-file**
+proof: `fix-sysctl-partial.sh` writes only the `ip_forward` line to
+`99-roundzero.conf`, leaving `rp_filter`/`accept_redirects` unset —
+`prove.sh` asserts `sysctl-ip-forward` passes while the other two still
+fail, proving a partial write to a multi-check config file credits only
+the check whose line was actually written, never bleeds.
+
+Per the wiring caveats: all three sysctl checks (`ip_forward`, `rp_filter`,
+`accept_redirects`) grade `/etc/sysctl.d/99-roundzero.conf`'s *content*,
+never live `sysctl` (Docker owns net.* on the host); `rpcbind-disabled` is
+a `service`/`disabled` check (enabled-by-default via its own postinst,
+confirmed live), not a live-running check. Two existing decoys stay
+untouched; the new `decoy-required-cron` (a legitimate README-required
+`/etc/cron.d/backup` job) is zero-scored and fails if over-zealously
+deleted, same authorization-model lesson as the other two.
+
+Verified: `bash agent/scripts/prove.sh` — all four states + the bonus trap
+demo green (fresh 0/276 with 30 failing/3 passing; hardened 276/276, 33/33
+passing; half-fixed exactly 66 with the partial-sysctl proof; alternate-fix
+exactly 36 across the three drop-in/alternate-location checks; bonus
+confirms all three SSH checks stay blocked without the winning drop-ins).
+`go test ./...`, `go vet ./...`, and `gofmt -l .` all clean (no engine
+files touched). Cross-checked mechanically: check-file ids ↔
+answer-key.yaml checkIds are exactly 1:1 (33 each), and every `skillNode`
+used resolves to a real taxonomy.yaml leaf.

@@ -88,9 +88,9 @@ echo "==================================================================="
 start_container fresh
 score fresh
 assert_eq "state1 totalEarned" 0 "$(total_earned "$WORKDIR/fresh.json")"
-assert_eq "state1 totalPossible" 100 "$(total_possible "$WORKDIR/fresh.json")"
-assert_eq "state1 failing checks (the 10 planted vulns)" 10 "$(fail_count "$WORKDIR/fresh.json")"
-assert_eq "state1 passing checks (the 2 decoys)" 2 "$(pass_count "$WORKDIR/fresh.json")"
+assert_eq "state1 totalPossible" 276 "$(total_possible "$WORKDIR/fresh.json")"
+assert_eq "state1 failing checks (the 30 planted vulns)" 30 "$(fail_count "$WORKDIR/fresh.json")"
+assert_eq "state1 passing checks (the 3 decoys)" 3 "$(pass_count "$WORKDIR/fresh.json")"
 
 echo
 echo "==================================================================="
@@ -99,41 +99,58 @@ echo "==================================================================="
 start_container hardened
 docker exec "rz-practice-hardened" /opt/fixes/fix-all.sh
 score hardened
-assert_eq "state2 totalEarned" 100 "$(total_earned "$WORKDIR/hardened.json")"
-assert_eq "state2 passing checks (all 12)" 12 "$(pass_count "$WORKDIR/hardened.json")"
+assert_eq "state2 totalEarned" 276 "$(total_earned "$WORKDIR/hardened.json")"
+assert_eq "state2 passing checks (all 33)" 33 "$(pass_count "$WORKDIR/hardened.json")"
 assert_eq "state2 failing checks" 0 "$(fail_count "$WORKDIR/hardened.json")"
 
 echo
 echo "==================================================================="
-echo "STATE 3 — half-fixed box (fix-half.sh: uid0, sudo, pwquality,"
-echo "          faillock, shadow-mode = 12+10+10+8+8 = 48 points)"
+echo "STATE 3 — half-fixed box (fix-half.sh: uid0, sudo, pwquality"
+echo "          (minlen+credits), faillock, shadow-mode, sysctl-ip-forward"
+echo "          only (partial sysctl write) = 12+10+10+10+8+8+8 = 66 pts)"
 echo "==================================================================="
 start_container half
 docker exec "rz-practice-half" /opt/fixes/fix-half.sh
 score half
-assert_eq "state3 totalEarned (exactly the 5 fixed checks, no partial credit)" 48 "$(total_earned "$WORKDIR/half.json")"
-assert_eq "state3 passing checks (5 fixed + 2 decoys)" 7 "$(pass_count "$WORKDIR/half.json")"
+assert_eq "state3 totalEarned (exactly the 7 fixed checks, no partial credit)" 66 "$(total_earned "$WORKDIR/half.json")"
+assert_eq "state3 passing checks (7 fixed + 3 decoys)" 10 "$(pass_count "$WORKDIR/half.json")"
+assert_eq "state3 sysctl-ip-forward passes (the line that was written)" true "$(check_pass "$WORKDIR/half.json" sysctl-ip-forward)"
+assert_eq "state3 sysctl-rp-filter still fails (partial write, no bleed)" false "$(check_pass "$WORKDIR/half.json" sysctl-rp-filter)"
+assert_eq "state3 sysctl-accept-redirects still fails (partial write, no bleed)" false "$(check_pass "$WORKDIR/half.json" sysctl-accept-redirects)"
 
 echo
 echo "==================================================================="
-echo "STATE 4 — alternate SSH fix (drop-in only; main sshd_config left"
-echo "          at PermitRootLogin yes)"
+echo "STATE 4 — alternate-valid fixes (drop-ins / alternate locations,"
+echo "          never the primary/canonical file each vuln's fix-all.sh"
+echo "          script edits)"
 echo "==================================================================="
 start_container altfix
 docker exec "rz-practice-altfix" /opt/fixes/fix-ssh-dropin.sh
+docker exec "rz-practice-altfix" /opt/fixes/fix-ssh-limits.sh
+docker exec "rz-practice-altfix" /opt/fixes/fix-pwhistory-alt.sh
 score altfix
 assert_eq "state4 ssh-permitrootlogin passes via merged config" true "$(check_pass "$WORKDIR/altfix.json" ssh-permitrootlogin)"
-assert_eq "state4 totalEarned (only the ssh check fixed)" 12 "$(total_earned "$WORKDIR/altfix.json")"
+assert_eq "state4 ssh-maxauthtries passes via the drop-in" true "$(check_pass "$WORKDIR/altfix.json" ssh-maxauthtries)"
+assert_eq "state4 ssh-x11forwarding passes via the drop-in" true "$(check_pass "$WORKDIR/altfix.json" ssh-x11forwarding)"
+assert_eq "state4 pwhistory-remember passes via the alternate (common-password) location" true "$(check_pass "$WORKDIR/altfix.json" pwhistory-remember)"
+assert_eq "state4 totalEarned (12+8+8+8, only these four checks fixed)" 36 "$(total_earned "$WORKDIR/altfix.json")"
 
 echo
 echo "==================================================================="
-echo "BONUS — proves the trap is real: editing ONLY the main sshd_config"
-echo "        (never the drop-in) must NOT fix it, since the drop-in wins"
+echo "BONUS — proves the traps are real: editing ONLY the main sshd_config"
+echo "        (never the drop-ins) must NOT fix any of the three SSH"
+echo "        checks, since the drop-ins win"
 echo "==================================================================="
 start_container trap-demo
 docker exec "rz-practice-trap-demo" sed -i 's/^PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config
+docker exec "rz-practice-trap-demo" sed -i \
+  -e 's/^#\?MaxAuthTries.*/MaxAuthTries 4/' \
+  -e 's/^X11Forwarding.*/X11Forwarding no/' \
+  /etc/ssh/sshd_config
 score trap-demo
 assert_eq "bonus ssh-permitrootlogin still fails (drop-in still says yes)" false "$(check_pass "$WORKDIR/trap-demo.json" ssh-permitrootlogin)"
+assert_eq "bonus ssh-maxauthtries still fails (drop-in still wins)" false "$(check_pass "$WORKDIR/trap-demo.json" ssh-maxauthtries)"
+assert_eq "bonus ssh-x11forwarding still fails (drop-in still wins)" false "$(check_pass "$WORKDIR/trap-demo.json" ssh-x11forwarding)"
 
 echo
 if [ "$fail" -ne 0 ]; then

