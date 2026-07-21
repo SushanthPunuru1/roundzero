@@ -11,6 +11,7 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: path.join(__dirname, "../.."),
   outputFileTracingIncludes: {
     "/app/lessons/**": ["../../packages/content/lessons/**/*.mdx"],
+    "/app/forensics/**": ["../../packages/content/forensics/**/*.yaml"],
   },
 };
 

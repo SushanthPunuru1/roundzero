@@ -1,0 +1,55 @@
+# RoundZero — Forensics question bank: accounts / UID lookup
+# Location in repo: packages/content/forensics/accounts.yaml
+# Contract: packages/content/forensics/README.md
+
+version: 1
+
+questions:
+  - id: forensics.q.uid-unauthorized-user
+    archetype: accounts
+    skillNodeId: forensics.core.accounts
+    prompt: >
+      The passwd entry below is for an account that isn't on the
+      authorized-users list. What is that user's UID?
+    given: |
+      $ getent passwd backdoor
+      backdoor:x:1007:1007::/home/backdoor:/bin/bash
+    answer: "1007"
+    accepts: ["1007"]
+    case_sensitive: false
+    strip_trailing_slash: false
+    technique: "id backdoor   (or: getent passwd backdoor)"
+    why: "The UID is the third field of a passwd entry. Grab it before you fix the vuln — deleting the user to fix it also deletes the evidence a forensics question needs."
+
+  - id: forensics.q.uid-zero-second-root
+    archetype: accounts
+    skillNodeId: forensics.core.accounts
+    prompt: >
+      The passwd snippet below has two accounts with UID 0 — root, and one
+      that shouldn't have it. What is the username of the unauthorized
+      UID-0 account?
+    given: |
+      $ grep ':0:' /etc/passwd
+      root:x:0:0:root:/root:/bin/bash
+      eviladmin:x:0:0::/home/eviladmin:/bin/bash
+    answer: "eviladmin"
+    accepts: ["eviladmin"]
+    case_sensitive: false
+    strip_trailing_slash: false
+    technique: "grep ':0:' /etc/passwd   (or: awk -F: '$3==0' /etc/passwd)"
+    why: "Any account with UID 0 has full root privileges regardless of its username — a second UID-0 account is one of the most serious privilege-escalation backdoors CyberPatriot plants."
+
+  - id: forensics.q.gid-unauthorized-group
+    archetype: accounts
+    skillNodeId: forensics.core.accounts
+    prompt: >
+      The group entry below is for an unauthorized group. What is its GID?
+    given: |
+      $ getent group contractors
+      contractors:x:1010:desmond,priya
+    answer: "1010"
+    accepts: ["1010"]
+    case_sensitive: false
+    strip_trailing_slash: false
+    technique: "getent group contractors   (or: grep contractors /etc/group)"
+    why: "The GID is the third field of a group entry, same position as UID in passwd — useful when a checklist item asks you to remove a group by its numeric id, not just its name."

@@ -143,6 +143,7 @@ domains:
           - { id: forensics.core.stego,           title: "Basic steganography",                      level: advanced }
           - { id: forensics.core.ports,           title: "Listening-port identification (ss/netstat)", level: standard }
           - { id: forensics.core.answer-format,   title: "Answer format discipline",                 level: foundations }
+          - { id: forensics.core.accounts,        title: "Account/UID lookup (id, getent passwd)",   level: standard }
           # TODO: browser artifacts, archive handling
 
   - id: networking

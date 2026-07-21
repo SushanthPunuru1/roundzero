@@ -46,6 +46,12 @@ late September; Linux labs by early November. August assumes reduced hours
 - [ ] Diff view against upstream canonical version
 - [ ] Print/PDF export formatted for round day (this is load-bearing —
       teams may use printed references in competition)
+- [x] Forensics question bank — Part A of `docs/FORENSICS_BUILD_SPEC.md`:
+      ~24 self-contained CyberPatriot-style forensics questions across all 8
+      archetypes at `/app/forensics`, graded as normalized exact strings,
+      missed questions enqueue to the SRS drill. Part B (the gradable
+      `forensics-practice` scenario box) extends the Phase 2 agent/lab
+      engine and is a later session.
 
 ### Milestone 3 — SRS + daily drill (August–early Sept)
 

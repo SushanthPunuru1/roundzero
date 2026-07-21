@@ -1,0 +1,59 @@
+# RoundZero — Forensics question bank: file hunting
+# Location in repo: packages/content/forensics/file-hunting.yaml
+# Contract: packages/content/forensics/README.md
+
+version: 1
+
+questions:
+  - id: forensics.q.mp3-prohibited-path
+    archetype: file-hunting
+    skillNodeId: forensics.core.file-hunting
+    prompt: >
+      A teammate searched the box for prohibited media and pasted the output
+      below. What is the absolute path to the directory that contains the
+      prohibited files?
+    given: |
+      $ find / -iname '*.mp3' -o -iname '*.mp4' 2>/dev/null
+      /home/desmond/Music/lets_go.mp3
+      /home/desmond/Music/roundday.mp3
+      /home/desmond/Music/hype.mp4
+    answer: "/home/desmond/Music"
+    accepts: ["/home/desmond/Music"]
+    case_sensitive: false
+    strip_trailing_slash: false
+    technique: "find / -iname '*.mp3' -o -iname '*.mp4' 2>/dev/null   (or: locate '*.mp3')"
+    why: "CyberPatriot forensics answers for 'find the prohibited files' are almost always the containing directory, not one filename — the checker is grading that you found where the violation lives."
+
+  - id: forensics.q.grep-leaked-password
+    archetype: file-hunting
+    skillNodeId: forensics.core.file-hunting
+    prompt: >
+      The README says a leaked password was pasted into a text file
+      somewhere under /var/www. A recursive content search turned up the
+      output below. Which file contains the leaked password?
+    given: |
+      $ grep -r "SuperSecretPW2026" /var/www 2>/dev/null
+      /var/www/html/uploads/notes/staging-creds.txt:admin:SuperSecretPW2026
+    answer: "/var/www/html/uploads/notes/staging-creds.txt"
+    accepts: ["/var/www/html/uploads/notes/staging-creds.txt"]
+    case_sensitive: false
+    strip_trailing_slash: false
+    technique: "grep -r 'SuperSecretPW2026' /var/www 2>/dev/null"
+    why: "grep -r searches file CONTENTS recursively — this is how you find evidence that isn't in a filename, like a password or note left in a random file."
+
+  - id: forensics.q.recent-mtime-tmp
+    archetype: file-hunting
+    skillNodeId: forensics.core.file-hunting
+    prompt: >
+      Something was dropped on the box in the last hour. A search for
+      recently modified files under /tmp turned up the output below. What
+      is the absolute path of the file that was just created?
+    given: |
+      $ find /tmp -mmin -60 -type f
+      /tmp/.hidden_cache/update.sh
+    answer: "/tmp/.hidden_cache/update.sh"
+    accepts: ["/tmp/.hidden_cache/update.sh"]
+    case_sensitive: false
+    strip_trailing_slash: false
+    technique: "find /tmp -mmin -60 -type f"
+    why: "-mmin -60 finds files modified in the last 60 minutes — the fastest way to spot something an intruder just planted, even if it's hidden with a leading dot."

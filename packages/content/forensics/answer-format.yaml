@@ -1,0 +1,61 @@
+# RoundZero — Forensics question bank: answer-format discipline
+# Location in repo: packages/content/forensics/answer-format.yaml
+# Contract: packages/content/forensics/README.md
+#
+# These questions teach the discipline directly: the technique is the same
+# as any other archetype, but the point is HOW you type the answer. Each one
+# is deliberately shaped so a plausible near-miss lands on the "close, check
+# your formatting" feedback path instead of a flat "incorrect."
+
+version: 1
+
+questions:
+  - id: forensics.q.format-trailing-slash
+    archetype: answer-format
+    skillNodeId: forensics.core.answer-format
+    prompt: >
+      Prohibited files were found under a directory. Real CyberPatriot
+      answer keys grade this as an exact string. What is the absolute path
+      to the directory shown below — no trailing slash?
+    given: |
+      $ find / -iname '*.torrent' 2>/dev/null
+      /home/priya/Downloads/leaked/season19.torrent
+    answer: "/home/priya/Downloads/leaked"
+    accepts: ["/home/priya/Downloads/leaked"]
+    case_sensitive: false
+    strip_trailing_slash: false
+    technique: "find / -iname '*.torrent' 2>/dev/null   — the lesson here is in how you TYPE the answer, not how you find it"
+    why: "A trailing slash is an easy way to lose points on an otherwise-correct answer. Unless the answer key includes one, don't add it."
+
+  - id: forensics.q.format-case-package
+    archetype: answer-format
+    skillNodeId: forensics.core.answer-format
+    prompt: >
+      The unauthorized package installed on this box is shown below.
+      CyberPatriot grades package-name answers as an exact string — type it
+      exactly as it appears.
+    given: |
+      $ apt list --installed | grep -i telnet
+      telnetd/jammy 0.17-41 amd64 [installed]
+    answer: "telnetd"
+    accepts: ["telnetd"]
+    case_sensitive: true
+    strip_trailing_slash: false
+    technique: "apt list --installed | grep -i <name>"
+    why: "Package and file names are almost always lowercase on Linux, but the answer key matches whatever case actually appears — 'Telnetd' or 'TELNETD' is marked wrong even though you clearly found the right package."
+
+  - id: forensics.q.format-internal-spacing
+    archetype: answer-format
+    skillNodeId: forensics.core.answer-format
+    prompt: >
+      A prohibited directory has a space in its name. What is the absolute
+      path shown below, typed exactly — spacing included?
+    given: |
+      $ find / -type d -iname '*prohibited*' 2>/dev/null
+      /home/agent47/Desktop/Prohibited Media
+    answer: "/home/agent47/Desktop/Prohibited Media"
+    accepts: ["/home/agent47/Desktop/Prohibited Media"]
+    case_sensitive: false
+    strip_trailing_slash: false
+    technique: "find / -type d -iname '*prohibited*' 2>/dev/null"
+    why: "Directory names can contain spaces. Copy the path exactly — an extra space, a missing space, or a doubled space all count as wrong against an exact-string answer key."

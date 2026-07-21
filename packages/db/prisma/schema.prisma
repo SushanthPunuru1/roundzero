@@ -43,13 +43,14 @@ model User {
   displayHandle String?      @unique // public leaderboard/team name
   gradeBand     GradeBand?           // data minimization: band, never DOB
 
-  sessions       Session[]
-  accounts       Account[]
-  members        Member[]
-  invitations    Invitation[]
-  lessonProgress LessonProgress[]
-  cardStates     UserCardState[]
-  reviews        ReviewLog[]
+  sessions          Session[]
+  accounts          Account[]
+  members           Member[]
+  invitations       Invitation[]
+  lessonProgress    LessonProgress[]
+  cardStates        UserCardState[]
+  reviews           ReviewLog[]
+  forensicsProgress ForensicsProgress[]
 }
 
 model Session {
@@ -160,9 +161,10 @@ model SkillNode {
   sortOrder Int         @default(0)
   deprecated Boolean    @default(false)
 
-  lessons        LessonSkill[]
-  checklistItems ChecklistItem[]
-  drillCards     DrillCard[]
+  lessons            LessonSkill[]
+  checklistItems     ChecklistItem[]
+  drillCards         DrillCard[]
+  forensicsQuestions ForensicsQuestion[]
 }
 
 // ---------------------------------------------------------------------------
@@ -316,6 +318,39 @@ model ReviewLog {
 }
 
 // ---------------------------------------------------------------------------
+// FORENSICS QUESTION BANK (Part A) — questions synced from
+// packages/content/forensics/*.yaml. The answer key (answer/accepts/
+// case-sensitivity/technique/why) is deliberately NOT stored here — it stays
+// in the YAML and is re-read server-side at grading time, the same
+// answer-key-never-ships-to-the-client discipline as Lesson's `check`
+// (see Lesson above). Progress is tracked per archetype (one short quiz set
+// per archetype), not per question.
+// ---------------------------------------------------------------------------
+
+model ForensicsQuestion {
+  id          String             @id // e.g. "forensics.q.base64-harden"
+  archetype   ForensicsArchetype
+  skillNodeId String
+  skillNode   SkillNode          @relation(fields: [skillNodeId], references: [id])
+  prompt      String
+  given       String // embedded sample data shown in a mono block under the prompt
+  sortOrder   Int                @default(0)
+
+  @@index([archetype])
+}
+
+model ForensicsProgress {
+  id        String             @id @default(cuid())
+  userId    String
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  archetype ForensicsArchetype
+  bestScore Int // 0-100
+  updatedAt DateTime           @updatedAt
+
+  @@unique([userId, archetype])
+}
+
+// ---------------------------------------------------------------------------
 // SEASON — the official calendar as data (spec Appendix B).
 // ---------------------------------------------------------------------------
 
@@ -386,6 +421,17 @@ enum OS {
 enum CardType {
   CONCEPT
   COMMAND
+}
+
+enum ForensicsArchetype {
+  DECODING
+  FILE_HUNTING
+  HASHING
+  LOGIN_HISTORY
+  ANSWER_FORMAT
+  STEGO
+  PORTS
+  ACCOUNTS
 }
 
 enum EventKind {

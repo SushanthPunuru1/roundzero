@@ -1,0 +1,51 @@
+# RoundZero — Forensics question bank: hashing
+# Location in repo: packages/content/forensics/hashing.yaml
+# Contract: packages/content/forensics/README.md
+
+version: 1
+
+questions:
+  - id: forensics.q.md5-manifest
+    archetype: hashing
+    skillNodeId: forensics.core.hashing
+    prompt: >
+      A manifest file's exact contents (no trailing newline) are shown
+      below. What is its md5sum?
+    given: "authorized-media-only"
+    answer: "c248989a6c839f7f2d2a527f54ba720d"
+    accepts: ["c248989a6c839f7f2d2a527f54ba720d"]
+    case_sensitive: false
+    strip_trailing_slash: false
+    technique: "printf '%s' 'authorized-media-only' | md5sum   (a real file: md5sum <file>)"
+    why: "md5sum fingerprints a file's exact contents — CyberPatriot uses it to verify a file hasn't been tampered with, or to identify a known-bad file by its hash."
+
+  - id: forensics.q.sha256-checklist
+    archetype: hashing
+    skillNodeId: forensics.core.hashing
+    prompt: >
+      A checklist file's exact contents (no trailing newline) are shown
+      below. What is its sha256sum?
+    given: "round-day-checklist-v3"
+    answer: "76b322df0f207e00e845ef181d964e06327f7a7a15323cef8b9c9dbe9e9b2bff"
+    accepts: ["76b322df0f207e00e845ef181d964e06327f7a7a15323cef8b9c9dbe9e9b2bff"]
+    case_sensitive: false
+    strip_trailing_slash: false
+    technique: "printf '%s' 'round-day-checklist-v3' | sha256sum   (a real file: sha256sum <file>)"
+    why: "sha256 is the stronger, more modern hash CyberPatriot answer keys increasingly ask for instead of md5 — same idea, longer digest."
+
+  - id: forensics.q.hash-mismatch-readme
+    archetype: hashing
+    skillNodeId: forensics.core.hashing
+    prompt: >
+      The image's answer key says the README's md5 hash should be the
+      "recorded" value below. You run md5sum on the README on the box and
+      get the "computed" value. Do the two hashes match?
+    given: |
+      recorded: 5f4dcc3b5aa765d61d8327deb882cf99
+      computed: 5f4dcc3b5aa765d61d8327deb882cf98
+    answer: "no"
+    accepts: ["no", "they do not match", "do not match"]
+    case_sensitive: false
+    strip_trailing_slash: false
+    technique: "md5sum README.txt   — then compare the digest character by character against the recorded value"
+    why: "A single flipped character means the file was modified. Hashes either match exactly or the file is different — there's no 'close enough' with a hash."

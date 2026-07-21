@@ -1,0 +1,59 @@
+# RoundZero — Forensics question bank: login history
+# Location in repo: packages/content/forensics/login-history.yaml
+# Contract: packages/content/forensics/README.md
+
+version: 1
+
+questions:
+  - id: forensics.q.last-most-recent-login
+    archetype: login-history
+    skillNodeId: forensics.core.login-history
+    prompt: >
+      The `last` output below shows recent logins on this box. Who was the
+      most recent user to log in (the top line)?
+    given: |
+      $ last -n 5
+      jrivera  pts/0        10.0.2.15        Mon Jul 14 09:12   still logged in
+      desmond  pts/1        10.0.2.41        Mon Jul 14 08:47 - 08:55  (00:08)
+      root     tty1         :0               Sun Jul 13 22:03 - 22:40  (00:37)
+    answer: "jrivera"
+    accepts: ["jrivera"]
+    case_sensitive: false
+    strip_trailing_slash: false
+    technique: "last -n 5   (or just: last)"
+    why: "`last` reads /var/log/wtmp — it's the first place to check who has actually been logging into the box, and from where."
+
+  - id: forensics.q.last-source-ip
+    archetype: login-history
+    skillNodeId: forensics.core.login-history
+    prompt: >
+      Using the `last` output below, what IP address did user desmond log
+      in from?
+    given: |
+      $ last -n 5
+      jrivera  pts/0        10.0.2.15        Mon Jul 14 09:12   still logged in
+      desmond  pts/1        10.0.2.41        Mon Jul 14 08:47 - 08:55  (00:08)
+      root     tty1         :0               Sun Jul 13 22:03 - 22:40  (00:37)
+    answer: "10.0.2.41"
+    accepts: ["10.0.2.41"]
+    case_sensitive: false
+    strip_trailing_slash: false
+    technique: "last -n 5"
+    why: "The IP column in `last` is your first lead on whether a login was legitimate or from somewhere it shouldn't be."
+
+  - id: forensics.q.auth-log-failed-user
+    archetype: login-history
+    skillNodeId: forensics.core.login-history
+    prompt: >
+      You grep the auth log for failed passwords and get the output below.
+      What username did the failed attempts try to log in as?
+    given: |
+      $ grep "Failed password" /var/log/auth.log
+      Jul 14 03:14:02 host sshd[2201]: Failed password for invalid user oracle from 203.0.113.77 port 51422 ssh2
+      Jul 14 03:14:05 host sshd[2201]: Failed password for invalid user oracle from 203.0.113.77 port 51430 ssh2
+    answer: "oracle"
+    accepts: ["oracle"]
+    case_sensitive: false
+    strip_trailing_slash: false
+    technique: "grep 'Failed password' /var/log/auth.log"
+    why: "Repeated failed logins for the same invalid username from one IP is the classic signature of an automated brute-force attempt — grep the auth log first when you suspect one."

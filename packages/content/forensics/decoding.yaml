@@ -1,0 +1,48 @@
+# RoundZero — Forensics question bank: decoding
+# Location in repo: packages/content/forensics/decoding.yaml
+# Contract: packages/content/forensics/README.md
+
+version: 1
+
+questions:
+  - id: forensics.q.base64-harden
+    archetype: decoding
+    skillNodeId: forensics.core.decoding
+    prompt: >
+      A file 'message.txt' on the Desktop contains an encoded string.
+      Decode it. What is the plaintext message?
+    given: "aGFyZGVuIGV2ZXJ5dGhpbmc="
+    answer: "harden everything"
+    accepts: ["harden everything"]
+    case_sensitive: false
+    strip_trailing_slash: false
+    technique: "echo 'aGFyZGVuIGV2ZXJ5dGhpbmc=' | base64 -d"
+    why: "Base64 hides messages in plain sight — decoding it is a core forensics reflex, and CyberPatriot plants these constantly."
+
+  - id: forensics.q.base64-patch-checklist
+    archetype: decoding
+    skillNodeId: forensics.core.decoding
+    prompt: >
+      A second encoded string was left in a note on the Desktop. Decode it.
+      What is the plaintext message?
+    given: "cGF0Y2ggYmVmb3JlIHJvdW5kIGRheQ=="
+    answer: "patch before round day"
+    accepts: ["patch before round day"]
+    case_sensitive: false
+    strip_trailing_slash: false
+    technique: "echo 'cGF0Y2ggYmVmb3JlIHJvdW5kIGRheQ==' | base64 -d"
+    why: "Base64 strings are easy to spot — they're padded with '=' and only use letters, digits, '+', and '/'. Recognizing the alphabet is half the skill."
+
+  - id: forensics.q.rot13-flag-hidden
+    archetype: decoding
+    skillNodeId: forensics.core.decoding
+    prompt: >
+      A string on the Desktop looks like garbled English, not base64. Decode
+      it. What is the plaintext message?
+    given: "gur synt vf uvqqra"
+    answer: "the flag is hidden"
+    accepts: ["the flag is hidden"]
+    case_sensitive: false
+    strip_trailing_slash: false
+    technique: "echo 'gur synt vf uvqqra' | tr 'A-Za-z' 'N-ZA-Mn-za-m'"
+    why: "ROT13 keeps letter frequency and word shape recognizable — that's the tell that it's ROT13 and not base64 or a real cipher."

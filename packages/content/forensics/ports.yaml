@@ -1,0 +1,63 @@
+# RoundZero — Forensics question bank: listening ports
+# Location in repo: packages/content/forensics/ports.yaml
+# Contract: packages/content/forensics/README.md
+
+version: 1
+
+questions:
+  - id: forensics.q.port-suspicious-listener
+    archetype: ports
+    skillNodeId: forensics.core.ports
+    prompt: >
+      The `ss -tulpn` output below is from a freshly scanned box. Which
+      port is a listener that has no business being open on a hardened
+      server? Answer with just the port number.
+    given: |
+      $ ss -tulpn
+      Netid  State   Local Address:Port   Peer Address:Port  Process
+      tcp    LISTEN  0.0.0.0:22           0.0.0.0:*           users:(("sshd",pid=812,fd=3))
+      tcp    LISTEN  0.0.0.0:4444         0.0.0.0:*           users:(("nc",pid=3391,fd=4))
+      tcp    LISTEN  127.0.0.1:5432       0.0.0.0:*           users:(("postgres",pid=915,fd=6))
+    answer: "4444"
+    accepts: ["4444"]
+    case_sensitive: false
+    strip_trailing_slash: false
+    technique: "ss -tulpn   (or the older: netstat -tulpn)"
+    why: "4444 is a classic reverse-shell/listener port, and the process behind it (nc) confirms it — SSH and Postgres are expected here, that listener isn't."
+
+  - id: forensics.q.port-process-name
+    archetype: ports
+    skillNodeId: forensics.core.ports
+    prompt: >
+      Using the same `ss -tulpn` output, what is the name of the process
+      behind the suspicious listener on port 4444?
+    given: |
+      $ ss -tulpn
+      Netid  State   Local Address:Port   Peer Address:Port  Process
+      tcp    LISTEN  0.0.0.0:22           0.0.0.0:*           users:(("sshd",pid=812,fd=3))
+      tcp    LISTEN  0.0.0.0:4444         0.0.0.0:*           users:(("nc",pid=3391,fd=4))
+      tcp    LISTEN  127.0.0.1:5432       0.0.0.0:*           users:(("postgres",pid=915,fd=6))
+    answer: "nc"
+    accepts: ["nc", "netcat"]
+    case_sensitive: false
+    strip_trailing_slash: false
+    technique: "ss -tulpn   (the process name is in the last column)"
+    why: "The process column tells you WHAT to kill or disable, not just where — 'nc' listening on a high port is one of the most common backdoor patterns."
+
+  - id: forensics.q.rogue-ssh-port
+    archetype: ports
+    skillNodeId: forensics.core.ports
+    prompt: >
+      A second box's `ss -tulpn` output is below. A rogue SSH daemon is
+      listening on a non-standard port. What is that port number?
+    given: |
+      $ ss -tulpn
+      Netid  State   Local Address:Port   Peer Address:Port  Process
+      tcp    LISTEN  0.0.0.0:22           0.0.0.0:*           users:(("sshd",pid=701,fd=3))
+      tcp    LISTEN  0.0.0.0:2222         0.0.0.0:*           users:(("sshd",pid=4410,fd=3))
+    answer: "2222"
+    accepts: ["2222"]
+    case_sensitive: false
+    strip_trailing_slash: false
+    technique: "ss -tulpn"
+    why: "A second sshd listening on a different port is a common way an intruder keeps backdoor access even after the 'real' SSH config gets hardened — always check for more than one listener on the same service."

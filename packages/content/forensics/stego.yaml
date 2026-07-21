@@ -1,0 +1,56 @@
+# RoundZero — Forensics question bank: steganography / byte-level identification
+# Location in repo: packages/content/forensics/stego.yaml
+# Contract: packages/content/forensics/README.md
+
+version: 1
+
+questions:
+  - id: forensics.q.bom-byte-sequence
+    archetype: stego
+    skillNodeId: forensics.core.stego
+    prompt: >
+      A text file has an unusual byte sequence at the very start. What is
+      the byte sequence shown below, formatted the way CyberPatriot answer
+      keys expect: uppercase hex pairs separated by spaces?
+    given: |
+      $ xxd message.txt | head -1
+      00000000: efbb bf54 6869 7320 6669 6c65 2068 6173  ..This file has
+    answer: "EF BB BF"
+    accepts: ["EF BB BF", "ef bb bf", "EFBBBF", "efbbbf"]
+    case_sensitive: false
+    strip_trailing_slash: false
+    technique: "xxd <file> | head -1"
+    why: "EF BB BF is the UTF-8 byte-order mark — CyberPatriot forensics regularly asks you to name a byte sequence you can only see in a hex dump, not a normal text view."
+
+  - id: forensics.q.strings-hidden-flag
+    archetype: stego
+    skillNodeId: forensics.core.stego
+    prompt: >
+      A JPEG on the Desktop is suspiciously large. Running strings against
+      it turned up the output below. What is the hidden message?
+    given: |
+      $ strings vacation.jpg | grep -i flag
+      the flag is CP26-STEGO-4471
+    answer: "CP26-STEGO-4471"
+    accepts: ["CP26-STEGO-4471"]
+    case_sensitive: true
+    strip_trailing_slash: false
+    technique: "strings <file> | grep -i flag   (or just: strings <file> | less)"
+    why: "strings pulls printable text out of any binary — the fastest way to check whether something readable was appended to or hidden inside an image file."
+
+  - id: forensics.q.png-magic-bytes
+    archetype: stego
+    skillNodeId: forensics.core.stego
+    prompt: >
+      A file named report.pdf won't open in a PDF viewer. Its first bytes
+      are shown below. Based on the magic-byte signature, what is its real
+      file type (just the format name, e.g. PNG)?
+    given: |
+      $ xxd report.pdf | head -1
+      00000000: 8950 4e47 0d0a 1a0a 0000 000d 4948 4452  .PNG........IHDR
+    answer: "PNG"
+    accepts: ["PNG", "png"]
+    case_sensitive: false
+    strip_trailing_slash: false
+    technique: "xxd <file> | head -1   (magic bytes 89 50 4E 47 = the PNG signature)"
+    why: "Renaming a file's extension doesn't change its actual bytes — the first few bytes (the 'magic number') identify the real format regardless of what the filename claims."

@@ -21,6 +21,8 @@ import {
 } from "../src/checklists/reconcile";
 import { parseCards, validateCardRefs } from "../src/cards/parse";
 import { reconcileCards, type ExistingCard } from "../src/cards/reconcile";
+import { parseForensics, toForensicsRow, validateForensicsRefs } from "../src/forensics/parse";
+import { reconcileForensics, type ExistingForensicsQuestion } from "../src/forensics/reconcile";
 
 const CONTENT_DIR = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -30,6 +32,7 @@ const TAXONOMY_PATH = path.join(CONTENT_DIR, "taxonomy/taxonomy.yaml");
 const LESSONS_DIR = path.join(CONTENT_DIR, "lessons");
 const CHECKLISTS_DIR = path.join(CONTENT_DIR, "checklists");
 const CARDS_PATH = path.join(CONTENT_DIR, "cards/core.yaml");
+const FORENSICS_DIR = path.join(CONTENT_DIR, "forensics");
 
 // The official CyberPatriot season currently in progress. SeasonEvent rows
 // (registration/round/state calendar, Appendix B) are seeded later once
@@ -368,12 +371,55 @@ async function syncCards(knownTaxonomyNodes: DesiredNode[]): Promise<void> {
   );
 }
 
+async function syncForensics(knownTaxonomyNodes: DesiredNode[]): Promise<void> {
+  const files = readdirSync(FORENSICS_DIR)
+    .filter((name) => name.endsWith(".yaml"))
+    .map((name) => ({
+      path: name,
+      text: readFileSync(path.join(FORENSICS_DIR, name), "utf-8"),
+    }));
+
+  const parsed = parseForensics(files);
+  validateForensicsRefs(parsed, knownTaxonomyNodes);
+  const desired = parsed.map(toForensicsRow);
+
+  const existingRows = await prisma.forensicsQuestion.findMany();
+  const existing: ExistingForensicsQuestion[] = existingRows.map((row) => ({
+    id: row.id,
+    archetype: row.archetype,
+    skillNodeId: row.skillNodeId,
+    prompt: row.prompt,
+    given: row.given,
+    sortOrder: row.sortOrder,
+  }));
+
+  const plan = reconcileForensics(desired, existing);
+
+  await prisma.$transaction(async (tx) => {
+    for (const row of plan.toCreate) {
+      await tx.forensicsQuestion.create({ data: row });
+    }
+    for (const row of plan.toUpdate) {
+      await tx.forensicsQuestion.update({ where: { id: row.id }, data: row });
+    }
+    for (const row of plan.toRemove) {
+      await tx.forensicsQuestion.delete({ where: { id: row.id } });
+    }
+  });
+
+  console.log(
+    `forensics sync — created: ${plan.toCreate.length}, updated: ${plan.toUpdate.length}, ` +
+      `removed: ${plan.toRemove.length}, unchanged: ${plan.unchanged.length}`,
+  );
+}
+
 async function main(): Promise<void> {
   const taxonomyNodes = await syncTaxonomy();
   const lessonSlugs = await syncLessons(taxonomyNodes);
   const seasonIds = await syncSeason();
   await syncChecklists(taxonomyNodes, lessonSlugs, seasonIds);
   await syncCards(taxonomyNodes);
+  await syncForensics(taxonomyNodes);
 }
 
 main()

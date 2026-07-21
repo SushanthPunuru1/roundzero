@@ -1054,3 +1054,115 @@ confirms all three SSH checks stay blocked without the winning drop-ins).
 files touched). Cross-checked mechanically: check-file ids ↔
 answer-key.yaml checkIds are exactly 1:1 (33 each), and every `skillNode`
 used resolves to a real taxonomy.yaml leaf.
+
+**031 · 2026-07 · Forensics question bank — Part A of
+`docs/FORENSICS_BUILD_SPEC.md`.** New content-as-code type,
+`packages/content/forensics/*.yaml` (one file per archetype), following the
+exact pattern lessons (020)/checklists (022)/cards (024) already established:
+pure `parse`/`grade`/`reconcile` in `packages/db/src/forensics/` (unit-tested,
+no DB/framework imports), a thin `syncForensics` glue in `prisma/seed.ts`, a
+new `forensics.core.accounts` taxonomy leaf (deprecation-safe add, per
+006 — the UID-lookup archetype didn't fit `file-hunting` cleanly, exactly
+the escape hatch the build spec anticipated). Authored 24 questions, 3 per
+archetype, each independently verified against a real command (base64/
+ROT13 via `tr`, md5sum/sha256sum) run through this session's own shell
+rather than hand-computed, so the "technique" lines are provably correct,
+not just plausible-looking.
+
+*The answer key never touches the DB, same discipline as Lesson's `check`
+(020).* `ForensicsQuestion` (new model) stores only `id`/`archetype`/
+`skillNodeId`/`prompt`/`given`/`sortOrder` — `answer`/`accepts`/
+`case_sensitive`/`strip_trailing_slash`/`technique`/`why` live solely in the
+YAML and are re-parsed server-side (`apps/web/src/lib/forensics-content.ts`,
+mirrors `lesson-content.ts`) at grading time. Grading is a two-action split
+in `apps/web/src/app/app/forensics/[archetype]/actions.ts`:
+`gradeForensicsQuestion` grades one question for immediate feedback and
+never persists; `completeForensicsSet` re-grades every question
+authoritatively from the same YAML when a set finishes (never trusts a
+client-reported correct/incorrect count) and is the only thing that writes
+`ForensicsProgress` (new model, per-archetype best score via the existing
+`bestScore()` from `lessons/grade.ts` — reused as-is, not duplicated) and
+enqueues missed questions' skill nodes into the SRS drill via the existing
+`enqueueSkillNodeCards` (no new drill-glue needed). `ForensicsQuestion` has
+no per-question user-data FK (progress is per-archetype), so a question
+dropped from the YAML is hard-deleted on reseed, like `ChecklistItem` (022),
+not soft-deprecated like `DrillCard`/`SkillNode`.
+
+*Grading normalization and the "close" format-mismatch detector
+(`packages/db/src/forensics/grade.ts`), the actual design problem in this
+session.* Trim always applies; case-folding and trailing-slash stripping are
+per-question (`case_sensitive`/`strip_trailing_slash` in the YAML), matching
+real CyberPatriot answer keys' genuine inconsistency about both. A "close"
+result (right content, wrong format) carries a `FormatDiff` naming which
+axis — case, trailing slash, internal whitespace — actually differs, so the
+UI can teach the answer-format discipline specifically instead of a flat
+"incorrect." The first implementation attempt flipped one axis at a time
+from the question's own strict settings and re-compared; that only
+correctly attributes a mismatch when exactly one axis differs — a compound
+mismatch (wrong case AND a stray trailing slash at once) silently produced
+all-`false` diff flags, since relaxing just one axis while holding the
+others strict doesn't resolve a compound difference. Fixed by testing each
+axis independently with the *other two* axes held maximally lenient (case-
+insensitive, trailing slash stripped, whitespace collapsed) and only the
+axis under test kept at its real strictness — this isolates each
+contributing axis regardless of how many differ at once. Caught by a unit
+test asserting all three flags true for a submission that differs on all
+three axes simultaneously; the bug reproduced exactly as predicted before
+the fix (all three false) and was verified fixed after.
+
+*Schema.* Two additive models, one migration
+(`add_forensics_question_progress`): `ForensicsQuestion` (indexed by
+`archetype`) and `ForensicsProgress` (`@@unique([userId, archetype])`, best
+score only — retakes never lower it, same as lessons). `ForensicsArchetype`
+is a Prisma enum (8 values), not a bare string — matches the codebase's own
+convention for every other bounded categorical field (`NodeKind`,
+`TrackLevel`, `CardType`, `OS`, `EventKind`), a deliberate deviation from
+this session's own initial plan (which had proposed a plain `String`
+column) once the existing pattern was checked. `FORENSICS_ARCHETYPES` in
+`packages/db/src/forensics/parse.ts` is the single source of truth mapping
+each archetype's kebab-case key (content YAML, `/app/forensics/[archetype]`
+route) to its enum value and display label.
+
+*Surface.* `/app/forensics` lists all 8 sets with per-user best score
+(mirrors `lessons/page.tsx`'s list-row pattern exactly, including the
+`CircleCheck`/`Circle` glyph vocabulary — deliberately not `ScoreLine`, per
+029's reasoning: a quiz-correctness list isn't a scored-round item).
+`[archetype]/forensics-quiz.tsx` runs one question at a time — prompt +
+`given` (a mono evidence block) → answer input → submit → feedback
+(`CircleCheck`/`AlertCircle`/`Circle` for correct/close/incorrect, all
+plain — `AlertCircle` in `text-accent` for "close" is a restrained,
+non-decorative use: a format warning, not a score) → technique + why → next
+→ a StatStrip summary at the end, matching lesson-check's score-color
+threshold convention (`text-score` ≥70%, else `text-penalty`). The queue is
+frozen via `useRef` on mount, same reasoning as `DrillSession` (025): the
+final "See results" submission revalidates `/app/forensics/[archetype]`,
+and the running session must never resync from a live prop underneath a
+student mid-set. No custom keyboard-event plumbing needed (unlike drill's
+number-key ratings): the answer form is a real `<form>` (Enter submits
+natively) and the Next/results button gets `autoFocus` on each mount
+(Enter/Space activates it natively) — simpler and avoids the double-fire
+risk a global Enter listener would have next to a focusable native button.
+
+No new dependency. `pnpm lint`/`typecheck`/`test` (149 `packages/db` tests,
+including 35 new forensics parse/grade/reconcile ones, + 58 unchanged
+`apps/web` tests — `forensics-quiz.tsx` is presentational/thin-glue like
+`TerminalFrame`/`lab-console.tsx`, per 027's precedent, so its logic has no
+unit tests of its own) all pass; `pnpm build` (root, CI placeholder env, no
+`LAB_BROKER_URL`) succeeds — this is pure web content, so unlike the lab it
+runs on the real Vercel production deploy. Verified against the real dev
+Neon DB: `db:seed` created 24 questions (plus the 1 new taxonomy node) on
+first run, all-unchanged on a second run; temporarily pointing a
+`skillNodeId` at a nonexistent id failed the run with exit 1 and a precise
+message, then reverted. End-to-end browser verification used the same
+throwaway-account pattern as 019/022/027/028/029 (a magic-link token read
+from that account's own `Verification` row, deleted afterward) driven via
+ephemeral Playwright (`npx`, not added to any `package.json`): answered one
+question correctly (case-varied), one incorrectly (confirmed the revealed
+answer), and one in a doubled-internal-space "close" way (confirmed the
+specific spacing-mismatch feedback fired, not a generic "incorrect") across
+the `decoding` set; confirmed the 33% best score persisted across a full
+page reload on both the set page and the index list; confirmed the one
+missed skill node's drill card was enqueued and live-updated the nav badge
+(`revalidatePath("/app", "layout")`) without a hard navigation, and showed
+up due on `/app/drill`. No horizontal overflow at 1024px (Chromebook
+width).
