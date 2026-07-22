@@ -1166,3 +1166,54 @@ missed skill node's drill card was enqueued and live-updated the nav badge
 (`revalidatePath("/app", "layout")`) without a hard navigation, and showed
 up due on `/app/drill`. No horizontal overflow at 1024px (Chromebook
 width).
+
+**032 · 2026-07 · Forensics quiz: "Try again" in place, found in production
+testing.** A wrong answer during a set (031) stranded the student on that
+answer for the rest of the set — retrying meant abandoning and re-entering
+the whole set, an inconsistent flow since re-entering DID let them answer
+again. Fixed as a pure `forensics-quiz.tsx` UI change: a "Try again" ghost
+button next to Next/See results (shown whenever `feedback.status !==
+"correct"`, i.e. both `close` and `incorrect`) clears `feedback` and
+`inputValue`, re-showing the same question's answer form (which already
+`autoFocus`es on remount, same as advancing to a new question). "Next"
+keeps `autoFocus` and stays the Enter-default, per the existing
+keyboard-first pattern — Try again is reachable by Tab/click, not made the
+Enter default, so nothing about the prior keyboard flow changes for a
+student who doesn't use it.
+
+*Reveal-then-retry, not blind-retry, and no backend change was needed.*
+Considered hiding the technique/answer/why until correct (blind retry), but
+`close` status exists specifically to teach the answer-format discipline
+immediately (030's whole point) — hiding the reveal on a wrong answer would
+undermine that. Kept the existing reveal-on-any-submit behavior and let the
+student re-attempt with it already in view (retrieval practice: type the
+answer you just read, not stare at it). Scoring rule: the set scores each
+question by its FINAL submitted answer, not the first attempt — a
+correct-on-retry counts as correct, matching lessons' unlimited-retakes/
+best-score philosophy (020) rather than a first-attempt-only rule, since
+this is a practice tool, not a graded round. This required zero changes to
+`gradeAnswer`, `gradeForensicsQuestion`, or `completeForensicsSet`: the
+client's `answers` state was already a `Record<questionId, string>`
+overwritten by questionId on every submit (needed originally just to
+accumulate one answer per question for the end-of-set authoritative
+re-grade), so a retry's later submission already superseded the earlier
+wrong one in that map before this fix — the only thing missing was UI
+exposure to trigger a second submit in place. `completeForensicsSet`
+re-grades from that final map from scratch (031) and was already correct
+by construction.
+
+Added `forensics-quiz.test.tsx` (3 tests, mirroring `drill-session.test.tsx`'s
+mocked-action pattern): Try again appears on incorrect and clears the
+feedback/input for the same question index; Try again does not appear on
+correct; and — the scoring-rule assertion — submitting wrong then retrying
+correct results in `completeForensicsSet` being called with the retried
+("hi"), not the original wrong, answer. `pnpm lint`/`typecheck`/`test` (149
+`packages/db` + 61 `apps/web`, +3 from this fix) pass. Verified against a
+real run through the local dev server + real dev DB (throwaway
+magic-link account, same pattern as 019/022/027/028/029/031, deleted
+after): answered a decoding question wrong, clicked Try again, confirmed
+the same question re-appeared with an empty input (not advanced, not
+still showing the wrong feedback), answered it correctly on the retry,
+finished the set, and confirmed the summary scored it as correct (not
+counted as a miss) and did not enqueue that question's skill node to the
+drill.

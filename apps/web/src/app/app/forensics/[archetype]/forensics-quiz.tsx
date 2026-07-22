@@ -94,6 +94,11 @@ export function ForensicsQuiz({
     });
   }
 
+  function retryQuestion() {
+    setInputValue("");
+    setFeedback(null);
+  }
+
   function retake() {
     setIndex(0);
     setInputValue("");
@@ -219,7 +224,12 @@ export function ForensicsQuiz({
             </p>
             <p className="mt-2 text-sm text-text-dim">{feedback.why}</p>
           </div>
-          <div className="flex items-center gap-2 pt-1">
+          <div className="flex flex-wrap items-center gap-2 pt-1">
+            {feedback.status !== "correct" && (
+              <Button type="button" variant="ghost" onClick={retryQuestion} disabled={pending} className="w-fit">
+                Try again
+              </Button>
+            )}
             <Button type="button" autoFocus onClick={() => void next()} disabled={pending} className="w-fit">
               {pending ? "Scoring…" : isLastQuestion ? "See results" : "Next"}
             </Button>
