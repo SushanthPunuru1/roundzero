@@ -1,0 +1,47 @@
+# RoundZero — Networking quiz bank: ports
+# Location in repo: packages/content/networking-quiz/ports.yaml
+# Contract: packages/content/networking-quiz/README.md
+
+version: 1
+quizId: networking
+
+questions:
+  - id: networking-quiz.q.port-rdp
+    category: ports
+    skillNodeId: networking.fundamentals.ports
+    prompt: "What port does RDP (Remote Desktop Protocol) use by default?"
+    answer: "3389"
+    accepts: ["3389"]
+    why: "3389/TCP is the default RDP port — one of the most-tested port numbers in the whole quiz."
+
+  - id: networking-quiz.q.port-ssh
+    category: ports
+    skillNodeId: networking.fundamentals.ports
+    prompt: "What port does SSH use by default?"
+    answer: "22"
+    accepts: ["22"]
+    why: "22/TCP. The encrypted replacement for Telnet (port 23)."
+
+  - id: networking-quiz.q.service-on-445
+    category: ports
+    skillNodeId: networking.fundamentals.ports
+    prompt: "Which service commonly runs on port 445?"
+    answer: "smb"
+    accepts: ["smb", "SMB", "file sharing", "server message block"]
+    why: "445/TCP is SMB — Windows file and printer sharing. A frequent target for hardening in the Windows pillar."
+
+  - id: networking-quiz.q.port-dns
+    category: ports
+    skillNodeId: networking.fundamentals.ports
+    prompt: "What port does DNS use for ordinary lookups?"
+    answer: "53"
+    accepts: ["53"]
+    why: "53 — mostly UDP for a standard query/response, with a TCP fallback for zone transfers or oversized answers."
+
+  - id: networking-quiz.q.port-dhcp-server
+    category: ports
+    skillNodeId: networking.fundamentals.ports
+    prompt: "What UDP port does a DHCP server listen on?"
+    answer: "67"
+    accepts: ["67"]
+    why: "67 is the DHCP server port; 68 is the client port. Both UDP, since the client has no IP yet to hold a TCP session."

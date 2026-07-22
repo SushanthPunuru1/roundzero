@@ -51,6 +51,7 @@ model User {
   cardStates        UserCardState[]
   reviews           ReviewLog[]
   forensicsProgress ForensicsProgress[]
+  quizProgress      QuizProgress[]
 }
 
 model Session {
@@ -165,6 +166,7 @@ model SkillNode {
   checklistItems     ChecklistItem[]
   drillCards         DrillCard[]
   forensicsQuestions ForensicsQuestion[]
+  quizQuestions      QuizQuestion[]
 }
 
 // ---------------------------------------------------------------------------
@@ -348,6 +350,43 @@ model ForensicsProgress {
   updatedAt DateTime           @updatedAt
 
   @@unique([userId, archetype])
+}
+
+// ---------------------------------------------------------------------------
+// QUIZ — the generic question-bank engine (DECISIONS 033), generalized from
+// ForensicsQuestion/ForensicsProgress above so a second (and future) quiz
+// doesn't need its own table pair. `quizId` scopes a whole quiz (e.g.
+// "networking"); `category` scopes a set within it (e.g. "ports") — the
+// networking-quiz analogue of a forensics archetype, but a plain string
+// rather than an enum since new quizzes shouldn't require a migration to add
+// categories. Forensics itself stays on its own tables above — it shipped
+// first and works; only the grading logic (packages/db/src/quiz/grade.ts) is
+// actually shared between the two.
+// ---------------------------------------------------------------------------
+
+model QuizQuestion {
+  id          String    @id // e.g. "networking-quiz.q.port-rdp"
+  quizId      String // e.g. "networking"
+  category    String // e.g. "ports" — a set within the quiz
+  skillNodeId String
+  skillNode   SkillNode @relation(fields: [skillNodeId], references: [id])
+  prompt      String
+  given       String? // optional embedded sample data shown in a mono block under the prompt
+  sortOrder   Int       @default(0)
+
+  @@index([quizId, category])
+}
+
+model QuizProgress {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quizId    String
+  category  String
+  bestScore Int // 0-100
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, quizId, category])
 }
 
 // ---------------------------------------------------------------------------

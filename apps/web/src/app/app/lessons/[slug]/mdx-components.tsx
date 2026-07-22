@@ -42,4 +42,17 @@ export const lessonComponents: NonNullable<MDXRemoteProps["components"]> = {
       {...props}
     />
   ),
+  table: (props: ComponentProps<"table">) => (
+    <div className="mt-4 overflow-x-auto rounded-md border border-hairline">
+      <table className="w-full border-collapse text-[13px] leading-[20px]" {...props} />
+    </div>
+  ),
+  thead: (props: ComponentProps<"thead">) => (
+    <thead className="bg-surface-2 text-text-dim" {...props} />
+  ),
+  tr: (props: ComponentProps<"tr">) => <tr className="border-b border-hairline last:border-0" {...props} />,
+  th: (props: ComponentProps<"th">) => (
+    <th className="px-3 py-2 text-left font-medium" {...props} />
+  ),
+  td: (props: ComponentProps<"td">) => <td className="px-3 py-2 text-text" {...props} />,
 };

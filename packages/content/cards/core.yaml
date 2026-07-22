@@ -352,3 +352,166 @@ cards:
     type: CONCEPT
     front: "How many usable hosts in a /24? In a /26?"
     back: "/24 → 254 usable (256 − network − broadcast).  /26 → 62 usable (64 − 2)."
+
+  - id: card.networking.fundamentals.ports.rdp
+    skillNodeId: networking.fundamentals.ports
+    type: CONCEPT
+    front: "What port does RDP use, and is it TCP or UDP?"
+    back: "3389, TCP."
+
+  - id: card.networking.devices.dhcp-nat.acronyms
+    skillNodeId: networking.devices.dhcp-nat
+    type: CONCEPT
+    front: "What do DHCP and NAT each stand for?"
+    back: "DHCP: Dynamic Host Configuration Protocol (assigns IPs automatically). NAT: Network Address Translation (translates private IPs to a public one)."
+
+  - id: card.networking.wireless.security.standard
+    skillNodeId: networking.wireless.security
+    type: CONCEPT
+    front: "WEP is broken and shouldn't be used. What should a wireless network use instead?"
+    back: "WPA2 (or WPA3)."
+
+  # === NETWORKING — Cisco IOS commands ===================================
+  - id: card.networking.devices.ios-basics.enable
+    skillNodeId: networking.devices.ios-basics
+    type: COMMAND
+    front: "Enter privileged EXEC mode from user EXEC mode."
+    back: "enable"
+
+  - id: card.networking.devices.ios-basics.conf-t
+    skillNodeId: networking.devices.ios-basics
+    type: COMMAND
+    front: "Enter global configuration mode from privileged EXEC mode."
+    back: "configure terminal"
+
+  - id: card.networking.devices.ios-basics.copy-run-start
+    skillNodeId: networking.devices.ios-basics
+    type: COMMAND
+    front: "Save the running configuration to startup configuration."
+    back: "copy running-config startup-config"
+
+  - id: card.networking.devices.ios-basics.show-run
+    skillNodeId: networking.devices.ios-basics
+    type: COMMAND
+    front: "Display the device's currently active configuration."
+    back: "show running-config"
+
+  - id: card.networking.devices.ios-basics.show-ip-int-brief
+    skillNodeId: networking.devices.ios-basics
+    type: COMMAND
+    front: "Show a compact table of every interface, its IP, and up/down status."
+    back: "show ip interface brief"
+
+  - id: card.networking.devices.ios-basics.hostname
+    skillNodeId: networking.devices.ios-basics
+    type: COMMAND
+    front: "Set the device's hostname (from global config mode)."
+    back: "hostname <name>"
+
+  - id: card.networking.devices.ios-basics.interface-ip
+    skillNodeId: networking.devices.ios-basics
+    type: COMMAND
+    front: "Assign an IP address to an interface (from interface config mode)."
+    back: "ip address <ip> <mask>"
+
+  - id: card.networking.devices.ios-basics.no-shutdown
+    skillNodeId: networking.devices.ios-basics
+    type: COMMAND
+    front: "Bring an administratively-down interface up."
+    back: "no shutdown"
+
+  - id: card.networking.devices.hardening.enable-secret
+    skillNodeId: networking.devices.hardening
+    type: COMMAND
+    front: "Set a hashed (not plaintext) privileged-mode password."
+    back: "enable secret <password>"
+
+  - id: card.networking.devices.hardening.service-password-encryption
+    skillNodeId: networking.devices.hardening
+    type: COMMAND
+    front: "Obfuscate every plaintext password already in the running config."
+    back: "service password-encryption"
+
+  - id: card.networking.devices.hardening.line-console
+    skillNodeId: networking.devices.hardening
+    type: COMMAND
+    front: "Set a console-line password (from line console 0)."
+    back: "line console 0 / password <password> / login"
+
+  - id: card.networking.devices.hardening.vty-ssh-only
+    skillNodeId: networking.devices.hardening
+    type: COMMAND
+    front: "Restrict the VTY lines to SSH only, blocking Telnet."
+    back: "line vty 0 4 / transport input ssh"
+
+  - id: card.networking.devices.hardening.crypto-key
+    skillNodeId: networking.devices.hardening
+    type: COMMAND
+    front: "Generate the RSA key pair SSH needs (after hostname + ip domain-name are set)."
+    back: "crypto key generate rsa"
+
+  - id: card.networking.devices.hardening.banner-motd
+    skillNodeId: networking.devices.hardening
+    type: COMMAND
+    front: "Set a message-of-the-day login banner."
+    back: "banner motd #<message>#"
+
+  - id: card.networking.devices.vlans.create
+    skillNodeId: networking.devices.vlans
+    type: COMMAND
+    front: "Create (or enter) VLAN 10, from global configuration mode."
+    back: "vlan 10"
+
+  - id: card.networking.devices.vlans.access-port
+    skillNodeId: networking.devices.vlans
+    type: COMMAND
+    front: "Set an interface as an access port on VLAN 10."
+    back: "switchport mode access / switchport access vlan 10"
+
+  - id: card.networking.devices.vlans.trunk-port
+    skillNodeId: networking.devices.vlans
+    type: COMMAND
+    front: "Set an interface as a trunk port."
+    back: "switchport mode trunk"
+
+  - id: card.networking.devices.vlans.show-vlan-brief
+    skillNodeId: networking.devices.vlans
+    type: COMMAND
+    front: "Show every VLAN and which ports belong to it."
+    back: "show vlan brief"
+
+  - id: card.networking.devices.acls.standard-permit
+    skillNodeId: networking.devices.acls
+    type: COMMAND
+    front: "Write a standard ACL (id 10) permitting traffic from 192.168.1.0/24."
+    back: "access-list 10 permit 192.168.1.0 0.0.0.255"
+
+  - id: card.networking.devices.acls.apply-to-interface
+    skillNodeId: networking.devices.acls
+    type: COMMAND
+    front: "Apply ACL 10 to an interface, filtering inbound traffic."
+    back: "ip access-group 10 in"
+
+  - id: card.networking.devices.acls.show-access-lists
+    skillNodeId: networking.devices.acls
+    type: COMMAND
+    front: "Show every configured ACL and its match counters."
+    back: "show access-lists"
+
+  - id: card.networking.devices.routing.static-route
+    skillNodeId: networking.devices.routing
+    type: COMMAND
+    front: "Add a static route to 172.16.20.0/24 via next-hop 10.0.0.2."
+    back: "ip route 172.16.20.0 255.255.255.0 10.0.0.2"
+
+  - id: card.networking.devices.routing.default-route
+    skillNodeId: networking.devices.routing
+    type: COMMAND
+    front: "Add a default route via next-hop 10.0.0.1."
+    back: "ip route 0.0.0.0 0.0.0.0 10.0.0.1"
+
+  - id: card.networking.devices.routing.show-ip-route
+    skillNodeId: networking.devices.routing
+    type: COMMAND
+    front: "Show the router's current routing table."
+    back: "show ip route"

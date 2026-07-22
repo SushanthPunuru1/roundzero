@@ -4,19 +4,21 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { FORENSICS_ARCHETYPES, bestScore, gradeAnswer, prisma } from "@roundzero/db";
-import type { FormatDiff, ForensicsGradeStatus } from "@roundzero/db";
+import { bestScore, gradeAnswer, prisma } from "@roundzero/db";
+import type { FormatDiff, QuizGradeStatus } from "@roundzero/db";
 
 import { auth } from "@/lib/auth";
-import { findForensicsQuestion, loadForensicsSet } from "@/lib/forensics-content";
+import { NETWORKING_QUIZ_CATEGORIES, findNetworkingQuizQuestion, loadNetworkingQuizSet } from "@/lib/networking-quiz-content";
 import { enqueueSkillNodeCards } from "@/lib/drill";
 
-export interface GradeForensicsResult {
+const QUIZ_ID = "networking";
+
+export interface GradeQuizResult {
   error?: string;
-  status?: ForensicsGradeStatus;
+  status?: QuizGradeStatus;
   diff?: FormatDiff;
   answer?: string;
-  technique?: string;
+  technique?: string | null;
   why?: string;
 }
 
@@ -29,13 +31,14 @@ const gradeSchema = z.object({
 
 /**
  * Grades a single question for immediate feedback. Never persists anything —
- * completeForensicsSet re-grades authoritatively from the same content YAML
- * when the set finishes, so a tampered client can't inflate its own score.
+ * completeQuizSet re-grades authoritatively from the same content YAML when
+ * the set finishes, so a tampered client can't inflate its own score. Same
+ * discipline as forensics' gradeForensicsQuestion (DECISIONS 031).
  */
-export async function gradeForensicsQuestion(input: {
+export async function gradeQuizQuestion(input: {
   questionId: string;
   submitted: string;
-}): Promise<GradeForensicsResult> {
+}): Promise<GradeQuizResult> {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) {
     redirect("/sign-in");
@@ -46,7 +49,7 @@ export async function gradeForensicsQuestion(input: {
     return { error: GENERIC_ERROR };
   }
 
-  const question = findForensicsQuestion(parsed.data.questionId);
+  const question = findNetworkingQuizQuestion(parsed.data.questionId);
   if (!question) {
     return { error: GENERIC_ERROR };
   }
@@ -61,7 +64,7 @@ export async function gradeForensicsQuestion(input: {
   };
 }
 
-export interface CompleteForensicsSetResult {
+export interface CompleteQuizResult {
   error?: string;
   score?: number;
   correct?: number;
@@ -75,20 +78,18 @@ const completeSchema = z.object({
 
 /**
  * Called once a set is finished. Re-grades every question authoritatively
- * from the content YAML (never trusts the client's own per-question
- * results), upserts the user's best score for the archetype, and enqueues
- * missed questions' skill nodes into the SRS drill.
+ * from the content YAML, upserts the user's best score for this quiz
+ * category, and enqueues missed questions' skill nodes into the SRS drill.
  *
- * `archetypeKey` is a bound first argument (`completeForensicsSet.bind(null,
- * archetypeKey)` in the server component that renders `QuizRunner`) rather
- * than a field on `input` — QuizRunner's `onComplete` prop only ever passes
- * `{ answers }`, since it has no idea what "archetype" means for a quiz it
- * didn't author.
+ * `category` is a bound first argument (`completeQuizSet.bind(null,
+ * category)` in the server component that renders `QuizRunner`), the same
+ * pattern forensics' completeForensicsSet uses for `archetypeKey` — see
+ * that file's comment for why.
  */
-export async function completeForensicsSet(
-  archetypeKey: string,
+export async function completeQuizSet(
+  category: string,
   input: { answers: { questionId: string; submitted: string }[] },
-): Promise<CompleteForensicsSetResult> {
+): Promise<CompleteQuizResult> {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) {
     redirect("/sign-in");
@@ -99,8 +100,8 @@ export async function completeForensicsSet(
     return { error: GENERIC_ERROR };
   }
 
-  const info = FORENSICS_ARCHETYPES.find((archetype) => archetype.key === archetypeKey);
-  const set = loadForensicsSet(archetypeKey);
+  const info = NETWORKING_QUIZ_CATEGORIES.find((c) => c.key === category);
+  const set = loadNetworkingQuizSet(category);
   if (!info || !set || set.length === 0) {
     return { error: GENERIC_ERROR };
   }
@@ -121,20 +122,20 @@ export async function completeForensicsSet(
   const total = set.length;
   const score = Math.round((correct / total) * 100);
 
-  const existing = await prisma.forensicsProgress.findUnique({
-    where: { userId_archetype: { userId: session.user.id, archetype: info.value } },
+  const existing = await prisma.quizProgress.findUnique({
+    where: { userId_quizId_category: { userId: session.user.id, quizId: QUIZ_ID, category } },
   });
 
-  await prisma.forensicsProgress.upsert({
-    where: { userId_archetype: { userId: session.user.id, archetype: info.value } },
-    create: { userId: session.user.id, archetype: info.value, bestScore: score },
+  await prisma.quizProgress.upsert({
+    where: { userId_quizId_category: { userId: session.user.id, quizId: QUIZ_ID, category } },
+    create: { userId: session.user.id, quizId: QUIZ_ID, category, bestScore: score },
     update: { bestScore: bestScore(existing?.bestScore, score) },
   });
 
   const enqueued = await enqueueSkillNodeCards(session.user.id, missedSkillNodeIds, new Date());
 
-  revalidatePath("/app/forensics");
-  revalidatePath(`/app/forensics/${archetypeKey}`);
+  revalidatePath("/app/networking");
+  revalidatePath(`/app/networking/${category}`);
   revalidatePath("/app", "layout");
   revalidatePath("/app/drill");
 

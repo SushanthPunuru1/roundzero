@@ -1,0 +1,100 @@
+---
+slug: vlsm
+title: VLSM and subnetting a network
+domainId: networking
+level: standard
+minutes: 9
+sortOrder: 4
+published: true
+skills:
+  - networking.fundamentals.subnetting
+check:
+  - q: "You're allocating VLSM subnets for host-count requirements of 50, 20, 10, and 2. What order should you allocate them in?"
+    options:
+      - "Smallest requirement first, so small subnets get clean boundaries"
+      - "Largest requirement first, then descending"
+      - "Alphabetical by subnet name"
+      - "Order doesn't matter as long as the blocks don't overlap"
+    answer: 1
+    why: "Allocating largest-first prevents fragmentation — a small subnet allocated early can land on a boundary that makes a later, larger requirement not fit in the remaining space. Largest-first always works; order-doesn't-matter does not."
+  - q: "A point-to-point WAN link between two routers needs exactly 2 usable host addresses. What's the smallest CIDR block that fits?"
+    options:
+      - "/28 (14 usable)"
+      - "/29 (6 usable)"
+      - "/30 (2 usable)"
+      - "/24 (254 usable)"
+    answer: 2
+    why: "/30 gives a block size of 4, minus network and broadcast = exactly 2 usable — the smallest standard block that fits a 2-host link, and it wastes nothing."
+  - q: "What is VLSM actually solving that fixed-length subnetting (one mask for every subnet) doesn't?"
+    options:
+      - "It makes subnets faster"
+      - "It lets each subnet use a mask sized to its own host-count need, instead of wasting addresses on a one-size-fits-all mask"
+      - "It removes the need for a subnet mask entirely"
+      - "It's required for any network with more than one router"
+    answer: 1
+    why: "Fixed-length subnetting forces every subnet to the same size — a 2-host WAN link would waste 252 addresses at a /24. VLSM lets a 50-host LAN get a /26 and a 2-host link get a /30 out of the same address block."
+---
+
+The lesson on IP addressing covered what a subnet *is*. This one covers the
+actual Packet Tracer archetype: you're handed a block of addresses and a
+list of host-count requirements, and you have to carve the block up so every
+requirement fits with as little waste as possible. That's VLSM —
+Variable-Length Subnet Masking, meaning every subnet in the design can use a
+*different* mask, sized to what it actually needs.
+
+## The rule: largest requirement first
+
+Given a block and a list of host-count requirements, always allocate the
+**largest requirement first**, then work down to the smallest. Allocating
+small-to-large risks fragmenting the block so a later large requirement no
+longer fits in the space that's left — largest-first never has that
+problem.
+
+## Worked example
+
+You're given `192.168.1.0/24` and four requirements:
+
+| Subnet | Hosts needed |
+|---|---|
+| A | 50 |
+| B | 20 |
+| C | 10 |
+| D | 2 (a point-to-point router link) |
+
+**Step 1 — find the smallest block that fits each requirement.** Usable
+hosts = block size - 2, so find the smallest power of 2 that's at least
+(requirement + 2):
+
+- 50 → needs ≥ 52 → 64 → **/26** (62 usable)
+- 20 → needs ≥ 22 → 32 → **/27** (30 usable)
+- 10 → needs ≥ 12 → 16 → **/28** (14 usable)
+- 2 → needs ≥ 4 → 4 → **/30** (2 usable)
+
+**Step 2 — allocate largest first, back-to-back, no gaps.**
+
+| Subnet | Requirement | Mask | Network | Usable range | Broadcast |
+|---|---|---|---|---|---|
+| A | 50 | `/26` | `192.168.1.0` | `.1` - `.62` | `192.168.1.63` |
+| B | 20 | `/27` | `192.168.1.64` | `.65` - `.94` | `192.168.1.95` |
+| C | 10 | `/28` | `192.168.1.96` | `.97` - `.110` | `192.168.1.111` |
+| D | 2 | `/30` | `192.168.1.112` | `.113` - `.114` | `192.168.1.115` |
+
+Each subnet starts exactly where the previous one's broadcast address ends
+plus one. Notice each network address is a multiple of its own block size
+(64, 32, 16, 4) — that's not a coincidence, it's required: a subnet always
+starts on a boundary matching its own block size.
+
+## Why the 2-host link matters
+
+That fourth requirement — a single link between two routers — comes up in
+almost every Packet Tracer topology and is the case students most often get
+wrong by over-allocating. A /30 wastes zero addresses on a point-to-point
+link: exactly 2 usable, exactly what a link needs, nothing left idle. Giving
+it anything bigger (a /29 or worse) is a design smell a grader will notice.
+
+## The habit to build
+
+Every time you see a set of host-count requirements: sort descending, find
+each one's smallest fitting block size, allocate back-to-back starting from
+the biggest. That's the entire algorithm — the practice tool later in this
+pillar exists purely to make this fast under a clock.

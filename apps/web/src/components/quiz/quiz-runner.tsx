@@ -1,19 +1,48 @@
 "use client";
 
+// The shared question-set quiz engine (DECISIONS 033), generalized out of
+// forensics' original quiz UI (DECISIONS 031/032). Fully prop-driven over
+// two callbacks so any question-bank quiz — forensics, the networking quiz,
+// and any future one — can reuse the exact same flow, feedback, retry, and
+// summary UI without forking it. The page composing this component owns the
+// server actions and binds whatever quiz-specific identifiers (archetype,
+// category) they need via closures.
+
 import { useRef, useState } from "react";
 import Link from "next/link";
 import { AlertCircle, CircleCheck, Circle } from "lucide-react";
 import { Button, Card, ErrorNote, Eyebrow, Input, Kbd, Stat, StatStrip } from "@roundzero/ui";
 
-import { completeForensicsSet, gradeForensicsQuestion, type GradeForensicsResult } from "./actions";
-
-export interface ForensicsQuizQuestion {
+export interface QuizRunnerQuestion {
   id: string;
   prompt: string;
-  given: string;
+  given?: string | null;
 }
 
-function closeReasonLines(diff: GradeForensicsResult["diff"]): string[] {
+export interface QuizFormatDiff {
+  caseMismatch: boolean;
+  trailingSlashMismatch: boolean;
+  whitespaceMismatch: boolean;
+}
+
+export interface QuizGradeResult {
+  error?: string;
+  status?: "correct" | "close" | "incorrect";
+  diff?: QuizFormatDiff;
+  answer?: string;
+  technique?: string | null;
+  why?: string;
+}
+
+export interface QuizCompleteResult {
+  error?: string;
+  score?: number;
+  correct?: number;
+  total?: number;
+  enqueued?: number;
+}
+
+function closeReasonLines(diff: QuizFormatDiff | undefined): string[] {
   if (!diff) return [];
   const lines: string[] = [];
   if (diff.caseMismatch) lines.push("Right content, wrong case — this answer key cares about exact case.");
@@ -24,20 +53,28 @@ function closeReasonLines(diff: GradeForensicsResult["diff"]): string[] {
     : ["Close, but not an exact match — check the formatting against the answer below."];
 }
 
-export function ForensicsQuiz({
-  archetypeKey,
+export function QuizRunner({
   questions: initialQuestions,
+  onGrade,
+  onComplete,
+  backHref,
+  backLabel,
 }: {
-  archetypeKey: string;
-  questions: ForensicsQuizQuestion[];
+  questions: QuizRunnerQuestion[];
+  onGrade: (input: { questionId: string; submitted: string }) => Promise<QuizGradeResult>;
+  onComplete: (input: {
+    answers: { questionId: string; submitted: string }[];
+  }) => Promise<QuizCompleteResult>;
+  backHref: string;
+  backLabel: string;
 }) {
-  // Frozen at mount — see DrillSession for why: a mid-session revalidation
-  // must never resync the running queue out from under the student.
+  // Frozen at mount — a mid-session revalidation must never resync the
+  // running queue out from under the student (DECISIONS 025/031).
   const queue = useRef(initialQuestions).current;
 
   const [index, setIndex] = useState(0);
   const [inputValue, setInputValue] = useState("");
-  const [feedback, setFeedback] = useState<GradeForensicsResult | null>(null);
+  const [feedback, setFeedback] = useState<QuizGradeResult | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -56,7 +93,7 @@ export function ForensicsQuiz({
     if (!current || pending || inputValue.trim().length === 0) return;
     setPending(true);
     setError(null);
-    const result = await gradeForensicsQuestion({ questionId: current.id, submitted: inputValue });
+    const result = await onGrade({ questionId: current.id, submitted: inputValue });
     setPending(false);
     if (result.error) {
       setError(result.error);
@@ -77,8 +114,7 @@ export function ForensicsQuiz({
 
     setPending(true);
     setError(null);
-    const result = await completeForensicsSet({
-      archetypeKey,
+    const result = await onComplete({
       answers: Object.entries(answers).map(([questionId, submitted]) => ({ questionId, submitted })),
     });
     setPending(false);
@@ -132,7 +168,7 @@ export function ForensicsQuiz({
             Retake
           </Button>
           <Button asChild variant="ghost" className="w-fit">
-            <Link href="/app/forensics">Back to forensics</Link>
+            <Link href={backHref}>{backLabel}</Link>
           </Button>
         </div>
       </div>
@@ -149,11 +185,13 @@ export function ForensicsQuiz({
 
       <Card className="p-6">
         <p className="text-sm leading-[20px] text-text">{current.prompt}</p>
-        <div className="mt-4 rounded-md border border-hairline bg-surface-2 p-3">
-          <pre className="overflow-x-auto whitespace-pre-wrap break-words font-mono text-[13px] leading-[20px] text-text">
-            {current.given}
-          </pre>
-        </div>
+        {current.given && (
+          <div className="mt-4 rounded-md border border-hairline bg-surface-2 p-3">
+            <pre className="overflow-x-auto whitespace-pre-wrap break-words font-mono text-[13px] leading-[20px] text-text">
+              {current.given}
+            </pre>
+          </div>
+        )}
       </Card>
 
       {error && <ErrorNote>{error}</ErrorNote>}
@@ -166,12 +204,12 @@ export function ForensicsQuiz({
           }}
           className="flex flex-col gap-2"
         >
-          <label htmlFor="forensics-answer">
+          <label htmlFor="quiz-answer">
             <Eyebrow as="span">Your answer</Eyebrow>
           </label>
           <div className="flex flex-wrap gap-2">
             <Input
-              id="forensics-answer"
+              id="quiz-answer"
               value={inputValue}
               onChange={(event) => setInputValue(event.target.value)}
               autoFocus
@@ -217,13 +255,19 @@ export function ForensicsQuiz({
               )}
             </div>
           </div>
-          <div className="border-t border-hairline pt-3">
-            <Eyebrow>Technique</Eyebrow>
-            <p className="mt-1 whitespace-pre-wrap break-words font-mono text-[13px] leading-[20px] text-text">
-              {feedback.technique}
-            </p>
-            <p className="mt-2 text-sm text-text-dim">{feedback.why}</p>
-          </div>
+          {(feedback.technique || feedback.why) && (
+            <div className="border-t border-hairline pt-3">
+              {feedback.technique && (
+                <>
+                  <Eyebrow>Technique</Eyebrow>
+                  <p className="mt-1 whitespace-pre-wrap break-words font-mono text-[13px] leading-[20px] text-text">
+                    {feedback.technique}
+                  </p>
+                </>
+              )}
+              {feedback.why && <p className="mt-2 text-sm text-text-dim">{feedback.why}</p>}
+            </div>
+          )}
           <div className="flex flex-wrap items-center gap-2 pt-1">
             {feedback.status !== "correct" && (
               <Button type="button" variant="ghost" onClick={retryQuestion} disabled={pending} className="w-fit">

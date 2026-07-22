@@ -1,0 +1,101 @@
+---
+slug: tcp-udp-and-ports
+title: TCP vs UDP and the ports you must know
+domainId: networking
+level: foundations
+minutes: 8
+sortOrder: 2
+published: true
+skills:
+  - networking.fundamentals.tcp-udp
+  - networking.fundamentals.ports
+check:
+  - q: "Which protocol is connection-oriented and guarantees delivery?"
+    options:
+      - "UDP"
+      - "TCP"
+      - "Both, equally"
+      - "Neither — IP guarantees delivery"
+    answer: 1
+    why: "TCP opens a connection (the three-way handshake), numbers every segment, and retransmits anything lost. UDP just sends and hopes."
+  - q: "What port does RDP (Remote Desktop Protocol) use?"
+    options:
+      - "22"
+      - "445"
+      - "3389"
+      - "3306"
+    answer: 2
+    why: "3389 is RDP. Port 22 is SSH, 445 is SMB, and 3306 is MySQL — all worth knowing, but this one is the classic quiz question."
+  - q: "DHCP uses which transport protocol, and why does that make sense?"
+    options:
+      - "TCP — because address assignment must be reliable"
+      - "UDP — a device doesn't have an IP address yet, so it broadcasts and can't hold a TCP connection"
+      - "Both — TCP for the request, UDP for the response"
+      - "Neither — DHCP runs directly over Ethernet"
+    answer: 1
+    why: "DHCP has to work before the client has an IP address, which is exactly the kind of one-shot broadcast situation UDP is built for. TCP's handshake needs both ends already addressable."
+---
+
+Every port scan, every firewall rule, and roughly a third of the real
+networking quiz comes down to two things: knowing whether a service rides on
+TCP or UDP, and knowing its port number cold.
+
+## TCP vs UDP — the actual difference
+
+**TCP (Transmission Control Protocol)** is connection-oriented. Before any
+data moves, both ends complete a three-way handshake (SYN, SYN-ACK, ACK).
+Every segment is numbered, acknowledged, and retransmitted if lost. That
+reliability costs overhead and latency — worth it for anything where a
+dropped byte matters: a file transfer, a web page, a remote shell.
+
+**UDP (User Datagram Protocol)** is connectionless. No handshake, no
+guaranteed delivery, no ordering. A datagram goes out and the sender moves
+on. That's not a defect — it's the right tradeoff when speed matters more
+than any single packet, or when the application handles its own reliability:
+video/voice streaming, DNS lookups, and anything that needs to work before a
+device even has an IP address (DHCP).
+
+Rule of thumb: **if losing one packet would break the conversation, it's
+TCP. If the conversation can tolerate — or doesn't even have — reliable
+delivery, it's UDP.**
+
+## The port list you must know cold
+
+| Port | Protocol | Service |
+|---|---|---|
+| `20`/`21` | TCP | FTP (data / control) |
+| `22` | TCP | SSH |
+| `23` | TCP | Telnet |
+| `25` | TCP | SMTP (outbound email) |
+| `53` | TCP/UDP | DNS |
+| `67`/`68` | UDP | DHCP (server / client) |
+| `69` | UDP | TFTP |
+| `80` | TCP | HTTP |
+| `110` | TCP | POP3 |
+| `123` | UDP | NTP |
+| `143` | TCP | IMAP |
+| `161` | UDP | SNMP |
+| `443` | TCP | HTTPS |
+| `445` | TCP | SMB |
+| `3389` | TCP | RDP |
+
+A few worth noting individually:
+
+- **DNS (53)** mostly rides UDP for ordinary lookups (fast, small, one
+  question and one answer) but falls back to TCP for zone transfers or
+  answers too large for a single UDP datagram — the one port on this list
+  that legitimately uses both.
+- **DHCP (67/68)** has to be UDP, and specifically broadcast — a client
+  requesting an address doesn't have one yet, so it can't set up a normal
+  TCP session with anyone.
+- **Telnet (23) vs SSH (22)** is the same service — remote terminal access —
+  with one critical difference: Telnet sends everything, including
+  passwords, in plaintext. This is exactly why device hardening (a later
+  lesson) replaces Telnet with SSH.
+
+## Why this matters beyond memorization
+
+Reading a firewall rule, an ACL, or a `netstat`/`show ip sockets` listing
+means recognizing a port number on sight and immediately knowing what it
+implies. Port 23 open on a device you're hardening is not a neutral fact —
+it's an instruction to disable Telnet and enable SSH instead.

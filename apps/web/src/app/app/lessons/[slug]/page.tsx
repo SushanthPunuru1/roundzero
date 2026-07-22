@@ -3,6 +3,7 @@ import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { compileMDX } from "next-mdx-remote/rsc";
+import remarkGfm from "remark-gfm";
 import { prisma } from "@roundzero/db";
 import { Badge, PageHeader } from "@roundzero/ui";
 
@@ -33,7 +34,11 @@ export default async function LessonPage({
     prisma.lessonProgress.findUnique({
       where: { userId_lessonSlug: { userId: session.user.id, lessonSlug: lesson.meta.slug } },
     }),
-    compileMDX({ source: lesson.body, components: lessonComponents }),
+    compileMDX({
+      source: lesson.body,
+      components: lessonComponents,
+      options: { mdxOptions: { remarkPlugins: [remarkGfm] } },
+    }),
   ]);
 
   return (

@@ -1,0 +1,115 @@
+---
+slug: ip-addressing-subnetting
+title: IP addressing and subnetting, from scratch
+domainId: networking
+level: standard
+minutes: 10
+sortOrder: 3
+published: true
+skills:
+  - networking.fundamentals.subnetting
+check:
+  - q: "A /26 network has how many usable host addresses?"
+    options:
+      - "64"
+      - "62"
+      - "30"
+      - "126"
+    answer: 1
+    why: "/26 gives a block size of 64 addresses total, but the first (network) and last (broadcast) are reserved. 64 - 2 = 62 usable."
+  - q: "For 192.168.10.0/26, what is the broadcast address?"
+    options:
+      - "192.168.10.1"
+      - "192.168.10.62"
+      - "192.168.10.63"
+      - "192.168.10.255"
+    answer: 2
+    why: "Block size for /26 is 64, so the block runs 192.168.10.0 - 192.168.10.63. The last address in the block is always the broadcast address."
+  - q: "What does a subnet mask actually do?"
+    options:
+      - "It encrypts traffic on the subnet"
+      - "It marks which bits of the address are the network portion vs the host portion"
+      - "It assigns a device's MAC address"
+      - "It sets the default gateway"
+    answer: 1
+    why: "The mask's 1-bits mark the network portion; the 0-bits mark the host portion. Everything about subnetting math falls out of that one split."
+---
+
+Subnetting has a reputation for being the scary part of the Cisco pillar.
+It isn't hard — it's mechanical once you see the pattern, and it's the
+concept the Packet Tracer build leans on most. This lesson builds the
+foundation by hand; a later lesson (VLSM) applies it to a real design
+problem, and a dedicated practice tool drills the math until it's automatic.
+
+## Binary, briefly
+
+An IPv4 address is 32 bits, written as four 8-bit octets in decimal
+(`192.168.10.5`). Each octet ranges 0-255 because that's every value 8 bits
+can represent. You don't need to convert every address to binary by hand in
+a round, but you do need to know **block sizes** — see below — which comes
+straight from binary.
+
+## CIDR notation and the subnet mask
+
+`/26` after an address (CIDR notation) means: the first 26 bits are the
+network portion, and the remaining 32 - 26 = 6 bits are the host portion.
+That's identical information to a dotted-decimal subnet mask —
+`/26` = `255.255.255.192` — just written more compactly. Both describe the
+exact same split.
+
+The mask's role: line it up against the address, bit for bit. Wherever the
+mask has a 1, that bit is part of the network's identity (fixed for every
+device on the subnet). Wherever it has a 0, that bit is available to number
+individual hosts.
+
+## The four things every subnet has
+
+Take `192.168.10.0/26` as a worked example:
+
+1. **Block size.** With 6 host bits (32 - 26), the block size is 2⁶ = 64
+   addresses. Every subnet at this mask length is a block of exactly 64
+   consecutive addresses, starting on a multiple of 64.
+2. **Network address** — the first address in the block, all host bits
+   zero: `192.168.10.0`. This identifies the subnet itself; no device uses
+   it.
+3. **Broadcast address** — the last address in the block, all host bits
+   one: `192.168.10.63` (0 + 64 - 1). Also never assigned to a device — it
+   means "everyone on this subnet."
+4. **Usable range** — everything between network and broadcast:
+   `192.168.10.1` through `192.168.10.62`. That's 64 - 2 = **62 usable
+   hosts**.
+
+## The pattern that makes this fast
+
+Once you know the block size, everything else is arithmetic, not
+memorization:
+
+- Usable hosts = block size - 2 (subtract the network and broadcast
+  addresses).
+- The network address is always a multiple of the block size.
+- The broadcast address is always (network address + block size - 1).
+
+| CIDR | Mask | Block size | Usable hosts |
+|---|---|---|---|
+| `/24` | `255.255.255.0` | 256 | 254 |
+| `/25` | `255.255.255.128` | 128 | 126 |
+| `/26` | `255.255.255.192` | 64 | 62 |
+| `/27` | `255.255.255.224` | 32 | 30 |
+| `/28` | `255.255.255.240` | 16 | 14 |
+| `/29` | `255.255.255.248` | 8 | 6 |
+| `/30` | `255.255.255.252` | 4 | 2 |
+
+Notice the pattern: each step right, the block size halves and the mask's
+last non-255/0 octet doubles (128, 192, 224, 240, 248, 252 — each is the
+previous plus half the remaining gap to 256). Memorize that progression once
+and you can derive any of this table on the spot, which is exactly what the
+quiz and the Packet Tracer build both expect you to do quickly.
+
+## Two edge cases worth knowing by name
+
+- **/31** — a 2-address block with no network/broadcast subtraction
+  (RFC 3021); used for point-to-point WAN links where you don't want to
+  waste two of every four addresses. Uncommon in CyberPatriot-level
+  Packet Tracer builds, but occasionally shows up as a quiz trap.
+- **/32** — a single host, no subnetting at all. Used to route to one
+  specific address.

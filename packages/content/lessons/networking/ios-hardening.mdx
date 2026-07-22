@@ -1,0 +1,131 @@
+---
+slug: ios-hardening
+title: Device hardening on IOS
+domainId: networking
+level: standard
+minutes: 9
+sortOrder: 6
+published: true
+skills:
+  - networking.devices.hardening
+check:
+  - q: "Why does `enable secret` win over `enable password` when both are configured?"
+    options:
+      - "enable secret is checked first alphabetically"
+      - "enable secret is hashed; enable password is stored in plaintext, and IOS always prefers the hashed one when both exist"
+      - "They do different things, so both apply at once"
+      - "enable password is newer and takes priority"
+    answer: 1
+    why: "enable secret is hashed at save time. enable password is stored in plaintext (readable straight out of a `show running-config`) and only exists for legacy compatibility — IOS always prefers enable secret when both are set."
+  - q: "What's the actual security value of `service password-encryption`?"
+    options:
+      - "It's strong encryption — passwords become unrecoverable"
+      - "It's weak obfuscation (type 7) — it stops shoulder-surfing a config file, not a determined attacker"
+      - "It encrypts traffic on the wire"
+      - "It has no effect on already-configured passwords"
+    answer: 1
+    why: "service password-encryption applies a well-known, trivially reversible obfuscation (type 7) to plaintext passwords already in the config. It's worth doing — it stops a casual glance at running-config from handing over a password — but it is not real encryption."
+  - q: "You're setting up remote administration on a switch. Which is the correct choice, and why?"
+    options:
+      - "Telnet, because it's simpler to configure"
+      - "SSH, because Telnet sends everything — including the login password — in plaintext"
+      - "Either is fine as long as a password is set"
+      - "RDP, since it's what Windows uses"
+    answer: 1
+    why: "Telnet has no encryption at all; anyone on the path can read the session, including the password. SSH encrypts the whole session. This is the exact same insecure-service pattern as the Linux/Windows pillars, applied to network gear."
+---
+
+Everything in this lesson maps directly onto the OS-hardening instincts you
+already have from the Linux and Windows pillars: use a hashed credential
+instead of plaintext, replace an insecure remote-access protocol with an
+encrypted one, and don't leave a device answering to defaults. Cisco IOS
+just has its own vocabulary for all of it.
+
+## Enable secret, not enable password
+
+Two commands set the password required to reach privileged EXEC mode:
+
+```
+Router(config)# enable password cisco123
+Router(config)# enable secret cisco123
+```
+
+`enable password` stores the password in plaintext — anyone who can read
+`show running-config` reads it straight off the screen. `enable secret`
+hashes it before storing it. **If both are configured, IOS always uses
+`enable secret`** — so the fix is never "remove enable password and add
+enable secret," it's just: only ever configure `enable secret`.
+
+## service password-encryption — useful, but know its limits
+
+```
+Router(config)# service password-encryption
+```
+
+This one command obfuscates every plaintext password already sitting in the
+config (line passwords, a leftover `enable password`, etc.) using what IOS
+calls "type 7" encoding. Be precise about what it buys you: type 7 is a
+well-documented, trivially reversible scheme — it is **not** cryptographic
+protection. What it does stop is the casual case: someone glancing at a
+`show running-config` output, or a config file emailed around, doesn't get
+a plaintext password handed to them. Always turn it on. Never rely on it as
+your only protection — that's what `enable secret`'s real hashing is for.
+
+## SSH instead of Telnet
+
+Telnet (port 23, from the ports lesson) sends the entire session — including
+the login password — in plaintext. SSH (port 22) encrypts it. Getting SSH
+working takes a few more steps than Telnet, which is exactly why Telnet
+still shows up as a default in vulnerable builds:
+
+```
+Router(config)# hostname R1
+Router(config)# ip domain-name roundzero.local
+Router(config)# username admin secret StrongPass123!
+Router(config)# crypto key generate rsa
+Router(config)# line vty 0 4
+Router(config-line)# login local
+Router(config-line)# transport input ssh
+```
+
+Two details that trip people up: `crypto key generate rsa` needs a hostname
+and a domain name set *first* (it uses both to build the key), and
+`transport input ssh` is what actually blocks Telnet on those lines — without
+it, both protocols stay available even after SSH is configured.
+
+## Console and VTY line passwords
+
+Two separate access paths need their own password:
+
+```
+Router(config)# line console 0
+Router(config-line)# password ConsolePass1!
+Router(config-line)# login
+
+Router(config)# line vty 0 4
+Router(config-line)# password VtyPass1!
+Router(config-line)# login
+```
+
+(If you've set up SSH with `login local` per-user credentials as above, you
+don't also need a shared `line vty` password — pick one approach per line,
+not both.)
+
+## Banners
+
+```
+Router(config)# banner motd #
+Unauthorized access is prohibited. All activity is monitored and logged.
+#
+```
+
+A "message of the day" banner isn't decoration — CyberPatriot-style
+scenarios and real organizations alike require a legal warning banner before
+login, and its absence is a scored finding.
+
+## Disable what you don't need
+
+The same principle from the Linux/Windows pillars applies here: an unused
+service is an unused attack surface. If a device doesn't need HTTP/HTTPS
+management (`ip http server` / `ip http secure-server`), or Telnet access,
+turn it off rather than leaving it reachable "just in case."

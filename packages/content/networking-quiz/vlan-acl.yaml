@@ -1,0 +1,63 @@
+# RoundZero — Networking quiz bank: VLAN/ACL concepts
+# Location in repo: packages/content/networking-quiz/vlan-acl.yaml
+# Contract: packages/content/networking-quiz/README.md
+
+version: 1
+quizId: networking
+
+questions:
+  - id: networking-quiz.q.implicit-deny
+    category: vlan-acl
+    skillNodeId: networking.devices.acls
+    prompt: "A packet doesn't match any explicit line in an ACL. What happens to it?"
+    answer: "it is denied"
+    accepts: ["it is denied", "denied", "dropped", "it is dropped"]
+    why: "Every Cisco ACL ends with an invisible final rule: deny everything. Anything that falls through every explicit line gets dropped."
+
+  - id: networking-quiz.q.acl-evaluation-order
+    category: vlan-acl
+    skillNodeId: networking.devices.acls
+    prompt: "ACL lines are evaluated in what order, and how many lines are checked once a match is found?"
+    answer: "top to bottom, stopping at the first match"
+    accepts: ["top to bottom, stopping at the first match", "top-down, first match wins", "top to bottom, first match only"]
+    why: "ACLs are processed top-down and stop at the first match — a broad permit near the top can silently override a more specific deny below it."
+
+  - id: networking-quiz.q.access-port-vlan-count
+    category: vlan-acl
+    skillNodeId: networking.devices.vlans
+    prompt: "How many VLANs does a single access port carry traffic for?"
+    answer: "1"
+    accepts: ["1", "one"]
+    why: "An access port carries exactly one VLAN's traffic — that's what makes it the right choice for connecting an end device like a PC."
+
+  - id: networking-quiz.q.trunk-port-purpose
+    category: vlan-acl
+    skillNodeId: networking.devices.vlans
+    prompt: "What kind of port carries traffic for multiple VLANs over a single physical link, tagging each frame with its VLAN ID?"
+    answer: "trunk"
+    accepts: ["trunk", "trunk port"]
+    why: "Trunk ports (typically 802.1Q tagged) connect switches to each other, or a switch to a router, carrying every VLAN's traffic over one link."
+
+  - id: networking-quiz.q.standard-acl-filter-field
+    category: vlan-acl
+    skillNodeId: networking.devices.acls
+    prompt: "A standard ACL can filter traffic based on which single field?"
+    answer: "source ip address"
+    accepts: ["source ip address", "source ip", "source address"]
+    why: "Standard ACLs only see the source address — that coarse granularity is exactly why they should sit close to the destination, not the source."
+
+  - id: networking-quiz.q.extended-acl-placement
+    category: vlan-acl
+    skillNodeId: networking.devices.acls
+    prompt: "Because an extended ACL can already specify the exact destination and service, where should it be placed in the topology?"
+    answer: "close to the source"
+    accepts: ["close to the source", "near the source", "as close to the source as possible"]
+    why: "An extended ACL can filter precisely enough to stop unwanted traffic right where it originates, before it travels the network at all."
+
+  - id: networking-quiz.q.create-vlan-command
+    category: vlan-acl
+    skillNodeId: networking.devices.vlans
+    prompt: "What command creates (or enters) VLAN 10 from global configuration mode?"
+    answer: "vlan 10"
+    accepts: ["vlan 10"]
+    why: "vlan 10 both creates VLAN 10 if it doesn't exist and drops you into VLAN configuration mode to name it."

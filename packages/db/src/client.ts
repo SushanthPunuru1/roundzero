@@ -37,10 +37,23 @@ export { PLATFORM_TIME_ZONE, DAILY_NEW_CARD_CAP, localDateKey } from "./srs/day"
 // has actually been graded.
 export { ForensicsError, parseForensics, parseForensicsFile, toForensicsRow, validateForensicsRefs, FORENSICS_ARCHETYPES } from "./forensics/parse";
 export type { DesiredForensicsQuestion, ForensicsQuestionRow, ForensicsArchetypeInfo } from "./forensics/parse";
-export { gradeAnswer, normalizeAnswer } from "./forensics/grade";
+
+// Generic quiz engine (DECISIONS 033) — the forensics grading math above was
+// already domain-agnostic, so it now lives here and forensics imports it
+// under its historical names (aliased below) rather than duplicating it.
+// Any future quiz bank (Cisco Part C1's networking quiz today) reuses this
+// same grading + parse/reconcile pair instead of forking forensics' pattern.
+export { gradeAnswer, normalizeAnswer } from "./quiz/grade";
 export type {
-  ForensicsAnswerSpec,
+  QuizAnswerSpec,
   FormatDiff,
+  GradeStatus as QuizGradeStatus,
+  GradeResult as QuizGradeResult,
+} from "./quiz/grade";
+export type {
+  QuizAnswerSpec as ForensicsAnswerSpec,
   GradeStatus as ForensicsGradeStatus,
   GradeResult as ForensicsGradeResult,
-} from "./forensics/grade";
+} from "./quiz/grade";
+export { QuizError, parseQuiz, parseQuizFile, toQuizRow, validateQuizRefs } from "./quiz/parse";
+export type { DesiredQuizQuestion, QuizQuestionRow } from "./quiz/parse";

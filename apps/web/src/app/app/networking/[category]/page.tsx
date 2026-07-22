@@ -2,44 +2,46 @@ import { headers } from "next/headers";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { FORENSICS_ARCHETYPES, prisma } from "@roundzero/db";
+import { prisma } from "@roundzero/db";
 import { PageHeader } from "@roundzero/ui";
 
 import { auth } from "@/lib/auth";
-import { loadForensicsSet } from "@/lib/forensics-content";
+import { NETWORKING_QUIZ_CATEGORIES, loadNetworkingQuizSet } from "@/lib/networking-quiz-content";
 import { QuizRunner } from "@/components/quiz/quiz-runner";
-import { completeForensicsSet, gradeForensicsQuestion } from "./actions";
+import { completeQuizSet, gradeQuizQuestion } from "./actions";
 
-export default async function ForensicsSetPage({
+const QUIZ_ID = "networking";
+
+export default async function NetworkingQuizSetPage({
   params,
 }: {
-  params: Promise<{ archetype: string }>;
+  params: Promise<{ category: string }>;
 }) {
-  const { archetype: archetypeKey } = await params;
+  const { category } = await params;
 
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) {
     redirect("/sign-in");
   }
 
-  const info = FORENSICS_ARCHETYPES.find((a) => a.key === archetypeKey);
-  const set = info ? loadForensicsSet(archetypeKey) : null;
+  const info = NETWORKING_QUIZ_CATEGORIES.find((c) => c.key === category);
+  const set = info ? loadNetworkingQuizSet(category) : null;
   if (!info || !set || set.length === 0) {
     notFound();
   }
 
-  const progress = await prisma.forensicsProgress.findUnique({
-    where: { userId_archetype: { userId: session.user.id, archetype: info.value } },
+  const progress = await prisma.quizProgress.findUnique({
+    where: { userId_quizId_category: { userId: session.user.id, quizId: QUIZ_ID, category } },
   });
 
   return (
     <div>
       <Link
-        href="/app/forensics"
+        href="/app/networking"
         className="inline-flex items-center gap-1.5 text-sm text-text-dim hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
       >
         <ArrowLeft className="size-3.5" strokeWidth={1.75} aria-hidden="true" />
-        Forensics
+        Networking
       </Link>
 
       <PageHeader
@@ -58,10 +60,10 @@ export default async function ForensicsSetPage({
           prompt: question.prompt,
           given: question.given,
         }))}
-        onGrade={gradeForensicsQuestion}
-        onComplete={completeForensicsSet.bind(null, archetypeKey)}
-        backHref="/app/forensics"
-        backLabel="Back to forensics"
+        onGrade={gradeQuizQuestion}
+        onComplete={completeQuizSet.bind(null, category)}
+        backHref="/app/networking"
+        backLabel="Back to networking"
       />
     </div>
   );

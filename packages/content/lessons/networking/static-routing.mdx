@@ -1,0 +1,100 @@
+---
+slug: static-routing
+title: Static routing and the default route
+domainId: networking
+level: standard
+minutes: 7
+sortOrder: 9
+published: true
+skills:
+  - networking.devices.routing
+check:
+  - q: "What does a router actually consult to decide where to send a packet next?"
+    options:
+      - "Its ARP cache"
+      - "Its routing table"
+      - "The switch's VLAN table"
+      - "The packet's TTL value"
+    answer: 1
+    why: "The routing table is the list of known networks and the next hop to reach each one. If a destination network isn't in it (and there's no default route), the router drops the packet."
+  - q: "What's the correct syntax to add a static route to 172.16.20.0/24 via next-hop 10.0.0.2?"
+    options:
+      - "route add 172.16.20.0/24 10.0.0.2"
+      - "ip route 172.16.20.0 255.255.255.0 10.0.0.2"
+      - "ip static-route 172.16.20.0 10.0.0.2"
+      - "network 172.16.20.0 area 0"
+    answer: 1
+    why: "ip route <destination-network> <subnet-mask> <next-hop> — in dotted-decimal mask form, entered in global configuration mode. 'network ... area 0' is OSPF syntax, not a static route."
+  - q: "A default route sends unmatched traffic where?"
+    options:
+      - "Nowhere — it's dropped"
+      - "Back to the sender"
+      - "To a specified next hop, used only when no more specific route matches"
+      - "To every interface simultaneously"
+    answer: 2
+    why: "A default route (ip route 0.0.0.0 0.0.0.0 <next-hop>) is the catch-all — the router uses it only when it has no more specific match in the routing table, typically to reach the internet or an upstream network."
+---
+
+Switches move frames within a broadcast domain. Getting a packet from one
+network to a *different* network is a router's job, and a router does that
+by consulting its routing table — a list of known destination networks and
+the next hop to reach each one. This lesson covers the two forms of that
+table entry the Cisco Challenge actually tests: a specific static route, and
+the default route.
+
+## Static routes
+
+A static route is a manually entered routing table entry: "to reach this
+network, send traffic to this next-hop address." From global configuration
+mode:
+
+```
+Router(config)# ip route 172.16.20.0 255.255.255.0 10.0.0.2
+```
+
+Read it left to right: destination network, its mask, next-hop IP. This
+router now knows that anything addressed to `172.16.20.0/24` should be
+forwarded to `10.0.0.2` (typically the next router along the path).
+
+Static routes are simple and predictable — exactly what a small, fixed
+Packet Tracer topology needs — but they don't adapt: if the path changes,
+someone has to manually update the route.
+
+## The default route
+
+A router won't have a specific entry for every network that exists — most
+traffic leaving a small network is headed somewhere the router has no
+specific route for (the wider internet, in a real network). The **default
+route** is the catch-all entry, used only when nothing more specific
+matches:
+
+```
+Router(config)# ip route 0.0.0.0 0.0.0.0 10.0.0.1
+```
+
+`0.0.0.0 0.0.0.0` as the destination/mask pair means "match anything." A
+router always prefers a more specific route over the default when both
+exist — the default route is purely the fallback of last resort.
+
+## Verifying what's actually in the table
+
+```
+Router# show ip route
+```
+
+This is the single most useful troubleshooting command for a routing
+problem: it shows every route the router currently knows, both static and
+any learned dynamically, and which one it'll actually use for a given
+destination. If two devices on different subnets can't reach each other,
+`show ip route` on the router between them is where you look first — a
+missing or wrong static route shows up immediately.
+
+## A word on dynamic routing
+
+Larger networks use dynamic routing protocols — RIP and OSPF are the two
+you'll see referenced at this level — where routers exchange routing
+information automatically instead of an admin typing every route by hand.
+The Cisco Challenge's finite, exam-style content tests recognizing what RIP
+and OSPF *are* (RIP: simple, older, hop-count based; OSPF: link-state,
+faster convergence, used in larger real networks) rather than configuring
+either in depth — static routing is the hands-on skill this pillar builds.

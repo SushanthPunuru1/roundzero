@@ -1217,3 +1217,172 @@ still showing the wrong feedback), answered it correctly on the retry,
 finished the set, and confirmed the summary scored it as correct (not
 counted as a miss) and did not enqueue that question's skill node to the
 drill.
+
+**033 · 2026-07-22 · Networking/Cisco pillar Parts A + C:
+`docs/CISCO_BUILD_SPEC.md`.** First networking content session — 9 lessons,
+a generalized quiz engine (forensics' quiz UI/grading pulled out into a
+shared primitive, per the spec's explicit ask), a 35-question networking
+quiz bank, and 27 new drill cards. Pure web content, ships to production
+exactly like forensics Part A (031). Part B (the subnetting trainer) is
+explicitly deferred to a later session — not built here.
+
+*Taxonomy* (additive, 006). Five new leaves —
+`networking.fundamentals.ports`, `networking.devices.ios-basics`,
+`networking.devices.routing`, `networking.devices.dhcp-nat`,
+`networking.wireless.security` (new `networking.wireless` category) — filling
+gaps the spec identified between the existing `networking.*` nodes and what
+the lessons/quiz/cards below actually needed to reference.
+
+*Lessons* (`packages/content/lessons/networking/*.mdx`, 020's pattern). Nine
+lessons — OSI, TCP/UDP + ports, IP addressing/subnetting, VLSM, IOS basics,
+IOS hardening, VLANs/trunking, ACLs, static routing — each with a 3-question
+end-of-lesson check. Flipped to `published: true` this session after an
+in-session factual-accuracy read (same precedent as Foundations, 020) so
+`/app/lessons` and a real lesson check could actually be verified; no lessons
+index/grouping code changes were needed — `groupLessonsByDomain`
+(`apps/web/src/lib/lessons.ts`) was already domain-generic, so "Networking /
+Cisco" appears as its own group automatically. The IOS-basics lesson carries
+the pillar's one scope-honesty note (a link to Cisco Packet Tracer via
+Networking Academy, cisco.com's own free distribution channel — flagged for
+a human sanity-check since URLs aren't a thing this session can browse to
+confirm); the `/app/networking` index repeats the same note so it's visible
+without opening a lesson first.
+
+*`remark-gfm` added to `apps/web`, pinned `^4.0.1`.* Real bug, not a
+nice-to-have: several networking lessons use markdown tables (port lists,
+CIDR/mask tables, VLSM allocation tables) and `next-mdx-remote`'s
+`compileMDX` (020) never had GFM enabled — bare CommonMark has no table
+syntax, so every pipe table was rendering as literal `|`-delimited text in
+the browser, confirmed live before the fix (Playwright dump of the rendered
+page showed raw `| Mode | Prompt |...` text) and confirmed fixed after
+(`table`/`thead`/`tr`/`th` elements present, `thead th` text `["Mode",
+"Prompt", "What you can do"]`). Wired via `compileMDX`s
+`options.mdxOptions.remarkPlugins: [remarkGfm]`
+(`apps/web/src/app/app/lessons/[slug]/page.tsx`); `mdx-components.tsx`
+gained `table`/`thead`/`tr`/`th`/`td` mapped to DESIGN's 13/20 dense-data
+style. Deliberately did NOT force `font-mono`/`tabular-nums` onto every
+`<td>` — table content is a mix of prose (layer names, service descriptions)
+and real machine data (IPs, masks, CIDR, port numbers); mono is reserved for
+the latter (DESIGN.md), so the lesson source wraps just those values in
+backticks (already-styled via the existing inline `code` component) rather
+than the table styling forcing mono onto prose cells. MIT, zero runtime cost
+(build/render-time only), no peer conflicts with `@mdx-js/mdx@3`.
+
+*The quiz engine, generalized (the spec's explicit C1 mandate).* Forensics
+quiz UI and grading (031/032) turned out to already be entirely
+domain-agnostic — nothing about `gradeAnswer`/`normalizeAnswer` or the
+question-at-a-time/feedback/retry/summary flow actually depended on
+"forensics." Extracted rather than forked:
+- `packages/db/src/forensics/grade.ts` moved verbatim (renamed
+  `ForensicsAnswerSpec` to `QuizAnswerSpec`) to `packages/db/src/quiz/grade.ts`;
+  `client.ts` re-exports it under both its new generic names and its
+  original `Forensics`-prefixed aliases, so forensics own
+  `actions.ts`/`grade.test.ts` needed zero changes beyond the import path.
+- `forensics-quiz.tsx` (the client component) generalized into
+  `apps/web/src/components/quiz/quiz-runner.tsx` — the first component
+  outside `packages/ui` shared across features, so it lives in a new
+  `apps/web/src/components/` rather than either features route folder.
+  Fully prop-driven: `onGrade`/`onComplete` callbacks instead of imported
+  server actions, `backHref`/`backLabel` instead of a hardcoded forensics
+  link, `given` rendered only when present (networking questions often have
+  none — pure recall, no evidence block). The forensics page now binds its
+  existing actions via `completeForensicsSet.bind(null, archetypeKey)` (the
+  standard Next.js pattern for passing extra arguments to a Server Action
+  reference across the Server-to-Client boundary — a plain wrapper closure
+  is NOT a valid prop here, since only Server Action references themselves
+  cross that boundary) — required `completeForensicsSet`s signature to
+  change from a single `{archetypeKey, answers}` object to
+  `(archetypeKey, {answers})`, its only call site. `forensics-quiz.test.tsx`
+  moved to `quiz-runner.test.tsx`, now exercising the generic component with
+  mocked `onGrade`/`onComplete` props instead of a mocked module import —
+  same three cases (031/032s retry-flow regression guards) plus a fourth
+  confirming no evidence block renders when `given` is absent.
+
+*Storage: generic `QuizQuestion`/`QuizProgress`, forensics NOT migrated onto
+them.* `QuizQuestion(id, quizId, category, skillNodeId, prompt, given?,
+sortOrder)` and `QuizProgress(userId, quizId, category, bestScore)` — the
+networking-quiz analogue of `ForensicsQuestion`/`ForensicsProgress`, but
+`quizId`/`category` are plain strings rather than a Prisma enum (`archetype`
+is `ForensicsArchetype`), specifically so a third quiz never needs a schema
+migration just to add a category. `packages/db/src/quiz/{parse,reconcile}.ts`
+mirror `forensics/{parse,reconcile}.ts` exactly (own answer-key-never-in-DB
+discipline, own hard-delete-on-drop reconcile per 022/031s no-user-data-per-
+question reasoning) — deliberately NOT collapsed into one generic
+parse/reconcile shared with forensics, matching the existing precedent that
+every content type (lessons/checklists/cards/forensics) gets its own
+parse/reconcile pair even though the shapes rhyme; forcing a shared
+mega-parser across two content types with a still-open unknown (what a third
+quizs fields even need) would be exactly the premature abstraction
+CLAUDE.md warns against. Forensics own tables/parse module are UNCHANGED
+and not deprecated — they shipped first, they work, and migrating a live
+(if pre-launch) content type for symmetry alone is churn with no user
+benefit. Additive migration `add_quiz_question_progress`.
+
+*Networking quiz content* (`packages/content/networking-quiz/*.yaml`, 35
+questions across 6 categories — subnetting, ports, protocols, ios-commands,
+security, vlan-acl — one file per category, `README.md` documenting the one
+contract delta from forensics: `given`/`technique`/`case_sensitive` are all
+optional, since most networking recall has no evidence block to show and
+isnt case-sensitive). `NETWORKING_QUIZ_CATEGORIES` (ordered key/label
+list for the index page and routing) lives in
+`apps/web/src/lib/networking-quiz-content.ts`, not in `packages/db` — unlike
+`FORENSICS_ARCHETYPES`, theres no Prisma enum forcing a kebab-key-to-enum-value
+mapping to live in the shared package, so this is purely apps/web display
+config, the same way a hypothetical third quizs category list would be.
+`/app/networking` (index) + `/app/networking/[category]` (`QuizRunner`-driven,
+mirrors `/app/forensics/[archetype]` exactly) + `[category]/actions.ts`
+(`gradeQuizQuestion`/`completeQuizSet`, the latter bound the same way
+forensics `completeForensicsSet` is). `next.config.ts` traces
+`packages/content/networking-quiz/**/*.yaml` for `/app/networking/**`, same
+as forensics entry. `top-bar.tsx` gained a "Networking" nav link.
+
+*IOS command drill cards* (`packages/content/cards/core.yaml`, appended — no
+new file, matching the existing single-file convention). 24 `COMMAND` cards
+on `networking.devices.*` nodes (enable/conf-t/copy-run-start/show
+commands/hostname/interface IP/no-shutdown; enable-secret/service-password-
+encryption/console+vty lines/crypto-key/banner; vlan create/access-port/
+trunk-port/show-vlan; ACL write/apply/show; static+default route/show-ip-
+route) plus 3 small `CONCEPT` cards filling a gap live verification actually
+caught: `networking.fundamentals.ports`, `networking.devices.dhcp-nat`, and
+`networking.wireless.security` are all referenced by quiz questions and/or
+lessons but had zero cards, so a missed quiz question in those categories
+silently enqueued nothing (the enqueue mechanism itself was never broken —
+`enqueueSkillNodeCards` correctly finds zero active cards and enqueues zero,
+same as it would for any node with no cards — but the SRS loop the spec
+asked to "wire" was a no-op for those three nodes specifically until these
+existed). All content flows into the daily drill through the two existing
+enqueue paths unchanged: completing a networking lesson enqueues its cards
+(`enqueueLessonCards`), and a missed networking quiz question enqueues its
+skill nodes cards (`enqueueSkillNodeCards`, now called from
+`completeQuizSet` the same way `completeForensicsSet` already calls it).
+
+*Seed.* `prisma/seed.ts` gained `syncQuiz`, called after `syncForensics`,
+identical shape to every other content sync (parse to `validateQuizRefs`
+fails loudly on an unknown/non-leaf `skillNodeId` to reconcile to transaction
+to summary counts).
+
+Verified end to end against the real dev Neon DB: `db:seed` created 6
+taxonomy nodes (4 updated — sortOrder shifted for existing siblings by
+inserting new nodes among them, expected), 9 lessons, 27 cards (24 + the 3
+gap-fill), and 35 quiz questions on first run; second run reported
+everything unchanged; temporarily pointing a quiz questions `skillNodeId`
+at a nonexistent id failed the run with exit 1 and a precise message, then
+reverted. `pnpm lint`/`typecheck`/`test` (171 `packages/db` + 62 `apps/web`,
+net +1 over pre-session — the forensics-quiz suites 3 tests became
+quiz-runners 4) and `pnpm build` (root, CI placeholder env, no
+`LAB_BROKER_URL`) all pass, including both new `/app/networking` routes in
+the build output. Browser-verified against a real local dev server + the
+real dev DB with a throwaway magic-link account (same pattern as every prior
+sessions verification — token read from that accounts own `Verification`
+row via a disposable script, never a real users credentials; account and
+all its rows deleted afterward): took the "ports" quiz (RDP-port question
+correct, four subsequent answers wrong — confirmed "Correct"/"Incorrect"/
+"Try again" feedback, `20%` final score, exactly one missed questions card
+enqueued to the drill, that score surviving a full page reload on the index);
+completed the `ios-basics` lesson check (100%, its 8 cards enqueued,
+`/app/drill`s due-count badge tracking both enqueues live); confirmed
+"Foundations" and "Networking / Cisco" both render as lesson-index groups;
+confirmed a forensics quiz still completes correctly through the now-shared
+`QuizRunner` (regression check); confirmed tables render as real `<table>`
+elements (not raw pipe text) across four table-bearing lessons with no
+horizontal overflow at 1280px or 1024px.

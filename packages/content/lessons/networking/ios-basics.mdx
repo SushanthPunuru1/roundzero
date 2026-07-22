@@ -1,0 +1,116 @@
+---
+slug: ios-basics
+title: Cisco IOS basics
+domainId: networking
+level: standard
+minutes: 9
+sortOrder: 5
+published: true
+skills:
+  - networking.devices.ios-basics
+check:
+  - q: "You're at the `Switch>` prompt. What command gets you to `Switch#`?"
+    options:
+      - "configure terminal"
+      - "enable"
+      - "login"
+      - "sudo"
+    answer: 1
+    why: "`enable` moves you from user EXEC (>) to privileged EXEC (#) — the mode that can actually see and change the device's configuration."
+  - q: "You've made changes and want them to survive a reboot. What command actually does that?"
+    options:
+      - "write config"
+      - "save running-config"
+      - "copy running-config startup-config"
+      - "Changes save automatically on IOS"
+    answer: 2
+    why: "IOS keeps two configs: running-config (active, lost on reboot) and startup-config (loaded at boot). `copy running-config startup-config` is the command that persists your work — nothing saves automatically."
+  - q: "From privileged EXEC mode (`Switch#`), which command takes you into global configuration mode?"
+    options:
+      - "configure terminal"
+      - "enable"
+      - "interface config"
+      - "show running-config"
+    answer: 0
+    why: "`configure terminal` (often typed `conf t`) moves from privileged EXEC into global config mode, where you can set the hostname, create VLANs, or drop into an interface to configure it."
+---
+
+Before any hardening, VLAN, or ACL work makes sense, you need the basic
+grammar of talking to a Cisco device: the mode structure, and the handful of
+commands you'll type constantly. This lesson is pure mechanics — the next
+few lessons build real configuration on top of it.
+
+## A note on scope
+
+RoundZero teaches everything in this pillar up to the point of actually
+building the network. The hands-on Packet Tracer build — dragging in
+devices, cabling them, and typing these commands into a real simulated
+CLI — happens in
+[Cisco Packet Tracer](https://www.netacad.com/courses/packet-tracer)
+itself, which is free from Cisco's Networking Academy. What you learn here
+is what makes that build fast and correct: the commands, the concepts, and
+(later) the subnetting math, cold.
+
+## The three modes that matter
+
+IOS gates what you can do behind a mode hierarchy. You'll live in three of
+them:
+
+| Mode | Prompt | What you can do |
+|---|---|---|
+| User EXEC | `Switch>` | Almost nothing — a few read-only show commands |
+| Privileged EXEC | `Switch#` | Full visibility: any `show` command, `copy`, `reload` |
+| Global configuration | `Switch(config)#` | Change the device: hostname, interfaces, VLANs, ACLs |
+
+Getting from one to the next is always a specific command, never a menu:
+
+```
+Switch> enable
+Switch# configure terminal
+Switch(config)#
+```
+
+`enable` moves user → privileged. `configure terminal` (commonly typed
+`conf t`) moves privileged → global config. There's no way to skip user EXEC
+and go straight to config mode — you always pass through privileged first.
+
+From global config, typing `interface gigabitEthernet 0/1` drops you one
+level further, into interface configuration mode
+(`Switch(config-if)#`) — the mode where you'd assign that specific
+interface's IP address.
+
+## The commands you'll type in every session
+
+- **`hostname <name>`** (global config) — names the device, so its prompt
+  (and every screenshot/report) is unambiguous.
+- **`show running-config`** (privileged EXEC) — dumps the device's
+  currently active configuration. This is your single most-used
+  troubleshooting command.
+- **`show ip interface brief`** (privileged EXEC) — a compact table of
+  every interface, its IP address, and whether it's up or down. The fastest
+  way to sanity-check a topology.
+- **Assigning an interface an IP**, from interface config mode:
+  ```
+  Switch(config)# interface gigabitEthernet 0/1
+  Switch(config-if)# ip address 192.168.1.1 255.255.255.0
+  Switch(config-if)# no shutdown
+  ```
+  That last line matters — IOS interfaces are administratively shut down by
+  default on many platforms. Forgetting `no shutdown` is one of the most
+  common reasons a freshly-configured interface still shows down.
+
+## Running config vs startup config — the trap
+
+Every change you make while working lands in **running-config**, held in
+RAM. It is gone the instant the device reboots or loses power. **Nothing
+saves automatically.** The command that copies your work into
+**startup-config** (NVRAM, survives a reboot) is:
+
+```
+Switch# copy running-config startup-config
+```
+
+Often abbreviated `copy run start`. Get in the habit of running it after any
+block of changes you'd be upset to lose — this is the IOS equivalent of the
+"back up before you change anything" discipline from the Foundations
+lessons, just aimed the opposite direction: saving forward, not backward.

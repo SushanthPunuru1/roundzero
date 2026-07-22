@@ -12,6 +12,7 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/app/lessons/**": ["../../packages/content/lessons/**/*.mdx"],
     "/app/forensics/**": ["../../packages/content/forensics/**/*.yaml"],
+    "/app/networking/**": ["../../packages/content/networking-quiz/**/*.yaml"],
   },
 };
 

@@ -1,0 +1,108 @@
+---
+slug: vlans-trunking
+title: VLANs and trunking
+domainId: networking
+level: standard
+minutes: 8
+sortOrder: 7
+published: true
+skills:
+  - networking.devices.vlans
+check:
+  - q: "What does a VLAN actually do?"
+    options:
+      - "It speeds up a switch's forwarding"
+      - "It splits one physical switch into multiple separate broadcast domains"
+      - "It encrypts traffic between two switches"
+      - "It assigns IP addresses automatically"
+    answer: 1
+    why: "A VLAN is a logical split of one physical switch (or a whole switched network) into separate broadcast domains. Devices on different VLANs don't see each other's broadcasts and can't talk directly without a router or layer-3 switch."
+  - q: "A port connecting a switch to a single PC — carrying traffic for exactly one VLAN — should be configured as which port type?"
+    options:
+      - "Trunk"
+      - "Access"
+      - "Native"
+      - "Extended"
+    answer: 1
+    why: "Access ports carry a single VLAN's traffic and are how end devices (PCs, printers) connect. Trunk ports carry multiple VLANs' traffic between switches."
+  - q: "What does a trunk port carry that an access port doesn't?"
+    options:
+      - "Higher bandwidth"
+      - "Traffic for multiple VLANs, tagged so the receiving switch knows which VLAN each frame belongs to"
+      - "Only broadcast traffic"
+      - "A dedicated management VLAN only"
+    answer: 1
+    why: "A trunk link carries multiple VLANs over one physical connection by tagging each frame (commonly with 802.1Q) with its VLAN ID, so the switch on the other end can sort traffic back into the right VLANs."
+---
+
+A single switch out of the box puts every port in one broadcast domain —
+every device can see every other device's broadcast traffic, whether it
+needs to or not. VLANs are how you split that up without buying more
+physical switches.
+
+## What a VLAN actually is
+
+A VLAN (Virtual LAN) is a logical grouping of switch ports that behave as
+their own separate network, even though they're all plugged into the same
+physical switch. Devices in VLAN 10 don't see VLAN 20's broadcast traffic
+at all — as far as layer 2 is concerned, they're on completely different
+networks. Getting traffic from one VLAN to another requires a router (or a
+layer-3 switch) doing actual routing, the same as any two separate physical
+networks would.
+
+Why bother? Segmentation. A single switch can host a "staff" VLAN, a
+"guest" VLAN, and a "servers" VLAN, each isolated from the others, without
+needing separate hardware — and in a hardening context, isolation limits how
+far an attacker who compromises one device can reach.
+
+## Creating a VLAN
+
+```
+Switch(config)# vlan 10
+Switch(config-vlan)# name Staff
+```
+
+`vlan 10` both creates VLAN 10 (if it doesn't exist yet) and drops you into
+VLAN configuration mode to name it. Check your work with:
+
+```
+Switch# show vlan brief
+```
+
+## Access ports vs trunk ports
+
+A switch port is one of two types:
+
+- **Access port** — carries traffic for exactly one VLAN. This is how end
+  devices connect: a PC's network cable doesn't know or care about VLAN
+  tagging, so the switch strips that concept away on an access port.
+- **Trunk port** — carries traffic for *multiple* VLANs over a single
+  physical link, tagging each frame (typically with 802.1Q) so the switch on
+  the other end knows which VLAN it belongs to. Trunks connect switches to
+  each other, or a switch to a router doing inter-VLAN routing.
+
+Configuring an access port:
+
+```
+Switch(config)# interface fastEthernet 0/1
+Switch(config-if)# switchport mode access
+Switch(config-if)# switchport access vlan 10
+```
+
+Configuring a trunk port (typically between two switches):
+
+```
+Switch(config)# interface gigabitEthernet 0/1
+Switch(config-if)# switchport mode trunk
+```
+
+## The mistake that breaks a whole build
+
+Getting the port type backwards is the single most common VLAN error in a
+Packet Tracer build: configuring the switch-to-switch link as an access port
+(so only one VLAN's traffic crosses it, silently dropping the rest) or
+configuring an end-device port as a trunk (which most end-device NICs don't
+know how to speak, breaking connectivity entirely). Before troubleshooting
+anything more exotic, `show vlan brief` and `show interfaces trunk` are the
+first two commands to reach for — they'll show you exactly which ports are
+in which VLAN and which are trunking.

@@ -1,0 +1,96 @@
+---
+slug: acls
+title: ACLs, conceptually
+domainId: networking
+level: advanced
+minutes: 9
+sortOrder: 8
+published: true
+skills:
+  - networking.devices.acls
+check:
+  - q: "An ACL has three explicit permit/deny lines. A packet doesn't match any of them. What happens to it?"
+    options:
+      - "It's permitted by default"
+      - "It's dropped — every ACL ends with an implicit deny all"
+      - "The router asks for a decision"
+      - "It's forwarded to the next router unfiltered"
+    answer: 1
+    why: "Every Cisco ACL has an invisible, unwritten final line: deny everything. If a packet falls through every explicit rule without matching one, it's dropped — this is the single most-tested ACL fact."
+  - q: "An ACL has 'permit any' as its first line and 'deny host 10.1.1.5' as its second line. What happens to traffic from 10.1.1.5?"
+    options:
+      - "It's denied — the specific rule always wins"
+      - "It's permitted — ACL lines are processed top-down, first match wins, and 'permit any' matched first"
+      - "It's evaluated by both lines and the stricter one applies"
+      - "The ACL is invalid and rejects all traffic"
+    answer: 1
+    why: "ACLs process top-down and stop at the first match. 'permit any' matches everything, including 10.1.1.5, so it's permitted before the router ever reaches the deny line below it. Order is not a suggestion — it changes the outcome."
+  - q: "What's the core difference between a standard and an extended ACL?"
+    options:
+      - "Standard ACLs can only deny, extended ACLs can only permit"
+      - "Standard ACLs filter on source IP only; extended ACLs can match source, destination, protocol, and port"
+      - "Extended ACLs are faster"
+      - "There's no functional difference, only a naming convention"
+    answer: 1
+    why: "A standard ACL's granularity stops at 'where did this come from.' An extended ACL can filter on source AND destination address, the protocol (TCP/UDP/ICMP/etc.), and even the specific port — much finer control."
+---
+
+An ACL (Access Control List) is a Cisco device's firewall rule set: an
+ordered list of permit/deny statements evaluated against traffic. The
+mechanics matter more than any specific syntax — get the mechanics wrong and
+an ACL either blocks the wrong traffic or (more commonly, and more
+dangerously) fails to block anything.
+
+## Three rules that govern every ACL
+
+1. **Processed top-down, first match wins.** A packet is checked against
+   line 1, then line 2, and so on. The instant it matches a line, that
+   line's action (permit or deny) applies and evaluation stops — later lines
+   are never consulted for that packet, even if one of them would have
+   matched more specifically. Order changes outcomes; a broad `permit any`
+   near the top can silently swallow every deny rule below it.
+2. **Implicit deny at the end.** Every ACL ends with an unwritten final
+   rule: deny everything that didn't match anything above it. An ACL with
+   only deny statements and no explicit permit denies *all* traffic — this
+   is the classic way a poorly-written ACL locks out legitimate traffic
+   entirely.
+3. **Applied to an interface, in a direction.** An ACL does nothing until
+   it's attached to an interface with a direction — inbound (`in`, traffic
+   arriving on that interface) or outbound (`out`, traffic leaving it):
+   ```
+   Router(config)# interface gigabitEthernet 0/1
+   Router(config-if)# ip access-group 10 in
+   ```
+
+## Standard vs extended
+
+- **Standard ACLs** (numbered 1-99, or 1300-1999) filter on **source IP
+  address only**. Simple, but coarse — you can permit or deny "everything
+  from this host or network," nothing more specific.
+- **Extended ACLs** (numbered 100-199, or 2000-2699) can match **source and
+  destination** address, the **protocol** (TCP, UDP, ICMP, etc.), and the
+  **specific port** — "deny Telnet from this subnet to that server," for
+  example.
+
+That granularity difference drives where each type belongs in a topology: a
+standard ACL, because it can only see the source, should sit as close to the
+**destination** as possible (filtering any earlier would block that source
+from reaching *anything*, not just the intended target). An extended ACL,
+because it can already specify the exact destination and service, should sit
+as close to the **source** as possible — stopping unwanted traffic before it
+travels the network at all.
+
+## Reading an ACL like a competitor, not like syntax
+
+When you're handed an existing ACL to evaluate (in the quiz or a build),
+work it the same way every time:
+
+1. Read every line top to bottom, in order — never skim for "the important
+   one."
+2. For a given piece of traffic, find the *first* line that matches it —
+   that's the only line that matters for that traffic.
+3. If nothing matched, remember the implicit deny — the traffic is dropped,
+   even though nothing on screen says so.
+
+That discipline is the entire skill. The syntax varies; the logic above
+never does.

@@ -2,18 +2,21 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, act, fireEvent, render, screen } from "@testing-library/react";
 
-import { ForensicsQuiz } from "./forensics-quiz";
+import { QuizRunner } from "./quiz-runner";
 
-// The fix this guards against: answering a question wrong used to strand
-// the student on that wrong answer for the rest of the set — retrying meant
-// abandoning the set and re-entering it. gradeForensicsQuestion is stateless
-// per call and completeForensicsSet already re-grades from whatever the
-// client last reported per question, so a "Try again" affordance that just
-// resets the in-place input, with no changes to either action, is enough to
-// let a retried answer supersede the original wrong one.
-const gradeForensicsQuestion = vi.fn();
-const completeForensicsSet = vi.fn(
-  async (_input: { archetypeKey: string; answers: { questionId: string; submitted: string }[] }) => ({
+// The fix this guards against (originally forensics-only, DECISIONS 032):
+// answering a question wrong used to strand the student on that wrong
+// answer for the rest of the set — retrying meant abandoning the set and
+// re-entering it. onGrade is stateless per call and onComplete already
+// re-grades from whatever the client last reported per question, so a "Try
+// again" affordance that just resets the in-place input, with no changes to
+// either callback, is enough to let a retried answer supersede the original
+// wrong one. This now guards the shared engine every quiz (forensics,
+// networking, future ones) is built on.
+
+const onGrade = vi.fn();
+const onComplete = vi.fn(
+  async (_input: { answers: { questionId: string; submitted: string }[] }) => ({
     score: 100,
     correct: 1,
     total: 1,
@@ -21,17 +24,10 @@ const completeForensicsSet = vi.fn(
   }),
 );
 
-vi.mock("./actions", () => ({
-  gradeForensicsQuestion: (input: { questionId: string; submitted: string }) =>
-    gradeForensicsQuestion(input),
-  completeForensicsSet: (input: { archetypeKey: string; answers: { questionId: string; submitted: string }[] }) =>
-    completeForensicsSet(input),
-}));
-
 afterEach(() => {
   cleanup();
-  gradeForensicsQuestion.mockReset();
-  completeForensicsSet.mockClear();
+  onGrade.mockReset();
+  onComplete.mockClear();
 });
 
 const QUESTIONS = [{ id: "q1", prompt: "Decode the string.", given: "aGk=" }];
@@ -45,16 +41,28 @@ async function submitAnswer(value: string) {
   });
 }
 
-describe("ForensicsQuiz retry flow", () => {
+function renderRunner() {
+  render(
+    <QuizRunner
+      questions={QUESTIONS}
+      onGrade={onGrade}
+      onComplete={onComplete}
+      backHref="/app/forensics"
+      backLabel="Back to forensics"
+    />,
+  );
+}
+
+describe("QuizRunner retry flow", () => {
   it("offers Try again on an incorrect answer, and lets the student re-attempt in place", async () => {
-    gradeForensicsQuestion.mockResolvedValueOnce({
+    onGrade.mockResolvedValueOnce({
       status: "incorrect",
       answer: "hi",
       technique: "base64 -d",
       why: "why",
     });
 
-    render(<ForensicsQuiz archetypeKey="decoding" questions={QUESTIONS} />);
+    renderRunner();
     await submitAnswer("wrong guess");
 
     screen.getByText("Incorrect");
@@ -70,14 +78,14 @@ describe("ForensicsQuiz retry flow", () => {
   });
 
   it("does not offer Try again once the answer is correct", async () => {
-    gradeForensicsQuestion.mockResolvedValueOnce({
+    onGrade.mockResolvedValueOnce({
       status: "correct",
       answer: "hi",
       technique: "base64 -d",
       why: "why",
     });
 
-    render(<ForensicsQuiz archetypeKey="decoding" questions={QUESTIONS} />);
+    renderRunner();
     await submitAnswer("hi");
 
     screen.getByText("Correct");
@@ -85,11 +93,11 @@ describe("ForensicsQuiz retry flow", () => {
   });
 
   it("scores the set on the FINAL retried answer, not the original wrong one", async () => {
-    gradeForensicsQuestion
+    onGrade
       .mockResolvedValueOnce({ status: "incorrect", answer: "hi", technique: "t", why: "w" })
       .mockResolvedValueOnce({ status: "correct", answer: "hi", technique: "t", why: "w" });
 
-    render(<ForensicsQuiz archetypeKey="decoding" questions={QUESTIONS} />);
+    renderRunner();
 
     await submitAnswer("wrong guess");
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
@@ -102,11 +110,24 @@ describe("ForensicsQuiz retry flow", () => {
       await Promise.resolve();
     });
 
-    expect(completeForensicsSet).toHaveBeenCalledTimes(1);
-    expect(completeForensicsSet).toHaveBeenCalledWith({
-      archetypeKey: "decoding",
+    expect(onComplete).toHaveBeenCalledTimes(1);
+    expect(onComplete).toHaveBeenCalledWith({
       answers: [{ questionId: "q1", submitted: "hi" }],
     });
     screen.getByText("100%");
+  });
+
+  it("renders without an evidence block when a question has no `given` (networking-style question)", async () => {
+    const { container } = render(
+      <QuizRunner
+        questions={[{ id: "q1", prompt: "What port does RDP use?" }]}
+        onGrade={onGrade}
+        onComplete={onComplete}
+        backHref="/app/networking"
+        backLabel="Back to networking"
+      />,
+    );
+    screen.getByText("What port does RDP use?");
+    expect(container.querySelector("pre")).toBeNull();
   });
 });

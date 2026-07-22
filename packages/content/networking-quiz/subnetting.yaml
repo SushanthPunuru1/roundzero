@@ -1,0 +1,48 @@
+# RoundZero — Networking quiz bank: subnetting
+# Location in repo: packages/content/networking-quiz/subnetting.yaml
+# Contract: packages/content/networking-quiz/README.md
+
+version: 1
+quizId: networking
+
+questions:
+  - id: networking-quiz.q.hosts-per-27
+    category: subnetting
+    skillNodeId: networking.fundamentals.subnetting
+    prompt: "How many usable host addresses are in a /27 network?"
+    answer: "30"
+    accepts: ["30"]
+    why: "/27 gives a block size of 32 (2^5 host bits). 32 - 2 (network + broadcast) = 30 usable."
+
+  - id: networking-quiz.q.mask-for-20
+    category: subnetting
+    skillNodeId: networking.fundamentals.subnetting
+    prompt: "What is the dotted-decimal subnet mask for a /20 network?"
+    answer: "255.255.240.0"
+    accepts: ["255.255.240.0"]
+    why: "/20 leaves 4 bits in the third octet for the network portion (11110000 = 240), 0 in the fourth."
+
+  - id: networking-quiz.q.broadcast-192-168-10-0-26
+    category: subnetting
+    skillNodeId: networking.fundamentals.subnetting
+    prompt: "What is the broadcast address for 192.168.10.0/26?"
+    answer: "192.168.10.63"
+    accepts: ["192.168.10.63"]
+    why: "Block size for /26 is 64, so the block runs .0-.63. The broadcast address is always the last address in the block."
+    technique: "network address + block size - 1"
+
+  - id: networking-quiz.q.cidr-for-100-hosts
+    category: subnetting
+    skillNodeId: networking.fundamentals.subnetting
+    prompt: "You need a subnet that fits 100 usable hosts. What is the smallest CIDR prefix that fits?"
+    answer: "/25"
+    accepts: ["/25", "25"]
+    why: "A /25 gives 128 addresses, 126 usable — the smallest block that covers 100 (a /26 only gives 62, too small)."
+
+  - id: networking-quiz.q.network-address-172-16-5-200-22
+    category: subnetting
+    skillNodeId: networking.fundamentals.subnetting
+    prompt: "A host has IP 172.16.5.200/22. What is the network address of its subnet?"
+    answer: "172.16.4.0"
+    accepts: ["172.16.4.0"]
+    why: "/22 has a block size of 4 in the third octet (256-252=4). 172.16.5.x falls in the 4-7 block, so the network address is 172.16.4.0."

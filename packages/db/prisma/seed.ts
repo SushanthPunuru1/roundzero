@@ -23,6 +23,8 @@ import { parseCards, validateCardRefs } from "../src/cards/parse";
 import { reconcileCards, type ExistingCard } from "../src/cards/reconcile";
 import { parseForensics, toForensicsRow, validateForensicsRefs } from "../src/forensics/parse";
 import { reconcileForensics, type ExistingForensicsQuestion } from "../src/forensics/reconcile";
+import { parseQuiz, toQuizRow, validateQuizRefs } from "../src/quiz/parse";
+import { reconcileQuiz, type ExistingQuizQuestion } from "../src/quiz/reconcile";
 
 const CONTENT_DIR = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -33,6 +35,7 @@ const LESSONS_DIR = path.join(CONTENT_DIR, "lessons");
 const CHECKLISTS_DIR = path.join(CONTENT_DIR, "checklists");
 const CARDS_PATH = path.join(CONTENT_DIR, "cards/core.yaml");
 const FORENSICS_DIR = path.join(CONTENT_DIR, "forensics");
+const NETWORKING_QUIZ_DIR = path.join(CONTENT_DIR, "networking-quiz");
 
 // The official CyberPatriot season currently in progress. SeasonEvent rows
 // (registration/round/state calendar, Appendix B) are seeded later once
@@ -413,6 +416,49 @@ async function syncForensics(knownTaxonomyNodes: DesiredNode[]): Promise<void> {
   );
 }
 
+async function syncQuiz(knownTaxonomyNodes: DesiredNode[]): Promise<void> {
+  const files = readdirSync(NETWORKING_QUIZ_DIR)
+    .filter((name) => name.endsWith(".yaml"))
+    .map((name) => ({
+      path: name,
+      text: readFileSync(path.join(NETWORKING_QUIZ_DIR, name), "utf-8"),
+    }));
+
+  const parsed = parseQuiz(files);
+  validateQuizRefs(parsed, knownTaxonomyNodes);
+  const desired = parsed.map(toQuizRow);
+
+  const existingRows = await prisma.quizQuestion.findMany();
+  const existing: ExistingQuizQuestion[] = existingRows.map((row) => ({
+    id: row.id,
+    quizId: row.quizId,
+    category: row.category,
+    skillNodeId: row.skillNodeId,
+    prompt: row.prompt,
+    given: row.given,
+    sortOrder: row.sortOrder,
+  }));
+
+  const plan = reconcileQuiz(desired, existing);
+
+  await prisma.$transaction(async (tx) => {
+    for (const row of plan.toCreate) {
+      await tx.quizQuestion.create({ data: row });
+    }
+    for (const row of plan.toUpdate) {
+      await tx.quizQuestion.update({ where: { id: row.id }, data: row });
+    }
+    for (const row of plan.toRemove) {
+      await tx.quizQuestion.delete({ where: { id: row.id } });
+    }
+  });
+
+  console.log(
+    `quiz sync — created: ${plan.toCreate.length}, updated: ${plan.toUpdate.length}, ` +
+      `removed: ${plan.toRemove.length}, unchanged: ${plan.unchanged.length}`,
+  );
+}
+
 async function main(): Promise<void> {
   const taxonomyNodes = await syncTaxonomy();
   const lessonSlugs = await syncLessons(taxonomyNodes);
@@ -420,6 +466,7 @@ async function main(): Promise<void> {
   await syncChecklists(taxonomyNodes, lessonSlugs, seasonIds);
   await syncCards(taxonomyNodes);
   await syncForensics(taxonomyNodes);
+  await syncQuiz(taxonomyNodes);
 }
 
 main()

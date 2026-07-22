@@ -1,0 +1,47 @@
+# RoundZero — Networking quiz bank: security
+# Location in repo: packages/content/networking-quiz/security.yaml
+# Contract: packages/content/networking-quiz/README.md
+
+version: 1
+quizId: networking
+
+questions:
+  - id: networking-quiz.q.enable-secret-vs-password
+    category: security
+    skillNodeId: networking.devices.hardening
+    prompt: "enable secret and enable password both set a privileged-mode password. When both are configured, which one does IOS actually use?"
+    answer: "enable secret"
+    accepts: ["enable secret"]
+    why: "enable password is stored in plaintext — readable straight out of running-config. IOS always prefers the hashed enable secret when both exist."
+
+  - id: networking-quiz.q.telnet-vs-ssh
+    category: security
+    skillNodeId: networking.devices.hardening
+    prompt: "Between Telnet and SSH, which should be used for remote device administration?"
+    answer: "ssh"
+    accepts: ["ssh"]
+    why: "Telnet has no encryption at all — anyone on the path can read the login password, including the password itself. SSH encrypts the entire session."
+
+  - id: networking-quiz.q.password-encryption-command
+    category: security
+    skillNodeId: networking.devices.hardening
+    prompt: "What command obfuscates every plaintext password already in the running config?"
+    answer: "service password-encryption"
+    accepts: ["service password-encryption"]
+    why: "It applies IOS's reversible type-7 obfuscation to plaintext passwords — worth doing, but not real cryptographic protection (that's what enable secret's hashing is for)."
+
+  - id: networking-quiz.q.wireless-security-standard
+    category: security
+    skillNodeId: networking.wireless.security
+    prompt: "Which wireless security standard should be used instead of the deprecated, easily-broken WEP?"
+    answer: "wpa2"
+    accepts: ["wpa2", "wpa3", "wpa2 or wpa3"]
+    why: "WEP's encryption is broken and crackable in minutes. WPA2 (or the newer WPA3) should always be used instead."
+
+  - id: networking-quiz.q.banner-purpose
+    category: security
+    skillNodeId: networking.devices.hardening
+    prompt: "What is displayed by a login banner (banner motd) on a hardened network device?"
+    answer: "a legal warning"
+    accepts: ["a legal warning", "legal warning", "a legal notice", "legal notice"]
+    why: "A banner isn't decoration — it's a legal warning notice against unauthorized access, and its absence is a scored hardening finding in CyberPatriot-style scenarios."

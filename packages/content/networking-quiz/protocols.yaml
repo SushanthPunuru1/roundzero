@@ -1,0 +1,71 @@
+# RoundZero — Networking quiz bank: protocols
+# Location in repo: packages/content/networking-quiz/protocols.yaml
+# Contract: packages/content/networking-quiz/README.md
+
+version: 1
+quizId: networking
+
+questions:
+  - id: networking-quiz.q.tcp-or-udp-connectionless
+    category: protocols
+    skillNodeId: networking.fundamentals.tcp-udp
+    prompt: "Which transport protocol is connectionless — no handshake, no guaranteed delivery: TCP or UDP?"
+    answer: "udp"
+    accepts: ["udp"]
+    why: "UDP just sends a datagram and moves on. TCP opens a connection first and guarantees delivery."
+
+  - id: networking-quiz.q.switch-osi-layer
+    category: protocols
+    skillNodeId: networking.fundamentals.osi
+    prompt: "What OSI layer number does a switch operate at when forwarding frames by MAC address?"
+    answer: "2"
+    accepts: ["2", "layer 2"]
+    why: "Switches are layer 2 devices — they don't look at IP addresses at all, only MAC addresses."
+
+  - id: networking-quiz.q.router-osi-layer
+    category: protocols
+    skillNodeId: networking.fundamentals.osi
+    prompt: "What OSI layer number does a router operate at?"
+    answer: "3"
+    accepts: ["3", "layer 3"]
+    why: "Routers make forwarding decisions based on IP addresses — that's layer 3, the Network layer."
+
+  - id: networking-quiz.q.ospf-vs-rip-hop-count
+    category: protocols
+    skillNodeId: networking.devices.routing
+    prompt: "Which routing protocol, RIP or OSPF, picks routes based on hop count?"
+    answer: "rip"
+    accepts: ["rip"]
+    why: "RIP is a simple distance-vector protocol that picks the route with the fewest hops. OSPF is link-state and generally converges faster on better paths."
+
+  - id: networking-quiz.q.ospf-vs-rip-link-state
+    category: protocols
+    skillNodeId: networking.devices.routing
+    prompt: "Which routing protocol, RIP or OSPF, is link-state?"
+    answer: "ospf"
+    accepts: ["ospf"]
+    why: "OSPF builds a full map of the network's links and their state to pick routes — RIP only ever counts hops."
+
+  - id: networking-quiz.q.tcp-handshake-steps
+    category: protocols
+    skillNodeId: networking.fundamentals.tcp-udp
+    prompt: "How many steps are in the TCP connection handshake?"
+    answer: "3"
+    accepts: ["3", "three"]
+    why: "The three-way handshake: SYN, SYN-ACK, ACK. This is what UDP skips entirely."
+
+  - id: networking-quiz.q.dhcp-acronym
+    category: protocols
+    skillNodeId: networking.devices.dhcp-nat
+    prompt: "What does DHCP stand for?"
+    answer: "dynamic host configuration protocol"
+    accepts: ["dynamic host configuration protocol"]
+    why: "DHCP automatically hands a device an IP address (and other config like the default gateway and DNS servers) without a human configuring it by hand."
+
+  - id: networking-quiz.q.nat-acronym
+    category: protocols
+    skillNodeId: networking.devices.dhcp-nat
+    prompt: "What does NAT stand for?"
+    answer: "network address translation"
+    accepts: ["network address translation"]
+    why: "NAT rewrites private (internal) IP addresses to a public address as traffic leaves the network — it's how a whole private network shares one public IP."

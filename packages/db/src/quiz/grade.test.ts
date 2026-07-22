@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { gradeAnswer, normalizeAnswer } from "./grade";
-import type { ForensicsAnswerSpec } from "./grade";
+import type { QuizAnswerSpec } from "./grade";
 
 describe("normalizeAnswer", () => {
   it("always trims", () => {
@@ -24,7 +24,7 @@ describe("normalizeAnswer", () => {
 });
 
 describe("gradeAnswer", () => {
-  const base: ForensicsAnswerSpec = {
+  const base: QuizAnswerSpec = {
     answer: "harden everything",
     accepts: [],
     caseSensitive: false,
@@ -40,7 +40,7 @@ describe("gradeAnswer", () => {
   });
 
   it("accepts any entry in accepts[]", () => {
-    const spec: ForensicsAnswerSpec = { ...base, answer: "nc", accepts: ["nc", "netcat"] };
+    const spec: QuizAnswerSpec = { ...base, answer: "nc", accepts: ["nc", "netcat"] };
     expect(gradeAnswer(spec, "netcat")).toEqual({ status: "correct" });
   });
 
@@ -49,7 +49,7 @@ describe("gradeAnswer", () => {
   });
 
   it("flags a case mismatch as close when the question is case-sensitive", () => {
-    const spec: ForensicsAnswerSpec = { ...base, answer: "telnetd", caseSensitive: true };
+    const spec: QuizAnswerSpec = { ...base, answer: "telnetd", caseSensitive: true };
     const result = gradeAnswer(spec, "TELNETD");
     expect(result.status).toBe("close");
     expect(result.diff).toEqual({
@@ -60,12 +60,12 @@ describe("gradeAnswer", () => {
   });
 
   it("does not flag case when the question is not case-sensitive (it's just correct)", () => {
-    const spec: ForensicsAnswerSpec = { ...base, answer: "telnetd", caseSensitive: false };
+    const spec: QuizAnswerSpec = { ...base, answer: "telnetd", caseSensitive: false };
     expect(gradeAnswer(spec, "TELNETD")).toEqual({ status: "correct" });
   });
 
   it("flags a trailing-slash mismatch as close when the question doesn't strip it", () => {
-    const spec: ForensicsAnswerSpec = {
+    const spec: QuizAnswerSpec = {
       ...base,
       answer: "/home/priya/Downloads/leaked",
       stripTrailingSlash: false,
@@ -80,7 +80,7 @@ describe("gradeAnswer", () => {
   });
 
   it("does not flag a trailing slash when the question strips it (it's just correct)", () => {
-    const spec: ForensicsAnswerSpec = {
+    const spec: QuizAnswerSpec = {
       ...base,
       answer: "/home/priya/Downloads/leaked",
       stripTrailingSlash: true,
@@ -89,7 +89,7 @@ describe("gradeAnswer", () => {
   });
 
   it("flags a doubled-internal-space mismatch as close", () => {
-    const spec: ForensicsAnswerSpec = {
+    const spec: QuizAnswerSpec = {
       ...base,
       answer: "/home/agent47/Desktop/Prohibited Media",
     };
@@ -103,7 +103,7 @@ describe("gradeAnswer", () => {
   });
 
   it("can flag multiple diff axes at once", () => {
-    const spec: ForensicsAnswerSpec = {
+    const spec: QuizAnswerSpec = {
       answer: "/Home/Agent47/Prohibited  Media/",
       accepts: [],
       caseSensitive: true,
@@ -116,5 +116,15 @@ describe("gradeAnswer", () => {
       trailingSlashMismatch: true,
       whitespaceMismatch: true,
     });
+  });
+
+  it("grades a question with no evidence block or technique the same way (networking-style question)", () => {
+    const spec: QuizAnswerSpec = {
+      answer: "copy running-config startup-config",
+      accepts: ["copy run start"],
+      caseSensitive: false,
+      stripTrailingSlash: false,
+    };
+    expect(gradeAnswer(spec, "copy run start")).toEqual({ status: "correct" });
   });
 });

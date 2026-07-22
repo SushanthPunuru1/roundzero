@@ -154,14 +154,22 @@ domains:
         skills:
           - { id: networking.fundamentals.osi,        title: "OSI model",                            level: foundations }
           - { id: networking.fundamentals.tcp-udp,    title: "TCP/UDP and the classic port list",    level: foundations }
+          - { id: networking.fundamentals.ports,      title: "The canonical port list",              level: foundations }
           - { id: networking.fundamentals.subnetting, title: "Subnetting and CIDR",                  level: standard }
       - id: networking.devices
         title: Device configuration
         skills:
+          - { id: networking.devices.ios-basics,  title: "Cisco IOS basics (modes, show commands)",  level: standard }
           - { id: networking.devices.hardening,   title: "Device hardening (enable secret, SSH, banners, lines)", level: standard }
           - { id: networking.devices.vlans,       title: "VLANs and trunking",                       level: standard }
           - { id: networking.devices.acls,        title: "ACL logic",                                level: advanced }
-          # TODO: wireless security, Packet Tracer scenarios
+          - { id: networking.devices.routing,     title: "Static routing and the default route",     level: standard }
+          - { id: networking.devices.dhcp-nat,    title: "DHCP and NAT basics",                       level: standard }
+          # TODO: Packet Tracer scenarios
+      - id: networking.wireless
+        title: Wireless
+        skills:
+          - { id: networking.wireless.security,   title: "Wireless security (WPA2/3, SSID)",         level: standard }
 
   - id: scripting
     title: Scripting and automation

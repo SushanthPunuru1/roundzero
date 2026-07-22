@@ -1,0 +1,87 @@
+---
+slug: osi-model
+title: The OSI model, usefully
+domainId: networking
+level: foundations
+minutes: 6
+sortOrder: 1
+published: true
+skills:
+  - networking.fundamentals.osi
+check:
+  - q: "A switch forwards a frame based on a MAC address. Which OSI layer is that switch operating at?"
+    options:
+      - "Layer 1 — Physical"
+      - "Layer 2 — Data Link"
+      - "Layer 3 — Network"
+      - "Layer 4 — Transport"
+    answer: 1
+    why: "MAC addresses are a Data Link (layer 2) concept. A router making decisions on IP addresses is layer 3 — that's the distinction the quiz tests most."
+  - q: "You can ping a device by IP, but a web page on it won't load in a browser. Roughly which layers should you suspect first?"
+    options:
+      - "Physical and Data Link — the cable or switch port"
+      - "Network — IP addressing and routing"
+      - "Transport and Application — the port isn't open, or the service isn't running"
+      - "Presentation — a data format mismatch"
+    answer: 2
+    why: "Ping working proves layers 1-3 are fine (you have physical connectivity, an IP address, and a route). A dead website with ping working almost always means the port is closed or the service is down — layer 4/7 territory."
+  - q: "Which pair is correctly matched?"
+    options:
+      - "Layer 3 — Network — MAC addresses"
+      - "Layer 4 — Transport — TCP and UDP"
+      - "Layer 2 — Data Link — IP addresses"
+      - "Layer 7 — Application — electrical signals"
+    answer: 1
+    why: "TCP and UDP live at the Transport layer. MAC addresses are layer 2, IP addresses are layer 3, and electrical signals are layer 1."
+---
+
+The OSI model gets taught as seven layers to memorize and then mostly
+forgotten. That's a waste — it's actually the fastest tool you have for
+answering "where is this problem?" when something on a network build isn't
+working, which is exactly what the Cisco Challenge tests.
+
+## The seven layers, top to bottom
+
+| # | Layer | What lives here | The one thing to remember |
+|---|---|---|---|
+| 7 | Application | HTTP, DNS queries, SSH, email | What the user's software actually asked for |
+| 6 | Presentation | Encryption, encoding, compression | Data format — is it TLS-wrapped, is it UTF-8 |
+| 5 | Session | Sessions/connections between apps | Keeping a conversation alive |
+| 4 | Transport | TCP, UDP, port numbers | Reliable delivery (TCP) vs fast-and-loose (UDP) |
+| 3 | Network | IP addresses, routers, routing | Getting a packet from one network to another |
+| 2 | Data Link | MAC addresses, switches, frames | Getting a frame across one local link |
+| 1 | Physical | Cables, signals, ports | Bits on the wire |
+
+A common mnemonic, top to bottom: "All People Seem To Need Data Processing."
+
+## Why a competitor cares about this at all
+
+The Cisco Challenge is a Packet Tracer build plus a knowledge quiz, and both
+reward knowing which layer a device or a problem belongs to:
+
+- **Switches operate at layer 2.** They forward frames based on MAC
+  addresses and don't understand IP addresses at all.
+- **Routers operate at layer 3.** They forward packets between different
+  networks based on IP addresses — this is the device that actually
+  connects your subnets together.
+- **ACLs, ports, and NAT live at layer 3/4** — this is the "device
+  configuration" half of the pillar (later lessons).
+
+## The real payoff: narrowing down a problem fast
+
+When something doesn't work, the layers give you a search order instead of
+guessing randomly:
+
+1. **Link light dead, cable unplugged?** Layer 1.
+2. **Cable's fine, but the device won't get traffic to/from its neighbor on
+   the same switch?** Layer 2 — check the VLAN and port mode.
+3. **You can reach devices on your own subnet but nothing beyond it?** Layer
+   3 — check the IP address, subnet mask, default gateway, and the router's
+   routing table.
+4. **You can ping the far-end IP just fine, but the actual service (a web
+   page, SSH) won't connect?** Layer 4 or above — check whether the port is
+   open and the service is actually running.
+
+That's the whole value of the model in a competition setting: it turns "it's
+broken" into "it's broken somewhere between layer 3 and layer 4," which cuts
+your troubleshooting time dramatically.

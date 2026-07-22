@@ -1,0 +1,47 @@
+# RoundZero — Networking quiz bank: IOS command recall
+# Location in repo: packages/content/networking-quiz/ios-commands.yaml
+# Contract: packages/content/networking-quiz/README.md
+
+version: 1
+quizId: networking
+
+questions:
+  - id: networking-quiz.q.save-config
+    category: ios-commands
+    skillNodeId: networking.devices.ios-basics
+    prompt: "What command saves the running configuration to startup configuration?"
+    answer: "copy running-config startup-config"
+    accepts: ["copy running-config startup-config", "copy run start"]
+    why: "IOS never saves automatically — running-config lives in RAM and is lost on reboot until you copy it to startup-config (NVRAM)."
+
+  - id: networking-quiz.q.enter-privileged-exec
+    category: ios-commands
+    skillNodeId: networking.devices.ios-basics
+    prompt: "What command moves you from user EXEC mode to privileged EXEC mode?"
+    answer: "enable"
+    accepts: ["enable"]
+    why: "enable takes you from Switch> to Switch# — the mode that can run show commands and drop into configuration."
+
+  - id: networking-quiz.q.enter-global-config
+    category: ios-commands
+    skillNodeId: networking.devices.ios-basics
+    prompt: "From privileged EXEC mode, what command enters global configuration mode?"
+    answer: "configure terminal"
+    accepts: ["configure terminal", "conf t"]
+    why: "configure terminal (often abbreviated conf t) is the only path from privileged EXEC into a mode where you can actually change the device's configuration."
+
+  - id: networking-quiz.q.view-running-config
+    category: ios-commands
+    skillNodeId: networking.devices.ios-basics
+    prompt: "What command displays the device's currently active configuration?"
+    answer: "show running-config"
+    accepts: ["show running-config", "show run"]
+    why: "show running-config dumps the live, in-RAM configuration — the single most-used troubleshooting command on IOS."
+
+  - id: networking-quiz.q.view-interfaces-brief
+    category: ios-commands
+    skillNodeId: networking.devices.ios-basics
+    prompt: "What command shows a compact table of every interface, its IP, and its up/down status?"
+    answer: "show ip interface brief"
+    accepts: ["show ip interface brief", "sh ip int brief"]
+    why: "show ip interface brief is the fastest way to sanity-check an entire topology's addressing and interface state at a glance."

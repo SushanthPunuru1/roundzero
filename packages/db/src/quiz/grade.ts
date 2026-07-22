@@ -1,11 +1,16 @@
-// Pure grading for forensics question-bank answers. No DB/framework imports.
-// Real CyberPatriot forensics answers are auto-graded exact strings, so this
-// mirrors that: trim always applies, case/trailing-slash normalization are
-// per-question. A "close" result (right content, wrong format) carries a
-// FormatDiff describing exactly what didn't match, so the UI can teach the
-// answer-format discipline instead of just saying "incorrect."
+// Pure grading for exact-string quiz answers (question-bank style). Shared by
+// every question-bank quiz — forensics and networking alike, and any future
+// one (DECISIONS 031/033) — since the grading logic itself was already
+// entirely domain-agnostic. No DB/framework imports.
+//
+// Real CyberPatriot-style answers (forensics, and the networking knowledge
+// quiz) are auto-graded exact strings, so this mirrors that: trim always
+// applies, case/trailing-slash normalization are per-question. A "close"
+// result (right content, wrong format) carries a FormatDiff describing
+// exactly what didn't match, so the UI can teach the answer-format
+// discipline instead of just saying "incorrect."
 
-export interface ForensicsAnswerSpec {
+export interface QuizAnswerSpec {
   answer: string;
   accepts: string[];
   caseSensitive: boolean;
@@ -62,7 +67,7 @@ const LOOSE: NormalizeOptions = {
  *   axes) actually differ, driving specific feedback.
  * - "incorrect": no candidate matches even loosely.
  */
-export function gradeAnswer(spec: ForensicsAnswerSpec, submitted: string): GradeResult {
+export function gradeAnswer(spec: QuizAnswerSpec, submitted: string): GradeResult {
   const candidates = [spec.answer, ...spec.accepts];
   const strictOptions: NormalizeOptions = {
     caseSensitive: spec.caseSensitive,
