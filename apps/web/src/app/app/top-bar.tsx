@@ -12,6 +12,7 @@ const NAV_LINKS = [
   { href: "/app/checklists", label: "Checklists" },
   { href: "/app/forensics", label: "Forensics" },
   { href: "/app/networking", label: "Networking" },
+  { href: "/app/subnetting", label: "Subnetting" },
   { href: "/app/drill", label: "Drill" },
   { href: "/app/lab", label: "Lab" },
 ];

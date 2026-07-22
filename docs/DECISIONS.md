@@ -1386,3 +1386,127 @@ confirmed a forensics quiz still completes correctly through the now-shared
 `QuizRunner` (regression check); confirmed tables render as real `<table>`
 elements (not raw pipe text) across four table-bearing lessons with no
 horizontal overflow at 1280px or 1024px.
+
+**034 · 2026-07-22 · Networking/Cisco pillar Part B — the subnetting trainer
+at `/app/subnetting`.** The one custom-interactive piece of the Cisco pillar
+(`docs/CISCO_BUILD_SPEC.md` Part B), deferred from 033. Closes the pillar:
+Parts A/B/C are all shipped.
+
+*Two architecture calls made explicit up front, both confirmed with the user
+before writing code.* (a) **The pure subnet-math/generator module lives in
+`apps/web/src/lib/subnetting/`, not `packages/db`**, even though the spec text
+and every other content type's precedent (taxonomy/lessons/checklists/cards/
+forensics/quiz) puts pure logic in `packages/db`. Reason: this tool is the
+first one that needs its pure logic to run **client-side** (instant per-field
+checking + worked-solution reveal, no server round trip) — and
+`packages/db/src/client.ts` is a single barrel that constructs a real
+`PrismaClient` at module scope (`export const prisma = ... new PrismaClient()`),
+which is not browser-safe and, confirmed by grepping the whole app, no
+`"use client"` component anywhere imports `@roundzero/db` today. Colocating in
+`apps/web/src/lib` — where `checklists.ts`/`lessons.ts`/`teams.ts` and their
+own `*.test.ts` already live, same Vitest `node` environment — keeps Prisma
+fully out of the client bundle with zero `transpilePackages`/`next.config.ts`
+changes, at the cost of this one module not being reusable outside apps/web
+(nothing else needs it). (b) **Best quick-round accuracy reuses `QuizProgress`**
+(`quizId="subnetting"`, `category="quick-round"`) rather than a new
+`SubnettingProgress` model — no migration, same pattern DECISIONS 033 already
+established for a second quiz. Endless-mode accuracy is session-only, never
+persisted (nothing in the spec asked for that, and there's no natural "round"
+boundary to score in an infinite mode).
+
+*Why the math can safely run entirely client-side, unlike every other content
+type in this repo.* Lessons/checklists/forensics/quiz all keep their answer
+key server-side and re-parse it at grading time specifically so a client can't
+inspect the network tab and cheat (020/031). Subnet math has no equivalent
+secret: the "answer key" is arithmetic anyone can (and does) compute by hand —
+shipping it to the browser reveals nothing. `recordQuickRound` (`actions.ts`)
+still re-derives the round from its `seed` and re-grades authoritatively
+server-side before touching `QuizProgress`, but that's to stop a tampered
+client from writing a fake **persisted best**, not to protect a secret.
+
+*The pure module, four files, heavily unit-tested (91 tests total in
+`apps/web`'s suite, up from 62 before this session).* `math.ts` — IPv4 as
+`uint32`, `parseIp`/`formatIp`/`ipToBinary`, `maskFromPrefix`/`prefixFromMask`
+(rejects a non-contiguous mask), `computeSubnet` (network/broadcast/first-last
+usable/usable count/block size), `vlsmFit` (smallest subnet for a required
+host count). Host-count convention, deliberately documented rather than
+silently chosen: `usableHosts = max(2^hostBits - 2, 0)`, so `/30`→2, `/31`→0,
+`/32`→0 — the classic subnetting-class formula every CyberPatriot student is
+taught; `firstHost`/`lastHost` are `null` when `usableHosts` is 0.
+`vlsmFit` searches only `/30` down to `/0` (excludes `/31`/`/32` by
+construction — VLSM asks for an actual LAN subnet). `generate.ts` — a
+dependency-free inline `mulberry32` seedable PRNG (`makeRng`), four problem
+types (`cidr-breakdown`, `mask-breakdown`, `vlsm-fit`, `which-subnet`),
+`generateRound(seed, count, types?)` fully deterministic (same seed → same
+round, the property `recordQuickRound` relies on to re-derive a submission
+server-side). Generated breakdown/which-subnet problems are biased to
+`/16`-`/30` so `usableHosts >= 2` always holds (no dead `firstHost`/`lastHost`
+fields in the generated UI) — `/31`/`/32` are covered in `math.test.ts` only,
+per the spec's explicit ask for edge-case coverage, not asked as generated
+problems. `grade.ts` — per-field checking by canonical VALUE (an IP field is
+correct if it parses to the same address, tolerating a leading-zero octet;
+numeric fields tolerate whitespace; a CIDR field accepts `26` or `/26`),
+deliberately more forgiving than the quiz/forensics exact-string grading since
+there's no typing-discipline lesson here, only a subnetting-fluency one.
+`explain.ts` — the worked-solution builder: binary IP/mask/network/broadcast
+strings plus step-by-step prose (block size, host bits, the AND-mask
+derivation), with a `/31` (RFC 3021 point-to-point) / `/32` (single-host route)
+note surfaced only when relevant.
+
+*Surface.* `/app/subnetting` (`page.tsx` server component: auth gate, reads
+`QuizProgress` best, renders `PageHeader` + the trainer) + `actions.ts`
+(`recordQuickRound`, zod-validated at the boundary, re-derives+re-grades from
+the seed, upserts via the existing `bestScore()` from `@roundzero/db`) +
+`subnetting-trainer.tsx` (`"use client"`, the actual tool: quick round (5) /
+endless practice, an optional problem-type filter, an optional count-up timer
+via the existing `formatElapsed` from `@roundzero/ui`, per-field
+correct/incorrect glyphs matching the quiz-runner vocabulary — deliberately
+**not** `ScoreLine`, same reasoning as 029: this isn't a scored competition
+round). A "Try again" retry clears only the fields that were wrong (keeps
+correct ones filled), a small UX improvement the per-field-check shape enables
+over `QuizRunner`'s blunt full-clear retry. Added `Calculator`/`ArrowRight`
+cross-link card on `/app/networking` pointing at the trainer, and a
+"Subnetting" `top-bar.tsx` nav entry next to "Networking".
+
+Verified: `pnpm test` (`apps/web`, 157 tests total) green, including 91 new
+subnetting tests — exhaustive known-answer math coverage across `/8` through
+`/32` (explicit `/30`/`/31`/`/32` edge cases), VLSM fits, generator
+determinism, per-field grading, and a `subnetting-trainer.test.tsx` exercising
+the **real** production component end-to-end via `@testing-library/react`
+(submit all-correct → every field green + worked solution shown; submit wrong
+→ that field flagged + expected value revealed; "Try again" clears only the
+wrong field and a resubmit goes clean; finishing a 5-problem round calls the
+mocked `recordQuickRound` with the seed + all 5 collected answers). `pnpm
+lint`/`typecheck` clean for every new/changed file (two pre-existing lint
+errors this session did NOT introduce or touch remain in `quiz-runner.tsx`/
+`drill-session.tsx` — an `eslint-plugin-react-hooks` rule newly flagging the
+`useRef(...).current` read-during-render pattern DECISIONS 025/031
+deliberately established; out of scope here, flagged for a follow-up session).
+`pnpm build` (root, CI placeholder env, no `LAB_BROKER_URL`) succeeds with
+`/app/subnetting` in the route list — pure web content, runs on the real
+Vercel production deploy like forensics/networking before it.
+
+Verified against the real dev Neon DB with a throwaway magic-link account
+(same pattern as every prior content session — a token read from that
+account's own `Verification` row via a disposable script, deleted after; no
+browser-automation tool was available this session — the Chrome extension was
+declined and an ephemeral Playwright download stalled, so this was done via
+`curl` against the running dev server instead of a full click-through): the
+real `/api/auth/magic-link/verify` endpoint was hit directly to obtain a
+genuine session cookie (exactly what the app's own `/magic-link` page's
+client-side `fetch` does — see auth-helpers.ts); `GET /app/subnetting` with
+that cookie returned 200 with the real page (mode buttons, type-filter
+options, Start button, the scope-honesty support line) and the RSC payload
+showed `"bestAccuracy":null` for the fresh account; a disposable script then
+exercised the exact `QuizProgress` upsert + `bestScore()` sequence
+`recordQuickRound` performs directly against the real DB (60 → stays 60 on a
+lower 40 → rises to 100 on a higher 100, proving the best-of logic); a second
+`GET /app/subnetting` with the same cookie confirmed the page now serializes
+`"bestAccuracy":100` and renders "Best quick-round accuracy". The throwaway
+user and all its rows were deleted afterward. A full interactive
+click-through (typing into the fields, seeing the worked solution render
+live, clicking through a whole round in a real browser) was **not** done this
+session for lack of a working browser-automation tool — flagged here
+honestly rather than skipped silently; a human should do one manual
+click-through before relying on this in production, same posture DECISIONS
+020 took under the same constraint.

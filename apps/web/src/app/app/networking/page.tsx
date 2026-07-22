@@ -1,7 +1,7 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Network, CircleCheck, Circle, Info } from "lucide-react";
+import { Network, CircleCheck, Circle, Info, ArrowRight, Calculator } from "lucide-react";
 import { prisma } from "@roundzero/db";
 import { Card, EmptyState, PageHeader, Stat, StatStrip } from "@roundzero/ui";
 
@@ -64,6 +64,22 @@ export default async function NetworkingQuizPage() {
           simulate it.
         </p>
       </Card>
+
+      <Link
+        href="/app/subnetting"
+        className="group mt-4 flex items-center justify-between gap-4 rounded-md border border-hairline bg-surface px-4 py-3 transition-colors duration-150 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
+      >
+        <span className="flex items-center gap-3">
+          <Calculator className="size-4 shrink-0 text-text-dim" strokeWidth={1.75} aria-hidden="true" />
+          <span className="text-sm font-medium text-text">Subnetting trainer</span>
+          <span className="text-xs text-text-dim">Generative practice with a worked binary solution on every problem</span>
+        </span>
+        <ArrowRight
+          className="size-4 shrink-0 text-text-dim transition-transform duration-150 group-hover:translate-x-0.5"
+          strokeWidth={1.75}
+          aria-hidden="true"
+        />
+      </Link>
 
       <div className="mt-8 flex flex-col gap-2">
         {sets.length === 0 ? (

@@ -57,8 +57,14 @@ late September; Linux labs by early November. August assumes reduced hours
       (built on a quiz engine generalized out of the forensics quiz UI/
       grading, now shared by both), and 27 IOS command/concept drill cards.
       Pure content, parallel to the Phase 2 milestone above it, same as
-      forensics Part A was. Part B (the subnetting trainer) is a later
-      session — see the Phase 5 pointer below.
+      forensics Part A was.
+- [x] Networking/Cisco pillar Part B — the subnetting trainer at
+      `/app/subnetting`: a provably-correct pure subnet-math module + a
+      seedable generative problem engine (CIDR/mask breakdown, VLSM fit,
+      which-subnet), per-field answer checking, and an instant worked binary
+      solution. Quick round (5) and endless practice modes, optional timer,
+      best quick-round accuracy persisted (reusing `QuizProgress`). Pure web
+      content, no lab infra — see DECISIONS 034.
 
 ### Milestone 3 — SRS + daily drill (August–early Sept)
 
@@ -94,8 +100,8 @@ isolation incidents.
 
 Phase 3 coach layer (dashboard, assignments, heatmap, scrimmages, readiness
 PDF, playbooks) · Phase 4 Windows local agent (same Go codebase,
-cross-compiled) · Phase 5 Cisco subnetting trainer (Part B of
-`docs/CISCO_BUILD_SPEC.md` — the lessons + quiz bank, Parts A + C, already
-shipped as a Milestone 2 parallel track) · Phase 6 community library +
-post-round debriefs with integrity lockouts · Phase 7 scale, session replay,
-AI tutor. Details live in `docs/spec.md` §19.
+cross-compiled) · Phase 6 community library + post-round debriefs with
+integrity lockouts · Phase 7 scale, session replay, AI tutor. Details live in
+`docs/spec.md` §19. (The Cisco pillar — `docs/CISCO_BUILD_SPEC.md` Parts A/B/C
+— shipped in full as Milestone 2 parallel tracks; no Phase 5 slot remains for
+it.)
