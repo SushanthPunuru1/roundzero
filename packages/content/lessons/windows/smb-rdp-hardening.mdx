@@ -1,0 +1,98 @@
+---
+slug: smb-rdp-hardening
+title: SMB, RDP, and network-facing hardening
+domainId: windows
+level: standard
+minutes: 8
+sortOrder: 4
+published: true
+skills:
+  - windows.policy-registry.smb
+  - windows.policy-registry.rdp
+check:
+  - q: "Why is disabling SMBv1 specifically called out, rather than just \"make sure SMB is configured securely\"?"
+    options:
+      - "SMBv1 is the fastest version and slows down the network if left on"
+      - "SMBv1 is an old, insecure protocol version — it's the one WannaCry (and EternalBlue) exploited — and modern Windows doesn't need it"
+      - "SMBv1 is required for the Administrators group to work"
+      - "It isn't actually a real setting"
+    answer: 1
+    why: "SMBv1 has known, severe vulnerabilities (EternalBlue/MS17-010) that WannaCry used to spread as a worm. SMBv2/v3 handle all normal file-sharing needs, so SMBv1 should be disabled unless something on the README genuinely still requires it."
+  - q: "The README requires RDP to remain enabled for remote administration. What's the correct hardening move?"
+    options:
+      - "Disable it anyway — RDP is never worth the risk"
+      - "Leave it enabled and require Network Level Authentication (NLA)"
+      - "Change it to use Telnet instead"
+      - "Nothing — required services can't be hardened"
+    answer: 1
+    why: "When a service is README-required, the fix is to harden it, not remove it — removing a required service is a penalty. For RDP specifically, requiring NLA forces authentication before a full session is established, which is the standard scored hardening for a required RDP setup."
+  - q: "What makes an exposed remote-access service like RDP a priority to check, even before you've read every other item on the checklist?"
+    options:
+      - "It's the easiest item to fix, so it's worth doing first for the quick points"
+      - "An exposed remote service is directly reachable from outside the machine — it's genuinely top real-world attack surface, not just a scored checkbox"
+      - "RDP is always required, so there's nothing to check"
+      - "It has no relationship to real-world security"
+    answer: 1
+    why: "Unlike a local misconfiguration, an open remote-access service can be reached and attacked without any other foothold on the machine first — which is exactly why RDP and SMB show up in real breach reports as often as they show up on a scored checklist."
+---
+
+SMB and RDP are both services that let something reach into the machine from
+the network — which is exactly why they're a recurring category on any
+hardening checklist, and why "disable it" and "harden it" are both valid
+answers depending on what the README actually needs.
+
+## SMBv1: disable it — this is the WannaCry protocol
+
+SMB (Server Message Block) is the protocol behind Windows file and printer
+sharing. Version 1 is decades old and carries known, severe vulnerabilities —
+most famously EternalBlue (MS17-010), the exploit WannaCry used to spread
+itself across networks with no user interaction required. Modern Windows
+doesn't need SMBv1 for normal file sharing; SMBv2 and SMBv3 handle it.
+
+```
+Get-WindowsOptionalFeature -Online -FeatureName SMB1Protocol
+Disable-WindowsOptionalFeature -Online -FeatureName SMB1Protocol -NoRestart
+```
+
+The first line checks whether it's currently enabled; the second turns it
+off. `-NoRestart` avoids forcing an immediate reboot mid-round — a restart
+will still be needed for the change to fully take effect, but you control
+when.
+
+## RDP: disable, or require NLA — read the README first
+
+Remote Desktop Protocol lets someone open a full graphical session over the
+network on port 3389. There are exactly two correct outcomes here, and which
+one applies depends entirely on the README:
+
+**If RDP is not required**, disable it outright:
+
+```
+reg add "HKLM\SYSTEM\CurrentControlSet\Control\Terminal Server" /v fDenyTSConnections /t REG_DWORD /d 1 /f
+```
+
+`fDenyTSConnections=1` turns off Remote Desktop connections entirely.
+
+**If RDP is required**, don't disable it — that breaks a required service
+and costs a penalty. Instead, force Network Level Authentication:
+
+```
+reg add "HKLM\SYSTEM\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp" /v UserAuthentication /t REG_DWORD /d 1 /f
+```
+
+`UserAuthentication=1` means a connecting client must authenticate *before*
+a full remote session is established, rather than getting to a login screen
+first and authenticating after. It closes off a meaningful chunk of RDP's
+attack surface (including some pre-authentication exploits) while keeping
+the service the README needs.
+
+## Why this category matters beyond the checklist
+
+Every item elsewhere in this pillar — accounts, policy, services — describes
+something a local attacker (or a local misconfiguration) could exploit.
+SMB and RDP are different: they're doors that face outward, reachable
+directly from the network without any other foothold on the machine first.
+That's not just competition-scoring logic — RDP and SMB show up constantly
+in real-world breach and ransomware reports for exactly this reason.
+Treating "what's listening and reachable" as a first-pass priority, not just
+another line item, is a habit worth building here.

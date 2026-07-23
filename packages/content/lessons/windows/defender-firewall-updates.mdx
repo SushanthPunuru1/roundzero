@@ -1,0 +1,100 @@
+---
+slug: defender-firewall-updates
+title: Defender, firewall, and updates
+domainId: windows
+level: standard
+minutes: 8
+sortOrder: 7
+published: true
+skills:
+  - windows.defenses-updates.defender
+  - windows.defenses-updates.windows-update
+check:
+  - q: "You run `Set-NetFirewallProfile -Profile Domain -Enabled True` and move on. What's the problem?"
+    options:
+      - "Nothing — the firewall is now fully enabled"
+      - "Windows Firewall has three profiles (Domain, Private, Public); only Domain was enabled, leaving Private and Public off — a very common scored miss"
+      - "The command doesn't exist"
+      - "It only enables the firewall for administrators"
+    answer: 1
+    why: "Windows Firewall applies a separate on/off state per network profile. Enabling just one and assuming the firewall is \"on\" is exactly the trap: Set-NetFirewallProfile -Profile Domain,Private,Public -Enabled True is the version that actually covers all three."
+  - q: "`Get-MpComputerStatus | Select RealTimeProtectionEnabled` returns `False`. What does this tell you, specifically?"
+    options:
+      - "Defender is fully disabled and uninstalled"
+      - "Defender's real-time (on-access) scanning is off — files can execute without being scanned as they run, even if Defender itself is still present"
+      - "The firewall is off"
+      - "Nothing — this property doesn't exist"
+    answer: 1
+    why: "RealTimeProtectionEnabled specifically reflects on-access scanning — whether Defender inspects files as they're accessed/executed, not just during a manual scan. False here is a distinct, commonly scored finding from Defender being fully disabled or uninstalled."
+  - q: "Why start the Windows Update download early in the round rather than whenever you get to it?"
+    options:
+      - "It doesn't matter when you start it"
+      - "Update downloads and installs are slow, and patch level is scored — starting late risks it not finishing before time runs out"
+      - "Updates can only be started in the last 10 minutes"
+      - "Starting updates early breaks other services"
+    answer: 1
+    why: "This is a time-management point as much as a technical one: a multi-hundred-megabyte update queue started at hour five may simply never finish. Kick it off near the beginning of the round and let it run in the background while you work other items."
+---
+
+Three defenses, one theme: each of these has a "did it" version and a "did
+it correctly, on every relevant surface" version, and the gap between them
+is where points are actually lost.
+
+## The firewall: all three profiles, not one
+
+Windows Firewall maintains a separate enabled/disabled state for each of
+three network profiles — Domain, Private, and Public — depending on what
+kind of network the machine thinks it's connected to.
+
+```
+Get-NetFirewallProfile | Select Name,Enabled
+Set-NetFirewallProfile -Profile Domain,Private,Public -Enabled True
+```
+
+The command above enables all three in one call. The mistake this guards
+against is real and common: running `Set-NetFirewallProfile -Profile Domain
+-Enabled True` alone, seeing the firewall icon looks fine, and moving on —
+while Private and Public silently stay off. Always check the `Select
+Name,Enabled` output afterward and confirm all three read `True`.
+
+## Defender: real-time protection, plus an actual scan
+
+```
+Get-MpComputerStatus | Select RealTimeProtectionEnabled,AntivirusEnabled
+Set-MpPreference -DisableRealtimeMonitoring $false
+Start-MpScan -ScanType QuickScan
+```
+
+`RealTimeProtectionEnabled` is specifically about on-access scanning —
+whether files get scanned as they're touched, not just during a manual scan.
+It's possible for this to be `False` even while Defender is nominally
+present, which is why it's checked directly rather than assumed. Beyond
+turning it back on, actually running `Start-MpScan` matters for a second
+reason: a scan can surface exactly the kind of prohibited tool or malware
+artifact the persistence lesson asks you to look for by hand.
+
+## Windows Update: start it first, not last
+
+```
+reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update" /v AUOptions /t REG_DWORD /d 4 /f
+```
+
+`AUOptions=4` sets updates to automatically download and schedule
+installation. The GUI equivalent is Settings → Windows Update → Check for
+updates. The setting itself is scored, but the bigger issue is timing: patch
+downloads can be large and slow, and if you're the kind of team that saves
+Windows Update for "whenever there's a spare moment," there's a real risk it
+simply hasn't finished installing by the time the round ends. Start it
+within the first few minutes, let it run in the background, and check back
+on it between other tasks — the same lead-time principle as starting audit
+logging early so it has something to record by the time a forensics
+question asks.
+
+## Why these three, together
+
+Firewall, Defender, and updates are the three layers a typical vulnerable
+image assumes will catch attacks that get past everything else — a
+misconfigured firewall profile, a real-time-scanning gap, or a known,
+already-patched vulnerability left open because updates never ran. Getting
+all three fully — not partially — correct closes off a meaningful slice of
+what a scored image is actually testing.

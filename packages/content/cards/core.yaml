@@ -303,6 +303,103 @@ cards:
     front: "Windows: where is the hosts file, and what does a clean one contain?"
     back: "C:\\Windows\\System32\\drivers\\etc\\hosts — only comment lines (#) and possibly 127.0.0.1 localhost."
 
+  # === WINDOWS — depth expansion (lessons companion) =====================
+  - id: card.windows.users-groups.unauthorized-users.admins-cmd
+    skillNodeId: windows.users-groups.unauthorized-users
+    type: COMMAND
+    front: "Windows: remove an unauthorized user from the Administrators group without deleting the account."
+    back: "Remove-LocalGroupMember -Group \"Administrators\" -Member \"username\""
+
+  - id: card.windows.users-groups.weak-passwords.cmd
+    skillNodeId: windows.users-groups.weak-passwords
+    type: COMMAND
+    front: "Windows: set a new password on a local user account."
+    back: "$p = Read-Host -AsSecureString\nSet-LocalUser -Name \"alice\" -Password $p"
+
+  - id: card.windows.users-groups.guest-admin.disable
+    skillNodeId: windows.users-groups.guest-admin
+    type: COMMAND
+    front: "Windows: disable the Guest and built-in Administrator accounts."
+    back: "Disable-LocalUser -Name \"Guest\"\nDisable-LocalUser -Name \"Administrator\""
+
+  - id: card.windows.account-policy.complexity.reversible
+    skillNodeId: windows.account-policy.complexity
+    type: CONCEPT
+    front: "Windows: why is \"store passwords using reversible encryption\" always a critical finding?"
+    back: "It stores the password in a form Windows can decrypt back to plaintext — functionally equivalent to storing it unencrypted, regardless of how strong the password is."
+
+  - id: card.windows.policy-registry.audit-policy.cmd
+    skillNodeId: windows.policy-registry.audit-policy
+    type: COMMAND
+    front: "Windows: enable success+failure auditing for logon events."
+    back: "auditpol /set /category:\"Logon/Logoff\" /success:enable /failure:enable"
+
+  - id: card.windows.policy-registry.registry-classics.autologon
+    skillNodeId: windows.policy-registry.registry-classics
+    type: CONCEPT
+    front: "Windows: what two registry facts together mean autologon is configured?"
+    back: "AutoAdminLogon=1 under the Winlogon key, plus a DefaultPassword value present (a plaintext cached password) — fix both, not just one."
+
+  - id: card.windows.policy-registry.registry-classics.autoplay
+    skillNodeId: windows.policy-registry.registry-classics
+    type: COMMAND
+    front: "Windows: disable AutoPlay for all drive types."
+    back: "reg add \"HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer\" /v NoDriveTypeAutoRun /t REG_DWORD /d 255 /f"
+
+  - id: card.windows.services.insecure-services.list
+    skillNodeId: windows.services.insecure-services
+    type: COMMAND
+    front: "Windows: list all currently running services."
+    back: "Get-Service | Where-Object {$_.Status -eq \"Running\"} | Sort Name"
+
+  - id: card.windows.services.insecure-services.disable
+    skillNodeId: windows.services.insecure-services
+    type: COMMAND
+    front: "Windows: stop a service and prevent it from starting again on reboot."
+    back: "Stop-Service -Name Telnet -Force\nSet-Service -Name Telnet -StartupType Disabled"
+
+  - id: card.windows.services.critical-services.check
+    skillNodeId: windows.services.critical-services
+    type: CONCEPT
+    front: "Windows: before disabling any running service, what must you check first?"
+    back: "The README's required-services list — stopping a required service is a penalty, not a fix, and it's the most common way teams lose points they already had."
+
+  - id: card.windows.persistence.artifacts.netstat
+    skillNodeId: windows.persistence.artifacts
+    type: COMMAND
+    front: "Windows: list listening ports and the PID of the owning process."
+    back: "netstat -ano | findstr LISTENING"
+
+  - id: card.windows.persistence.run-keys.runonce
+    skillNodeId: windows.persistence.run-keys
+    type: COMMAND
+    front: "Windows: query the RunOnce key and check the all-users Startup folder."
+    back: "reg query \"HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunOnce\"\ndir \"C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\StartUp\""
+
+  - id: card.windows.defenses-updates.windows-update.gpo
+    skillNodeId: windows.defenses-updates.windows-update
+    type: COMMAND
+    front: "Windows: set updates to auto-download and schedule installation via registry."
+    back: "reg add \"HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\WindowsUpdate\\Auto Update\" /v AUOptions /t REG_DWORD /d 4 /f"
+
+  - id: card.windows.defenses-updates.windows-update.why-early
+    skillNodeId: windows.defenses-updates.windows-update
+    type: CONCEPT
+    front: "Windows: why start Windows Update at the beginning of the round, not the end?"
+    back: "Downloads/installs are slow and patch level is scored — starting late risks it not finishing before time runs out."
+
+  - id: card.windows.defenses-updates.shares-ntfs.list
+    skillNodeId: windows.defenses-updates.shares-ntfs
+    type: COMMAND
+    front: "Windows: list SMB shares."
+    back: "Get-SmbShare"
+
+  - id: card.windows.defenses-updates.shares-ntfs.keep
+    skillNodeId: windows.defenses-updates.shares-ntfs
+    type: CONCEPT
+    front: "Windows: which default SMB shares must you KEEP, never remove?"
+    back: "C$, ADMIN$, IPC$ (and print$ if printer sharing is on) — Windows-required; remove only non-default shares."
+
   # === FORENSICS =========================================================
   - id: card.forensics.core.ports.cmd
     skillNodeId: forensics.core.ports

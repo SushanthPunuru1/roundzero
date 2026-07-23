@@ -1,0 +1,125 @@
+---
+slug: local-policy-uac-registry
+title: Local policy, UAC, and the registry classics
+domainId: windows
+level: standard
+minutes: 9
+sortOrder: 3
+published: true
+skills:
+  - windows.policy-registry.audit-policy
+  - windows.policy-registry.uac
+  - windows.policy-registry.registry-classics
+check:
+  - q: "Why does audit policy matter beyond its own scored points?"
+    options:
+      - "It doesn't — it's purely cosmetic"
+      - "It feeds the event logs that answer forensics questions about who logged on and what changed"
+      - "It slows down attackers directly"
+      - "It's required for the firewall to function"
+    answer: 1
+    why: "Auditing logon events and account management is what generates the Security event log entries a forensics question might ask about — Event ID 4624 for a successful logon, for example. Skip audit policy and those answers may never exist."
+  - q: "What is the safe first step before editing any registry key?"
+    options:
+      - "Reboot the machine"
+      - "Export the key with `reg export \"<key>\" backup.reg`"
+      - "Disable UAC"
+      - "Nothing — registry edits are always reversible automatically"
+    answer: 1
+    why: "reg export dumps the key to a .reg file. If your edit breaks something, double-clicking the .reg file (or `reg import`) restores the exact prior state in seconds — the same safe-change-discipline principle applied to the registry."
+  - q: "A machine has `AutoAdminLogon` set to `1` and a `DefaultPassword` value present under the Winlogon key. What does this configuration mean?"
+    options:
+      - "Nothing unusual — this is a default Windows setting"
+      - "The machine automatically logs a specific account in at boot, with its password stored in the clear in the registry"
+      - "It's a UAC setting, unrelated to login"
+      - "It only affects the login screen's wallpaper"
+    answer: 1
+    why: "Together, those two values mean Windows skips the login prompt entirely and signs someone in automatically — and the password required to do so sits in plaintext in the registry for anyone with local access to read. Both values should be removed unless the README explicitly requires autologon."
+---
+
+Three different topics live under "local policy and registry" because they
+share a theme: settings that recur nearly every round, are quick to check,
+and are easy to skip if you don't know exactly where to look.
+
+## Audit policy — scored, and it feeds forensics
+
+```
+auditpol /set /category:"Logon/Logoff" /success:enable /failure:enable
+auditpol /set /category:"Account Management" /success:enable /failure:enable
+auditpol /get /category:*
+```
+
+Enabling success and failure auditing for these two categories is itself a
+scored item, but its real value goes further: this is what generates the
+Security event log entries that answer forensics questions later in the
+round — "who logged on at this timestamp," "when was this account created."
+An image with audit policy left at Windows' defaults may simply never record
+the evidence a forensics question is asking about. Do this early, the same
+reasoning as starting Windows Update early: some things need lead time to be
+useful.
+
+## UAC — set it to maximum
+
+User Account Control is the prompt that asks "Do you want to allow this app
+to make changes?" A hardened image sets it to the strictest level:
+
+```
+reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v EnableLUA
+reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v EnableLUA /t REG_DWORD /d 1 /f
+reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v ConsentPromptBehaviorAdmin /t REG_DWORD /d 2 /f
+```
+
+`EnableLUA=1` turns UAC on at all. `ConsentPromptBehaviorAdmin=2` is the
+"Always notify" level for administrators — the strictest of the four UAC
+slider positions, prompting on every elevation rather than only for
+non-Windows binaries.
+
+## Export before you edit — always
+
+Every registry change in this lesson (and the next one) should follow the
+same first step:
+
+```
+reg export "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" C:\backup\run.reg
+```
+
+The pattern is `reg export "<key>" <file>.reg` before touching anything under
+that key. If a change breaks something, `reg import <file>.reg` (or
+double-clicking the file) puts it back exactly as it was — the registry
+equivalent of `cp file file.bak` before editing a config file.
+
+## The registry classics
+
+These same three findings appear round after round because they're each a
+single, well-known value:
+
+**No cached autologon.** A machine configured to sign a specific user in
+automatically at boot, skipping the login screen, stores the account's
+password in plaintext right next to the setting that enables it:
+
+```
+reg delete "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon" /v DefaultPassword /f
+reg add "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon" /v AutoAdminLogon /t REG_SZ /d 0 /f
+```
+
+Both values need fixing — turning off `AutoAdminLogon` without removing the
+leftover `DefaultPassword` value still leaves a plaintext password sitting in
+the registry.
+
+**Autoplay off.** Autoplay running an executable off a dropped USB drive is
+a classic malware-delivery path — disable it for all drive types:
+
+```
+reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer" /v NoDriveTypeAutoRun /t REG_DWORD /d 255 /f
+```
+
+**No password reveal.** Some password entry fields (and third-party
+credential prompts) show an eye icon that reveals the typed password in
+plaintext. The Group Policy setting "Do not display the password reveal
+button" turns it off system-wide, backed by this registry value:
+
+```
+reg add "HKLM\SOFTWARE\Policies\Microsoft\Windows\CredUI" /v DisablePasswordReveal /t REG_DWORD /d 1 /f
+```
+
+Small setting, but it recurs often enough to be worth memorizing cold.

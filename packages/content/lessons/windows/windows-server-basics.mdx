@@ -1,0 +1,117 @@
+---
+slug: windows-server-basics
+title: Windows Server basics
+domainId: windows
+level: advanced
+minutes: 8
+sortOrder: 9
+published: true
+skills:
+  - windows.server.roles
+  - windows.server.gpo
+  - windows.server.ad-dns
+check:
+  - q: "On a domain-joined machine, you run `net accounts /minpwlen:14` locally and it appears to succeed. Does it actually control the enforced password policy for domain accounts?"
+    options:
+      - "Yes — local and domain policy are always identical"
+      - "No — for a domain-joined machine, the Default Domain Policy GPO overrides local account policy; the local setting is effectively cosmetic for domain accounts"
+      - "Only if the machine is a domain controller"
+      - "It works, but only after 90 days"
+    answer: 1
+    why: "Group Policy, applied from the domain controller, wins over local security policy for domain accounts. Setting account policy locally on a domain-joined workstation (or even on the DC itself, outside the Default Domain Policy) doesn't actually change what's enforced — the fix has to happen in the GPO."
+  - q: "A Server image has IIS, DHCP, and Print Services roles installed, but the README only mentions the machine needs to run DNS. What should you do?"
+    options:
+      - "Leave every role installed — more roles mean more capability"
+      - "Remove the roles the README doesn't call for; each installed role/feature is attack surface whether or not it's actively used"
+      - "Only remove IIS, since it's the most well-known one"
+      - "Reinstall Windows Server entirely"
+    answer: 1
+    why: "Role minimization is the server-specific version of the services lesson's principle: an installed-but-unneeded role is attack surface, exactly like a running-but-unneeded service. Remove-WindowsFeature (or the Server Manager GUI) is the standard tool for pulling out roles/features not required by the README."
+  - q: "Why is auditing membership of the Domain Admins group a higher-stakes version of the local-Administrators check from the users-and-groups lesson?"
+    options:
+      - "It isn't — they're the same risk"
+      - "Domain Admins has administrative rights over every machine in the domain, not just one box — an unauthorized member there is a much larger blast radius"
+      - "Domain Admins only affects DNS settings"
+      - "Domain Admins membership can't be changed"
+    answer: 1
+    why: "Local Administrators grants control over one machine. Domain Admins, by default, grants administrative rights across every domain-joined machine and the domain controller itself — the same unauthorized-admin problem from the users-and-groups lesson, but with a domain-wide blast radius instead of a single-machine one."
+---
+
+Everything so far in this pillar targets a standalone Windows workstation —
+the image type most CyberPatriot Windows rounds actually use. Server images
+show up in later rounds and bring one structural difference worth
+understanding even briefly: on a domain-joined network, policy and
+administration live at the *domain* level, not just the local machine. This
+lesson is a foundation, not a full server-hardening pass — hands-on Server
+work (like everything else in this pillar) happens on a real box.
+
+## Role minimization
+
+Windows Server runs almost nothing by default until you explicitly add
+"roles" (DNS Server, Active Directory Domain Services, IIS, DHCP Server) and
+"features" (smaller add-ons). That's the opposite failure mode from a
+workstation image, where services tend to arrive pre-installed — on Server,
+someone chose to install each role, and every one installed-but-not-required
+is exactly the kind of unnecessary attack surface the services lesson
+already covered, just at the role level instead of the service level.
+
+```
+Get-WindowsFeature | Where-Object {$_.InstallState -eq "Installed"}
+Remove-WindowsFeature -Name Web-Server
+```
+
+Cross-reference the installed-roles list against what the README says the
+server actually needs to provide, the same way you'd cross-reference a
+running-services list. Remove what isn't required.
+
+## GPO password enforcement — why `net accounts` isn't the whole story here
+
+The account-and-password-policy lesson's `net accounts` and `secpol.msc`
+commands set *local* security policy. On a domain-joined machine, that's
+not what actually governs domain accounts — Group Policy, applied down from
+a domain controller, wins. Specifically, the **Default Domain Policy** GPO
+is where domain-wide password policy is meant to live:
+
+```
+Get-GPO -Name "Default Domain Policy"
+gpupdate /force
+```
+
+`Get-GPO` confirms the policy object exists and its last-modified time;
+`gpupdate /force` re-applies Group Policy immediately rather than waiting
+for the next automatic refresh cycle, which matters when you need to verify
+a change took effect during a time-limited round. The practical takeaway:
+if you're on a domain controller or a domain-joined image and password
+policy still looks wrong after running `net accounts`, the fix belongs in
+the Default Domain Policy (via the Group Policy Management console),
+not the local security policy.
+
+## AD/DNS fundamentals
+
+Two pieces matter most at this introductory level:
+
+**Domain Admins is the high-value group.** It's the domain-wide equivalent
+of the local Administrators group from the users-and-groups lesson — except
+membership grants administrative rights across *every* domain-joined
+machine, not just one box.
+
+```
+Get-ADGroupMember -Identity "Domain Admins"
+```
+
+Audit this list against the README's authorized-administrator information
+with even more scrutiny than a local Administrators check, given how much
+larger the blast radius of an unauthorized member is.
+
+**DNS is attack surface too.** A domain controller commonly also runs the
+domain's DNS server. A poisoned or unauthorized DNS record has the same
+practical effect as the hosts-file tampering covered earlier in this
+pillar — silently redirecting where a hostname resolves — except it affects
+every machine querying that DNS server, not just one.
+
+```
+Get-DnsServerResourceRecord -ZoneName "roundzero.local"
+```
+
+Reviewing zone records for anything unexplained is the domain-scale version
+of the same hosts-file check from the previous lesson.

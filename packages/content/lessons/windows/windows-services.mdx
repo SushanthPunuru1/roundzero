@@ -1,0 +1,101 @@
+---
+slug: windows-services
+title: Windows services
+domainId: windows
+level: standard
+minutes: 7
+sortOrder: 5
+published: true
+skills:
+  - windows.services.insecure-services
+  - windows.services.critical-services
+check:
+  - q: "What's the difference between a service and a process, in the sense that matters for hardening?"
+    options:
+      - "There's no difference — the words are interchangeable"
+      - "A service is a background program managed by Windows (start type, dependencies, runs without a logged-in user); a process is any running program, service-backed or not"
+      - "A process always outranks a service in priority"
+      - "Services only exist on Server editions"
+    answer: 1
+    why: "A service is specifically a program registered with the Service Control Manager — it has a defined start type (Automatic/Manual/Disabled), can run without anyone logged in, and is what Get-Service / Stop-Service / Set-Service operate on. Plenty of processes (anything a user launches directly) aren't services at all."
+  - q: "You stop and disable a service, then the score drops. What almost certainly happened?"
+    options:
+      - "Unrelated coincidence"
+      - "The service was on the README's required-services list, and disabling it triggered a penalty"
+      - "The scoring engine is broken"
+      - "You need to restart the machine for points to register"
+    answer: 1
+    why: "This is the single most common way teams lose points they already had: disabling a service the README requires. Always check the required-services list before touching anything running."
+  - q: "Which of these is the correct two-command pattern to fully turn off a service, not just stop it for now?"
+    options:
+      - "Stop-Service only — that's permanent"
+      - "Stop-Service (stops it now) followed by Set-Service -StartupType Disabled (stops it from starting again, including on reboot)"
+      - "Restart-Service"
+      - "Disable-Service"
+    answer: 1
+    why: "Stop-Service only affects the current running state — the service will start again on the next reboot unless its start type is also changed. Set-Service -StartupType Disabled is what makes the change survive a restart, which matters since Windows Update or a scheduled reboot could otherwise silently undo a Stop-Service-only fix."
+---
+
+A service is a background program Windows manages directly — it has a
+defined startup type, can run with no one logged in, and is exactly what
+`Get-Service`/`Stop-Service`/`Set-Service` operate on. That's distinct from a
+process in general (anything currently running, service-backed or not,
+visible in `Get-Process`). This lesson is about the service layer
+specifically: finding what's running, disabling what shouldn't be, and never
+breaking what must stay.
+
+## Inventory first
+
+```
+Get-Service | Where-Object {$_.Status -eq "Running"} | Sort Name
+```
+
+Before disabling anything, get the full list of what's currently running.
+Cross-reference it against the README's required-services list — the same
+discipline as the users-and-groups lesson, just applied to services instead
+of accounts.
+
+## The classic insecure defaults
+
+A handful of services show up repeatedly on vulnerable images because
+they're either legacy, plaintext, or unnecessarily exposed:
+
+- **Telnet** — plaintext remote access; SSH or nothing should replace it.
+- **FTP** — plaintext file transfer; if file transfer is required, prefer an
+  encrypted alternative or at minimum restrict/monitor it per the README.
+- **SNMP** — often left at default community strings ("public"/"private"),
+  which effectively grants read (or write) access to anyone who knows to ask.
+- **Remote Registry** — lets another machine query/modify this machine's
+  registry over the network; almost never needed by a normal user workflow.
+- **UPnP (SSDP Discovery / uPnP Device Host)** — automatically opens ports
+  for whatever asks; convenient, rarely something a hardened image wants.
+- **IIS** (Internet Information Services) — a full web server running by
+  default is unnecessary attack surface unless the README specifically
+  requires a web service.
+
+Unless the README requires one of these, stop and disable it:
+
+```
+Stop-Service -Name RemoteRegistry -Force
+Set-Service -Name RemoteRegistry -StartupType Disabled
+```
+
+`Stop-Service` alone only affects the *current* running state — the service
+restarts on the next reboot unless you also change its startup type.
+`Set-Service -StartupType Disabled` is what makes the fix survive a restart,
+which matters because Windows Update (which you started early, per the
+Defender/firewall lesson) can trigger a reboot on its own.
+
+## Never break a required service
+
+This is worth stating as plainly as possible: **the single most common way a
+team loses points they already earned is disabling a service the README
+required.** Before stopping anything:
+
+```
+Get-Service -Name <required-service> | Select Name,Status,StartType
+```
+
+Run this after *every* change in this category, not just once at the start —
+confirming a required service is still `Running` costs seconds and prevents
+one of the most avoidable penalties in the whole round.

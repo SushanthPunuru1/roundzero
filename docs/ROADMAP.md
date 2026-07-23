@@ -65,6 +65,15 @@ late September; Linux labs by early November. August assumes reduced hours
       solution. Quick round (5) and endless practice modes, optional timer,
       best quick-round accuracy persisted (reusing `QuizProgress`). Pure web
       content, no lab infra — see DECISIONS 034.
+- [x] Windows depth build — `docs/WINDOWS_DEPTH_SPEC.md`: 9 Windows lessons
+      (account/password policy incl. the `net accounts`-can't-do-complexity
+      trap, users/groups, local policy/UAC/registry classics, SMB/RDP,
+      services, persistence/malware, Defender/firewall/updates, shares/files/
+      hosts, and a Windows Server basics lesson) plus 16 new drill cards
+      (30 Windows cards total), closing the last knowledge-pillar gap —
+      Windows now has lessons + drills alongside Linux/Cisco/Forensics. Pure
+      web content, no code changes needed (seed/lessons-index/file-tracing
+      were already domain-generic) — see DECISIONS 035.
 
 ### Milestone 3 — SRS + daily drill (August–early Sept)
 

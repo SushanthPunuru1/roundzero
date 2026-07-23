@@ -1510,3 +1510,98 @@ session for lack of a working browser-automation tool — flagged here
 honestly rather than skipped silently; a human should do one manual
 click-through before relying on this in production, same posture DECISIONS
 020 took under the same constraint.
+
+**035 · 2026-07-22 · Windows depth build — `docs/WINDOWS_DEPTH_SPEC.md`.**
+Closes the last knowledge-pillar gap: Windows had a 25-item checklist and 14
+drill cards but zero lessons, while Foundations/Networking/Forensics all had
+full lesson tracks. Added 9 Windows lessons (`packages/content/lessons/
+windows/*.mdx`) and 16 new drill cards (`cards/core.yaml`, 14 → 30 Windows
+total), all mapped to existing `windows.*` taxonomy leaves — no new taxonomy
+nodes needed (per the spec, everything already existed). Pure content, no
+Docker, ships to production exactly like Forensics (031) and Networking
+(033).
+
+*No plumbing changes required — the infra was already domain-generic.*
+`syncLessons`/`syncCards` in `prisma/seed.ts` already recursively scan
+`packages/content/lessons/**` and the whole of `cards/core.yaml`, and
+`validateSkillRefs`/`validateCardRefs` already validate any `windows.*` ref
+since those nodes exist in `taxonomy.yaml`. `groupLessonsByDomain`
+(`apps/web/src/lib/lessons.ts`) is already domain-generic — a "Windows" group
+appears in `/app/lessons` automatically from the taxonomy's existing `Windows`
+domain node, no index code change. `next.config.ts`'s
+`outputFileTracingIncludes` already globs `packages/content/lessons/**/*.mdx`.
+This session's actual work was authoring content, a factual-accuracy pass,
+and updating docs.
+
+*Lessons, sortOrder 1–9.* Account/password policy (the `net accounts`-can't-
+set-complexity trap — length/age/history/lockout are real `net accounts`
+switches, complexity needs `secpol.msc` or a `secedit` export/edit/import;
+why reversible encryption is always critical), users/groups (unauthorized
+users/admins, weak/never-expires passwords, Guest + built-in Administrator),
+local policy/UAC/registry classics (audit policy feeding forensics, UAC to
+`ConsentPromptBehaviorAdmin=2`, autologon/autoplay/password-reveal — export
+before every edit), SMB/RDP hardening (SMBv1 = the WannaCry/EternalBlue
+protocol, RDP disable-vs-require-NLA per README), Windows services (service
+vs. process, the classic insecure-service list, never break a README-required
+service), persistence/malware (Run/RunOnce/Startup folder, scheduled tasks,
+`netstat -ano` for listening ports), Defender/firewall/updates (all **three**
+firewall profiles — the common miss — plus `RealTimeProtectionEnabled` and
+starting Windows Update early), shares/files/hosts (keep only the default
+admin shares C$/ADMIN$/IPC$/print$, hosts-file poisoning since it's checked
+before DNS), and an added Windows Server basics lesson (`level: advanced`,
+mapping to the `windows.server.*` nodes: role minimization via
+`Get-WindowsFeature`/`Remove-WindowsFeature`, why `net accounts` is
+cosmetic on a domain-joined machine and the Default Domain Policy GPO is
+what actually governs domain password policy, Domain Admins as the
+domain-wide analogue of local Administrators, DNS zone records as the
+domain-scale analogue of hosts-file tampering) — included after the user
+opted in during planning (the spec had floated it as optional/deferrable).
+Every lesson's commands were cross-checked against the already-verified
+`windows-core.yaml` checklist (020/022's precedent: checklist commands were
+the accuracy baseline) so lessons and checklist stay consistent; flipped
+`published: false → true` in-session after this factual-accuracy read, same
+precedent as Foundations (020) and Networking (033).
+
+*Cards.* 16 new cards appended to the existing WINDOWS section of
+`core.yaml`, prioritizing COMMAND per the spec (12 command, 4 concept),
+covering skill nodes the original 14 cards didn't reach (weak-passwords,
+guest-admin, audit-policy, registry-classics ×2, insecure-services ×2,
+critical-services, persistence.artifacts, persistence.run-keys' RunOnce/
+Startup variant, windows-update ×2, shares-ntfs ×2, and a second
+account-policy.complexity card on reversible encryption specifically, distinct
+from the existing net-accounts-complexity-trap card). They flow into the
+daily drill through the existing enqueue paths unchanged
+(`enqueueLessonCards`/`enqueueSkillNodeCards`).
+
+Verified against the real dev Neon DB: `db:seed` created 9 lessons + 16 cards
+on first run (all else unchanged), all-unchanged on a second run;
+temporarily pointing a lesson's skill ref at a nonexistent taxonomy id failed
+the run with exit 1 and a precise message, then reverted. `pnpm lint`
+(eslint + tsc across all 3 workspaces) / `pnpm test` (171 `packages/db` + 157
+`apps/web`, unchanged counts — pure content, no new logic) / `pnpm build`
+(root, no `LAB_BROKER_URL`) all green, `/app/lessons`/`/app/lessons/[slug]`
+routes present in the build output. Browser-verified against a real local dev
+server + the real dev DB: `RESEND_API_KEY` is empty in this environment's
+`.env`, so rather than a real magic-link email round-trip, a disposable
+script created the exact `Verification` row Better Auth's magic-link plugin
+itself creates (read from `better-auth`'s own `plugins/magic-link/index.mjs`
+— plain-token identifier, `{email,name}` JSON value, 5-minute expiry) and hit
+the real `/api/auth/magic-link/verify` endpoint directly — same effect as a
+real email round-trip, no credentials involved, consistent with the
+token-from-Verification-row pattern every prior content session used.
+Confirmed: `/app/lessons` renders a "Windows" group with all 9 titles;
+`shares-files-hosts` renders its share-types table as a real `<table>` (not
+raw pipe text) with a working `overflow-x-auto` wrapper (the same
+`mdx-components.tsx` table component 033 already proved doesn't overflow at
+1024px) and all 3 check questions render as radio groups; a `LessonProgress`
+upsert + card-enqueue exercising `submitCheck`'s exact DB writes moved
+`shares-files-hosts` to 100% (confirmed reflected on a re-fetch of
+`/app/lessons`) and enqueued its 3 active cards, all immediately due
+(confirmed via a direct due-count query); `/app/drill` returned 200. The
+throwaway user and all its rows were deleted afterward. A full interactive
+click-through driven by a real browser (as opposed to direct HTTP +
+disposable-script DB writes standing in for the browser's own form
+submission) was not performed — no browser-automation tool was available in
+this session, same constraint DECISIONS 020/034 already flagged; a human
+should still do one manual click-through before relying on this in
+production.

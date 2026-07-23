@@ -1,0 +1,127 @@
+---
+slug: users-and-groups
+title: Managing users and groups on Windows
+domainId: windows
+level: standard
+minutes: 9
+sortOrder: 2
+published: true
+skills:
+  - windows.users-groups.unauthorized-users
+  - windows.users-groups.weak-passwords
+  - windows.users-groups.never-expires
+  - windows.users-groups.guest-admin
+check:
+  - q: "You find a local user account not mentioned anywhere in the README. What's the right move?"
+    options:
+      - "Leave it — deleting accounts is too risky"
+      - "Remove it — an account absent from the README's authorized lists is unauthorized"
+      - "Rename it instead of deleting"
+      - "Add it to the README yourself"
+    answer: 1
+    why: "The README's authorized-user and authorized-admin lists are the ground truth. An account not on either list is unauthorized and should be removed — the same rule as every other pillar."
+  - q: "`Get-LocalUser | Where-Object { $_.PasswordExpires -eq $null -and $_.Enabled }` finds accounts with which property, and why does it matter?"
+    options:
+      - "Disabled accounts — irrelevant to scoring"
+      - "Enabled accounts whose password never expires — they defeat the max-age policy you just set"
+      - "Accounts with no password at all"
+      - "Accounts that are members of Administrators"
+    answer: 1
+    why: "PasswordExpires is null when \"password never expires\" is set. An enabled account with that flag on silently ignores your maxpwage policy — it's a standard scored pairing with account-policy age settings."
+  - q: "The README doesn't mention Guest or the built-in Administrator account at all. What should you do?"
+    options:
+      - "Leave both exactly as found"
+      - "Disable both — an image that doesn't call them out as required should have them off"
+      - "Delete the built-in Administrator account entirely"
+      - "Rename Guest to something less obvious and leave it enabled"
+    answer: 1
+    why: "Guest and the built-in Administrator are default-scored findings when not explicitly required. Disable (not delete — the built-in Administrator can't be deleted anyway) unless the README says otherwise."
+---
+
+Windows account policy sets the rules; this lesson is about auditing the
+accounts those rules apply to. Almost everything here is PowerShell, and
+almost everything here starts from the README's authorized-user and
+authorized-admin lists.
+
+## Listing users and group membership
+
+```
+Get-LocalUser | Select Name,Enabled,LastLogon
+Get-LocalGroupMember -Group "Administrators"
+```
+
+The first line is your full account inventory — cross-reference every name
+against the README's authorized-standard-user list. The second is your
+admin-membership check — cross-reference against the authorized-administrator
+list specifically. These are two different lists; a user can be authorized as
+a standard user but *not* authorized as an admin, in which case the fix is to
+demote them from Administrators, not delete the account.
+
+```
+Remove-LocalUser -Name "baduser"
+Remove-LocalGroupMember -Group "Administrators" -Member "authorizeduser"
+```
+
+Delete an account only if it's absent from both lists. If it's a legitimate
+user who simply shouldn't be an admin, remove them from the group instead —
+deleting an authorized account is a penalty.
+
+## Weak and blank passwords
+
+There's no single PowerShell one-liner that tells you a password is "weak" —
+Windows doesn't expose plaintext passwords for inspection. In practice this
+category means: set a strong password on every authorized account, and don't
+leave any account with a blank password.
+
+```
+$p = Read-Host -AsSecureString
+Set-LocalUser -Name "alice" -Password $p
+```
+
+Keep the password your team settles on written in the change log (per the
+safe-change-discipline lesson) so anyone on the team can log back in.
+
+## Password-never-expires
+
+This flag is a common miss because it silently undermines the age policy
+from the previous lesson — an account can have "password never expires" set
+even after you've configured `net accounts /maxpwage:90`, and that one
+account simply won't be subject to it.
+
+```
+Get-LocalUser | Where-Object { $_.PasswordExpires -eq $null -and $_.Enabled }
+Set-LocalUser -Name "alice" -PasswordNeverExpires $false
+```
+
+`PasswordExpires` returns `$null` specifically when the never-expires flag is
+set on an enabled account — that's the signal this query is looking for.
+
+## Guest and the built-in Administrator
+
+Two accounts exist on every fresh Windows install and are scored by default
+unless the README says otherwise:
+
+```
+Get-LocalUser -Name "Guest","Administrator" | Select Name,Enabled
+Disable-LocalUser -Name "Guest"
+Disable-LocalUser -Name "Administrator"
+```
+
+Neither account can be deleted through normal means — Guest and the built-in
+Administrator are baked into Windows — so the fix is always **disable**, not
+delete. If the README explicitly requires either one active (uncommon but it
+happens), leave it enabled and move on; don't disable an account the README
+needs.
+
+## Order of operations
+
+A practical sequence that avoids locking yourself out mid-audit:
+
+1. Pull the full user list and admin-group list first, before changing
+   anything.
+2. Cross-reference both against the README's two lists.
+3. Fix passwords/never-expires on accounts you're keeping.
+4. Remove unauthorized accounts and demote unauthorized admins.
+5. Handle Guest/built-in Administrator last, since disabling the wrong
+   account here is the one mistake in this list that can actually lock a
+   teammate out.

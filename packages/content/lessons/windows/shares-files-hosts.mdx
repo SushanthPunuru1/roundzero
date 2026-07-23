@@ -1,0 +1,104 @@
+---
+slug: shares-files-hosts
+title: Shares, files, and the hosts file
+domainId: windows
+level: standard
+minutes: 7
+sortOrder: 8
+published: true
+skills:
+  - windows.defenses-updates.shares-ntfs
+  - windows.defenses-updates.prohibited
+check:
+  - q: "You run `Get-SmbShare` and see C$, ADMIN$, IPC$, and a share called `TeamDocs`. Which should you remove?"
+    options:
+      - "All of them — no shares should exist"
+      - "Only TeamDocs, unless the README specifically authorizes it — C$, ADMIN$, and IPC$ are default Windows shares and should stay"
+      - "Only C$"
+      - "None of them"
+    answer: 1
+    why: "C$, ADMIN$, and IPC$ (and print$ if printer sharing is on) are created automatically by Windows and removing them can break normal OS/administrative functionality. The category is about non-default shares like TeamDocs — remove anything not authorized by the README."
+  - q: "What does a genuinely clean Windows hosts file look like?"
+    options:
+      - "Completely empty, zero bytes"
+      - "Only comment lines (starting with #), and possibly a `127.0.0.1 localhost` entry"
+      - "A long list of every website the user has ever visited"
+      - "It must contain at least one custom redirect"
+    answer: 1
+    why: "The hosts file at C:\\Windows\\System32\\drivers\\etc\\hosts maps hostnames to IPs before DNS is even consulted. A stock, untampered file has only comments and the standard localhost line. Any other real (uncommented) entry is a candidate for a malicious redirect and needs justification."
+  - q: "Why does a poisoned hosts file matter even though it's just a text file, not a running service?"
+    options:
+      - "It doesn't matter — hosts files have no effect on modern Windows"
+      - "It silently overrides DNS for whatever domain it lists, redirecting the user to an attacker-controlled address without any obvious sign something is wrong"
+      - "It only affects the wallpaper"
+      - "Antivirus always blocks hosts file edits automatically"
+    answer: 1
+    why: "Because the hosts file is checked before DNS, an entry like `93.184.216.34 update.microsoft.com` would silently redirect traffic meant for that domain — no popup, no warning, just wrong traffic going to the wrong place. That's exactly why it's worth checking even though nothing about it looks like a \"service\" or \"process.\""
+---
+
+This lesson closes out the file-and-network-surface category: what's shared
+out over the network, what shouldn't be sitting on disk, and one small text
+file that's more dangerous than it looks.
+
+## SMB shares — keep the defaults, remove the rest
+
+```
+Get-SmbShare
+Remove-SmbShare -Name "BadShare" -Force
+```
+
+Every Windows install creates a handful of shares automatically for
+administrative and OS functions:
+
+| Share | Purpose |
+|---|---|
+| `C$` | Administrative access to the C: drive root |
+| `ADMIN$` | Administrative access to the Windows installation directory |
+| `IPC$` | Inter-process communication, used by remote administration tools |
+| `print$` | Present only if printer sharing is enabled |
+
+**These are supposed to be there — don't remove them.** Removing a default
+admin share doesn't make the machine more secure in any way scoring cares
+about, and can break legitimate remote administration. The actual finding
+here is any *non-default* share — something like `TeamDocs` or a bare drive
+share someone set up — that isn't called out as required on the README.
+Audit the full `Get-SmbShare` output, keep the four defaults above, and
+remove anything else that isn't authorized.
+
+## Prohibited files
+
+```
+Get-ChildItem C:\Users -Include *.mp3,*.mp4,*.avi,*.wav -Recurse -ErrorAction SilentlyContinue
+```
+
+Media files and similarly out-of-scope content sitting in user directories
+are a standard scored finding on many images. This is a straightforward
+find-and-remove item, but the search itself is worth running deliberately
+rather than skimming folders by eye — `-Recurse` across every user profile
+catches things a manual look would miss.
+
+## The hosts file
+
+```
+type C:\Windows\System32\drivers\etc\hosts
+```
+
+The hosts file at `C:\Windows\System32\drivers\etc\hosts` maps hostnames
+directly to IP addresses, and — critically — it's checked *before* DNS. A
+clean, untampered file contains only comment lines (starting with `#`) and
+possibly one active `127.0.0.1 localhost` entry. Anything else — a real,
+uncommented line mapping some domain to an IP — is worth scrutinizing
+closely.
+
+The danger isn't theoretical: an entry like
+
+```
+93.184.216.34    windowsupdate.microsoft.com
+```
+
+would silently redirect all traffic meant for that domain to the listed IP,
+with no error, no warning, and nothing that looks like a running "service"
+to notice. It's one line in a text file, but it has the same practical
+effect as a working DNS-hijack. Because it's so cheap to check (`type` the
+file, read it, done), it belongs in the same quick-pass category as checking
+the Run keys — a thirty-second look that closes off a real attack path.
