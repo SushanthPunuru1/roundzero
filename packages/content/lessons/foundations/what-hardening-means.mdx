@@ -1,0 +1,107 @@
+---
+slug: what-hardening-means
+title: What hardening means
+domainId: foundations
+level: foundations
+minutes: 7
+sortOrder: 6
+published: true
+skills:
+  - foundations.core.hardening
+check:
+  - q: "What's the correct order of the hardening loop?"
+    options:
+      - "Find the issue, fix it, verify the fix actually took"
+      - "Fix everything you can guess, then check the README"
+      - "Verify first, then look for problems"
+      - "Fix it, then find out afterward whether it was actually a problem"
+    answer: 0
+    why: "Find, then fix, then verify. Verifying is what separates a real fix from one that silently didn't take — a step it's tempting to skip under time pressure."
+  - q: "Why is 'verify' its own separate step, instead of just trusting that a fix worked?"
+    options:
+      - "Because a change can fail silently — a typo in a config file, a service that didn't restart, a setting overridden elsewhere — and you won't know unless you check"
+      - "Verification is optional and mostly a waste of time"
+      - "Because the scoring engine verifies everything for you instantly"
+      - "Only advanced users need to verify anything"
+    answer: 0
+    why: "Config files, services, and settings all fail in ways that look fine at a glance. Verifying is the only way to know a fix actually took."
+  - q: "Which of these best describes 'hardening,' as a general mindset?"
+    options:
+      - "Systematically reducing a machine's weaknesses — accounts, permissions, services, ports, passwords — rather than fixing one memorized checklist item"
+      - "Installing one antivirus program and being done"
+      - "A one-time task you complete and never revisit"
+      - "Something that only applies to servers, never regular computers"
+    answer: 0
+    why: "Hardening is a mindset applied across every part of a machine — the specific checklist items are just that mindset made concrete for one setting at a time."
+---
+
+Every lesson in this domain so far has covered one *piece* of a machine —
+the OS itself, accounts and permissions, services, ports, passwords. This
+lesson ties them together and names the thing you actually do to all of
+them: **hardening**.
+
+## Hardening is reducing what could go wrong
+
+"Harden a machine" means systematically reducing its weaknesses — closing
+unnecessary doors, tightening loose permissions, removing accounts that
+shouldn't exist, enforcing a real password policy — rather than adding one
+single security product and calling it done. Every earlier lesson in this
+domain named a *category* of weakness (an over-privileged account, an
+unneeded service, an open port, a weak password). Hardening is the verb:
+going through those categories, one setting at a time, and closing the gap
+each one represents.
+
+There's no single "hardening switch." It's the accumulated effect of many
+small, specific corrections, each one small enough to check and verify on
+its own.
+
+## The loop: find, fix, verify
+
+Every individual piece of hardening work follows the same three-step
+loop, and skipping the third step is the single most common mistake new
+competitors make:
+
+1. **Find** — identify a specific weakness. An account that shouldn't
+   exist. A service that shouldn't be running. A password policy that's
+   too weak.
+2. **Fix** — make the specific change that corrects it. Delete the
+   account. Stop and disable the service. Set the policy value.
+3. **Verify** — confirm the fix actually took effect. Log back in and
+   check the account is really gone. Confirm the service is really
+   stopped. Re-read the policy setting back out and confirm it changed.
+
+Verify is easy to skip under time pressure, because most fixes *look*
+like they worked the moment you make them. But changes fail silently more
+often than you'd expect: a typo in a config file line, a service that
+needs an explicit restart before a setting takes effect, a group policy
+that gets overridden by something else on the machine. Without verifying,
+you can walk away from a "fix" that never actually applied — and not find
+out until much later, if at all.
+
+## Why this loop, and not just "fix things fast"
+
+It's tempting to treat hardening as a race: fix as many things as
+possible, as quickly as possible. The find-fix-verify loop is slower
+per-item, but it has a property that pure speed doesn't: **you always know
+exactly what state the machine is actually in.** If something goes wrong
+later, you have a clear, verified record of what you already
+confirmed — instead of a pile of changes you *think* worked.
+
+This is also exactly how a scoring engine (the subject of a later
+lesson) evaluates your work: it doesn't care about your intentions, your
+effort, or which fixes you attempted — it checks the machine's actual,
+current state against a list of conditions. A fix that didn't actually
+take effect earns nothing, no matter how correctly you thought you did
+it. Verifying isn't extra work bolted onto hardening — it's how you find
+out, before the scoring engine tells you, whether a fix is real.
+
+## Putting the whole domain together
+
+Look back at everything this domain has covered: what the OS is and why
+it's the thing being defended, who's allowed to do what (accounts,
+groups, permissions), what's quietly running (services), how it's
+reachable (ports), and what protects login itself (passwords). Hardening
+is the discipline of walking through all of that, methodically, applying
+find-fix-verify to each weak point you locate. Every lesson from here on —
+Windows-specific, Linux-specific, or Cisco-specific — is this exact same
+loop, applied to a different, more specific setting each time.

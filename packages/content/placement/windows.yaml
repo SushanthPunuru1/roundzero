@@ -1,0 +1,91 @@
+# Placement bank — windows domain. Contract: placement/README.md.
+version: 1
+domain: windows
+
+questions:
+  # === foundations tier =====================================================
+  - id: placement.windows.admin-vs-standard
+    tier: foundations
+    skillNodeId: windows.users-groups.unauthorized-users
+    prompt: "On Windows, what can a member of the Administrators group do that a standard user account can't?"
+    options:
+      - "Install software and change system-wide settings"
+      - "Log in at all"
+      - "Use a mouse instead of only a keyboard"
+      - "See their own files"
+    answer: 0
+    why: "Administrators can change the system itself; standard accounts are deliberately limited."
+
+  - id: placement.windows.guest-account
+    tier: foundations
+    skillNodeId: windows.users-groups.guest-admin
+    prompt: "What is the built-in Guest account generally used for, and why does it usually get disabled during hardening?"
+    options:
+      - "Limited, often passwordless access — leaving it enabled is an easy unauthorized entry point"
+      - "It's the main account administrators use daily"
+      - "It automatically has more privileges than Administrator"
+      - "It can't be disabled, only renamed"
+    answer: 0
+    why: "Guest is meant for minimal, temporary access and is very commonly left enabled by mistake — a classic finding."
+
+  - id: placement.windows.uac-basics
+    tier: foundations
+    skillNodeId: windows.policy-registry.uac
+    prompt: "What does UAC (User Account Control) do?"
+    options:
+      - "Prompts for confirmation before a program can make system-level changes"
+      - "Encrypts all files on the disk"
+      - "Manages Wi-Fi connections"
+      - "Schedules automatic reboots"
+    answer: 0
+    why: "UAC is the \"are you sure\" gate between a standard action and one that changes the system."
+
+  # === standard tier =========================================================
+  - id: placement.windows.smb1-risk
+    tier: standard
+    skillNodeId: windows.policy-registry.smb
+    prompt: "Why is SMBv1 specifically flagged for removal on a hardened Windows machine?"
+    options:
+      - "It's an old protocol version with known critical vulnerabilities (e.g. exploited by WannaCry)"
+      - "It's simply the slowest file-sharing protocol available"
+      - "It was never actually enabled by default, so this is a non-issue"
+      - "It only affects printer sharing"
+    answer: 0
+    why: "SMBv1 carries real, exploited vulnerabilities — disabling it is one of the highest-value quick wins."
+
+  - id: placement.windows.firewall-profiles
+    tier: standard
+    skillNodeId: windows.defenses-updates.defender
+    prompt: "Windows Firewall has three profiles — Domain, Private, and Public. Why does that matter for hardening?"
+    options:
+      - "All three must be checked and enabled — fixing only one (often just the active profile) leaves the others exposed"
+      - "Only the Domain profile actually does anything"
+      - "The profiles are purely cosmetic labels"
+      - "The Public profile's settings override the other two automatically"
+    answer: 0
+    why: "A common miss: enabling the firewall for the current network profile while the other two stay off."
+
+  # === advanced tier ==========================================================
+  - id: placement.windows.net-accounts-limit
+    tier: advanced
+    skillNodeId: windows.account-policy.complexity
+    prompt: "The net accounts command can set password length, age, and history — but which policy area can it NOT configure?"
+    options:
+      - "Password complexity requirements — those need secpol.msc or a secedit export/edit/import"
+      - "Minimum password length"
+      - "Password history count"
+      - "Account lockout duration"
+    answer: 0
+    why: "A well-known trap: complexity isn't a net accounts switch at all, unlike length/age/history/lockout."
+
+  - id: placement.windows.wmi-persistence
+    tier: advanced
+    skillNodeId: windows.persistence.wmi
+    prompt: "Why is WMI persistence considered a more advanced technique to find than a Run key?"
+    options:
+      - "It hides its trigger and payload inside WMI event subscriptions rather than an obvious registry key, so standard registry checks miss it"
+      - "WMI doesn't actually let anything run automatically"
+      - "It only works on Windows Server, never workstations"
+      - "It requires physical access to set up"
+    answer: 0
+    why: "WMI event subscriptions are a stealthier autostart mechanism than the well-known Run/RunOnce keys."

@@ -25,6 +25,7 @@ import { parseForensics, toForensicsRow, validateForensicsRefs } from "../src/fo
 import { reconcileForensics, type ExistingForensicsQuestion } from "../src/forensics/reconcile";
 import { parseQuiz, toQuizRow, validateQuizRefs } from "../src/quiz/parse";
 import { reconcileQuiz, type ExistingQuizQuestion } from "../src/quiz/reconcile";
+import { parsePlacement, validatePlacementCoverage, validatePlacementRefs } from "../src/placement/parse";
 
 const CONTENT_DIR = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -36,6 +37,7 @@ const CHECKLISTS_DIR = path.join(CONTENT_DIR, "checklists");
 const CARDS_PATH = path.join(CONTENT_DIR, "cards/core.yaml");
 const FORENSICS_DIR = path.join(CONTENT_DIR, "forensics");
 const NETWORKING_QUIZ_DIR = path.join(CONTENT_DIR, "networking-quiz");
+const PLACEMENT_DIR = path.join(CONTENT_DIR, "placement");
 
 // The official CyberPatriot season currently in progress. SeasonEvent rows
 // (registration/round/state calendar, Appendix B) are seeded later once
@@ -43,6 +45,15 @@ const NETWORKING_QUIZ_DIR = path.join(CONTENT_DIR, "networking-quiz");
 const CURRENT_SEASON = { id: "cp-19", title: "CyberPatriot XIX", active: true };
 
 const KIND_ORDER: NodeKind[] = ["DOMAIN", "CATEGORY", "SKILL"];
+
+// Prisma's interactive-transaction default (5s) assumes low-latency DB
+// round trips. This environment's round trip to the Neon dev DB runs
+// ~200-300ms (plus a multi-second cold-start on the first query after
+// idling), so a sync touching many rows in one transaction (e.g. a
+// multi-lesson content session) can exceed the default well before doing
+// anything wrong. Applied to every syncX transaction below, not just the
+// one that hit it, so the next content-heavy session doesn't rediscover it.
+const TX_OPTIONS = { timeout: 20_000 };
 
 function listMdxFiles(dir: string): string[] {
   const files: string[] = [];
@@ -114,7 +125,7 @@ async function syncTaxonomy(): Promise<DesiredNode[]> {
         data: { deprecated: true },
       });
     }
-  });
+  }, TX_OPTIONS);
 
   console.log(
     `taxonomy sync — created: ${plan.toCreate.length}, updated: ${plan.toUpdate.length}, ` +
@@ -187,7 +198,7 @@ async function syncLessons(knownTaxonomyNodes: DesiredNode[]): Promise<Set<strin
         },
       });
     }
-  });
+  }, TX_OPTIONS);
 
   console.log(
     `lesson sync — created: ${plan.toCreate.length}, updated: ${plan.toUpdate.length}, ` +
@@ -307,7 +318,7 @@ async function syncChecklists(
     for (const item of plan.items.toRemove) {
       await tx.checklistItem.delete({ where: { id: item.id } });
     }
-  });
+  }, TX_OPTIONS);
 
   console.log(
     `checklist sync — templates created: ${plan.templates.toCreate.length}, ` +
@@ -365,7 +376,7 @@ async function syncCards(knownTaxonomyNodes: DesiredNode[]): Promise<void> {
         data: { active: false },
       });
     }
-  });
+  }, TX_OPTIONS);
 
   console.log(
     `card sync — created: ${plan.toCreate.length}, updated: ${plan.toUpdate.length}, ` +
@@ -408,7 +419,7 @@ async function syncForensics(knownTaxonomyNodes: DesiredNode[]): Promise<void> {
     for (const row of plan.toRemove) {
       await tx.forensicsQuestion.delete({ where: { id: row.id } });
     }
-  });
+  }, TX_OPTIONS);
 
   console.log(
     `forensics sync — created: ${plan.toCreate.length}, updated: ${plan.toUpdate.length}, ` +
@@ -451,12 +462,31 @@ async function syncQuiz(knownTaxonomyNodes: DesiredNode[]): Promise<void> {
     for (const row of plan.toRemove) {
       await tx.quizQuestion.delete({ where: { id: row.id } });
     }
-  });
+  }, TX_OPTIONS);
 
   console.log(
     `quiz sync — created: ${plan.toCreate.length}, updated: ${plan.toUpdate.length}, ` +
       `removed: ${plan.toRemove.length}, unchanged: ${plan.unchanged.length}`,
   );
+}
+
+// Validation-only — there is no PlacementQuestion table (see
+// packages/db/src/placement/ladder.ts's header comment for why). This still
+// gives placement content the same "fail loudly on a bad ref at seed time"
+// discipline as every other content type; it just has 0 rows to create.
+async function syncPlacement(knownTaxonomyNodes: DesiredNode[]): Promise<void> {
+  const files = readdirSync(PLACEMENT_DIR)
+    .filter((name) => name.endsWith(".yaml"))
+    .map((name) => ({
+      path: name,
+      text: readFileSync(path.join(PLACEMENT_DIR, name), "utf-8"),
+    }));
+
+  const parsed = parsePlacement(files);
+  validatePlacementRefs(parsed, knownTaxonomyNodes);
+  validatePlacementCoverage(parsed);
+
+  console.log(`placement bank validated — ${parsed.length} questions, 0 DB rows (content-only, no sync)`);
 }
 
 async function main(): Promise<void> {
@@ -467,6 +497,7 @@ async function main(): Promise<void> {
   await syncCards(taxonomyNodes);
   await syncForensics(taxonomyNodes);
   await syncQuiz(taxonomyNodes);
+  await syncPlacement(taxonomyNodes);
 }
 
 main()

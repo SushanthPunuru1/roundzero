@@ -84,8 +84,19 @@ late September; Linux labs by early November. August assumes reduced hours
 
 ### Milestone 4 — Onboarding + club launch (September)
 
-- [ ] Placement quiz: ~12 adaptive questions → recommended track per
-      domain (micro-task deferred until labs exist)
+- [x] Foundations content expansion — `docs/ONBOARDING_PATH_SPEC.md` Part D:
+      6 new Foundations-level lessons (what an OS is, users/permissions,
+      services, ports, passwords/policy, what hardening means) at the
+      previously-empty `foundations.core.*` taxonomy nodes, plus 12 new
+      drill cards. Closes the beginner on-ramp gap Part A's placement now
+      routes into.
+- [x] Placement quiz — Part A: self-report (2 questions) + a 12-question
+      adaptive knowledge check (foundations/linux/windows/networking, 3
+      each) → per-domain `TrackLevel` at `/app/placement`, skippable,
+      re-takeable, non-punishing (micro-task deferred until labs exist, per
+      the original scope note). **Recommended-track generation (Part B) and
+      the dashboard "what's next" surface (Part C) are not built yet** — next
+      session.
 - [ ] Coach setup wizard: create team → invite → cadence → season plan
       generated from `Season` calendar data
 - [ ] First-session guided path for new students

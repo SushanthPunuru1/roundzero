@@ -1,0 +1,91 @@
+# Placement bank — foundations domain. Contract: placement/README.md.
+version: 1
+domain: foundations
+
+questions:
+  # === foundations tier =====================================================
+  - id: placement.foundations.what-is-os
+    tier: foundations
+    skillNodeId: foundations.core.os-basics
+    prompt: "In simplest terms, what is an operating system?"
+    options:
+      - "The software that manages a computer's hardware and lets other programs run"
+      - "A type of computer virus"
+      - "A physical part of the computer, like the hard drive"
+      - "A brand of computer, like a laptop model"
+    answer: 0
+    why: "The OS is the software layer between hardware and every other program — it's the thing hardening work ultimately defends."
+
+  - id: placement.foundations.admin-vs-standard
+    tier: foundations
+    skillNodeId: foundations.core.users-perms
+    prompt: "What's the main difference between an admin (or root) account and a standard user account?"
+    options:
+      - "Admin accounts can make system-wide changes; standard accounts can't"
+      - "Admin accounts have a different colored desktop"
+      - "There's no real difference, just a label"
+      - "Standard accounts can't log in remotely"
+    answer: 0
+    why: "Admin/root privileges control who can change the system itself — the core of access control."
+
+  - id: placement.foundations.what-is-port
+    tier: foundations
+    skillNodeId: foundations.core.ports
+    prompt: "What is a network port, roughly speaking?"
+    options:
+      - "A numbered channel a program uses to send or receive network traffic"
+      - "A physical socket you plug an ethernet cable into"
+      - "A folder where downloaded files are stored"
+      - "A setting that controls screen brightness"
+    answer: 0
+    why: "Ports are logical, not physical — they let many programs share one network connection without colliding."
+
+  # === standard tier =========================================================
+  - id: placement.foundations.service-attack-surface
+    tier: standard
+    skillNodeId: foundations.core.services
+    prompt: "Why are running services usually the first thing a hardening checklist asks you to review?"
+    options:
+      - "Each running service is a potential way in — fewer running means less to attack"
+      - "Services slow down the computer, so removing them speeds it up"
+      - "Services cost money to run"
+      - "Services are always malware"
+    answer: 0
+    why: "Every listening service is attack surface. \"Disable what you don't need\" is the whole game."
+
+  - id: placement.foundations.hardening-loop
+    tier: standard
+    skillNodeId: foundations.core.hardening
+    prompt: "What's the correct order of the hardening loop?"
+    options:
+      - "Find the issue, fix it, verify the fix took"
+      - "Fix everything you can guess, then check the README"
+      - "Verify first, then look for problems"
+      - "Fix it, then find out afterward if it was actually a problem"
+    answer: 0
+    why: "Find, then fix, then verify. Verifying is what separates a real fix from one that silently didn't take."
+
+  # === advanced tier ==========================================================
+  - id: placement.foundations.password-policy-why
+    tier: advanced
+    skillNodeId: foundations.core.passwords
+    prompt: "A system already hashes passwords properly. Why does a password history/reuse policy still matter?"
+    options:
+      - "It stops someone from cycling back to a password that was already compromised or guessed"
+      - "Hashing makes history policies unnecessary — this is a trick question"
+      - "It only matters for accounts without a password at all"
+      - "It exists purely to slow down attackers' typing speed"
+    answer: 0
+    why: "Hashing protects storage, not reuse. If a password leaks once, anywhere, history policy stops it from coming back."
+
+  - id: placement.foundations.penalty-vs-fix
+    tier: advanced
+    skillNodeId: foundations.competition.scoring-engine
+    prompt: "Your score drops right after you edit a config file for a required service. What's the most useful next step?"
+    options:
+      - "Confirm the service is still running and working before changing anything else"
+      - "Immediately undo every change you've made all session"
+      - "Assume the scoring engine is broken and ignore it"
+      - "Wait several hours for the score to correct itself"
+    answer: 0
+    why: "A drop right after touching a critical service is almost always a self-inflicted penalty — check the service first."

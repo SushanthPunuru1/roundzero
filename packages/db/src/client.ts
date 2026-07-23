@@ -57,3 +57,36 @@ export type {
 } from "./quiz/grade";
 export { QuizError, parseQuiz, parseQuizFile, toQuizRow, validateQuizRefs } from "./quiz/parse";
 export type { DesiredQuizQuestion, QuizQuestionRow } from "./quiz/parse";
+
+// Placement (ONBOARDING_PATH_SPEC.md Part A) — a dedicated multiple-choice
+// bank read straight from packages/content/placement at request time (no DB
+// table backs the questions themselves; see placement/ladder.ts's header).
+// apps/web's placement server action imports parse + ladder from here so the
+// answer key and the adaptive stepping logic both stay out of the client.
+export {
+  PlacementError,
+  parsePlacement,
+  parsePlacementFile,
+  toPublicQuestion,
+  validatePlacementCoverage,
+  validatePlacementRefs,
+  PLACEMENT_DOMAINS,
+  PLACEMENT_TIERS,
+} from "./placement/parse";
+export type {
+  DesiredPlacementQuestion,
+  PlacementDomain,
+  PlacementQuestionPublic,
+  PlacementTier,
+} from "./placement/parse";
+export {
+  NOT_SURE,
+  QUESTIONS_PER_DOMAIN,
+  TOTAL_QUESTIONS,
+  earlyExitLevels,
+  gradeAnswer as gradePlacementAnswer,
+  mapLevels as mapPlacementLevels,
+  nextStep as nextPlacementStep,
+  recordAnswer as recordPlacementAnswer,
+} from "./placement/ladder";
+export type { NextStep as PlacementNextStep, PlacementAnswer } from "./placement/ladder";

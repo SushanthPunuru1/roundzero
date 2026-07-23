@@ -52,6 +52,7 @@ model User {
   reviews           ReviewLog[]
   forensicsProgress ForensicsProgress[]
   quizProgress      QuizProgress[]
+  placement         Placement?
 }
 
 model Session {
@@ -387,6 +388,30 @@ model QuizProgress {
   updatedAt DateTime @updatedAt
 
   @@unique([userId, quizId, category])
+}
+
+// ---------------------------------------------------------------------------
+// PLACEMENT (ONBOARDING_PATH_SPEC.md Part A) — one row per user, re-takeable
+// (a new completion overwrites the row, per `@unique` on userId — a user has
+// at most one, always-current placement). The question BANK itself has no
+// table: packages/content/placement/*.yaml is read transiently at request
+// time by the adaptive ladder (packages/db/src/placement/), the same way a
+// lesson's `check` is never a DB column (DECISIONS 020). `levels` covers the
+// 4 domains the knowledge check actually spans (foundations/linux/windows/
+// networking) — forensics is a technique pillar, not a machine track, and
+// isn't assessed here.
+// ---------------------------------------------------------------------------
+
+model Placement {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  completedAt DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  experience  String // self-report: "new" | "some" | "competed"
+  focus       Json // self-report: string[], e.g. ["linux"] | ["windows","cisco"] | ["unsure"]
+  levels      Json // { foundations, linux, windows, networking: TrackLevel }
+  answers     Json // [{ id, domain, tier, choice, correct }] — auditability, re-takeable history not kept
 }
 
 // ---------------------------------------------------------------------------

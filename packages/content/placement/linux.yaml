@@ -1,0 +1,91 @@
+# Placement bank — linux domain. Contract: placement/README.md.
+version: 1
+domain: linux
+
+questions:
+  # === foundations tier =====================================================
+  - id: placement.linux.sudo-basics
+    tier: foundations
+    skillNodeId: linux.accounts.sudoers
+    prompt: "What does sudo let a Linux user do?"
+    options:
+      - "Run a single command with elevated (root) privileges"
+      - "Permanently delete a file"
+      - "Reboot the machine automatically every night"
+      - "Change their own username"
+    answer: 0
+    why: "sudo grants temporary elevated privileges for one command — the core Linux access-control mechanism."
+
+  - id: placement.linux.etc-passwd
+    tier: foundations
+    skillNodeId: linux.accounts.passwd-shadow
+    prompt: "Roughly speaking, what does /etc/passwd store?"
+    options:
+      - "The list of user accounts on the system and their basic info"
+      - "The actual password text for every user"
+      - "A log of every login attempt"
+      - "The system's network configuration"
+    answer: 0
+    why: "/etc/passwd lists accounts — the passwords themselves live hashed in /etc/shadow, not here."
+
+  - id: placement.linux.ssh-basics
+    tier: foundations
+    skillNodeId: linux.ssh.permitrootlogin
+    prompt: "What does SSH let you do?"
+    options:
+      - "Log into and control a Linux machine remotely over an encrypted connection"
+      - "Transfer files using a USB cable"
+      - "Automatically install security updates"
+      - "Scan a machine for viruses"
+    answer: 0
+    why: "SSH is the standard way to administer a Linux machine remotely — and a very common hardening target."
+
+  # === standard tier =========================================================
+  - id: placement.linux.root-login-risk
+    tier: standard
+    skillNodeId: linux.ssh.permitrootlogin
+    prompt: "Why is allowing direct root login over SSH generally considered risky?"
+    options:
+      - "An attacker who guesses or steals credentials gets full admin access immediately, with no separate privilege step"
+      - "It uses more bandwidth than a standard user login"
+      - "Root accounts can't use SSH keys"
+      - "It's not risky — it's actually the recommended default"
+    answer: 0
+    why: "Direct root login skips the extra step (sudo) that normally stands between a compromised account and full control."
+
+  - id: placement.linux.cron-persistence
+    tier: standard
+    skillNodeId: linux.services-persistence.cron
+    prompt: "Why do hardening checklists ask you to review cron jobs?"
+    options:
+      - "A scheduled cron job is a common way malware re-establishes itself after being removed"
+      - "Cron only runs backups, so it's never a security concern"
+      - "Cron jobs are only ever visible to the root user"
+      - "Reviewing cron speeds up the machine's boot time"
+    answer: 0
+    why: "A cron entry can silently re-run a payload on a schedule — a classic persistence trick worth auditing."
+
+  # === advanced tier ==========================================================
+  - id: placement.linux.pwquality-vs-history
+    tier: advanced
+    skillNodeId: linux.pam.pwquality
+    prompt: "What's the practical difference between pam_pwquality and pam_pwhistory?"
+    options:
+      - "pwquality enforces rules on a NEW password (length, character variety); pwhistory blocks reusing recent old passwords"
+      - "They do the exact same thing, and only one is ever needed"
+      - "pwquality only applies to the root account"
+      - "pwhistory sets the password expiration date"
+    answer: 0
+    why: "pwquality judges a new password's strength; pwhistory looks backward to stop reuse — different jobs, often used together."
+
+  - id: placement.linux.sysctl-ip-forward
+    tier: advanced
+    skillNodeId: linux.updates-network.sysctl
+    prompt: "Why would a hardening checklist flag net.ipv4.ip_forward = 1 on a machine that isn't meant to be a router?"
+    options:
+      - "It lets the machine forward traffic between network interfaces — unexpected on an endpoint and a possible pivot point"
+      - "It disables the firewall entirely"
+      - "It's a purely cosmetic setting with no security effect"
+      - "It only affects wireless connections"
+    answer: 0
+    why: "IP forwarding turns the box into a router. On a machine that shouldn't route traffic, that's an unnecessary risk."

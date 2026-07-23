@@ -1605,3 +1605,180 @@ submission) was not performed — no browser-automation tool was available in
 this session, same constraint DECISIONS 020/034 already flagged; a human
 should still do one manual click-through before relying on this in
 production.
+
+**036 · 2026-07-23 · Onboarding path Session 1: `docs/ONBOARDING_PATH_SPEC.md`
+Parts D (Foundations content) + A (placement).** Turns the platform from a
+library into the start of a path: Part D gives zero-knowledge users real
+content to land on (`foundations.core.*` was 6 taxonomy leaves with nothing
+authored against them); Part A gives the platform a way to ask who someone is
+and route them there, non-punishingly. Parts B (recommended-track generation)
+and C (dashboard "what's next") are explicitly **not** built this session —
+next session, once placement + content exist for them to consume. Pure web
+content/logic, no Docker — ships to Vercel production like every prior
+content session (031/033/034/035).
+
+*Part D — 6 Foundations lessons, sortOrder renumbered.* `packages/content/
+lessons/foundations/{what-is-an-os,users-and-permissions,what-a-service-is,
+ports-and-connections,passwords-and-policy,what-hardening-means}.mdx`, each
+mapped to one previously-empty `foundations.core.*` node, OS-agnostic, zero
+assumed prior knowledge, 3-question check apiece. Take `sortOrder` 1-6 as the
+new prerequisite front of the Foundations lesson list; the 3 existing
+competition-literacy lessons (scoring-engine, reading-a-readme,
+safe-change-discipline) shift from 1-3 to 7-9 to sit after them — a beginner
+should learn what a service *is* before learning how the scoring engine
+treats one. No index/grouping code changes needed (`groupLessonsByDomain` is
+already sortOrder-driven). 12 new drill cards appended to `cards/core.yaml`
+under a new "FOUNDATIONS — core concepts" section (2 per node, all CONCEPT —
+these are OS-agnostic ideas, not command syntax). Flipped `published: true`
+after an in-session factual-consistency read against the already-published
+Foundations/Windows/Linux lessons (the hashing/length-vs-complexity claims in
+`passwords-and-policy`, the find-fix-verify loop in `what-hardening-means`
+already matches `scoring-engine`'s and `safe-change-discipline`'s existing
+language almost verbatim, by design) — same precedent as 020/033/035.
+
+*Part A — placement bank is a dedicated multiple-choice bank, not the
+existing exact-string quiz pools.* The spec's literal text says the knowledge
+check is "drawn from the existing quiz content pools plus new placement-only
+questions." Confirmed explicitly with the user before writing content: the
+existing pools (`ForensicsQuestion`/`QuizQuestion`) are free-text
+exact-string, have no difficulty tiers, and don't cover linux/windows at all
+— retrofitting tiers onto two already-shipped content types, or mixing typed
+recall into a first-contact beginner flow, was rejected in favor of a
+purpose-built bank: `packages/content/placement/{foundations,linux,windows,
+networking}.yaml`, multiple-choice (matches lesson-check's familiar,
+low-anxiety UI), one file per domain, 7 questions each (3 foundations-tier +
+2 standard + 2 advanced — the floor the ladder's worst-case single run
+needs is 3/1/1; authored above it so a retake doesn't always show the
+identical standard/advanced question). "I'm not sure yet" is **never
+authored per-question** — the UI appends it as a sentinel (`NOT_SURE = -1`)
+to every question, so it can't collide with an authored `answer` index and
+is never framed to the user as a wrong answer, even though it nudges the
+ladder easier internally exactly like a miss.
+
+*No `PlacementQuestion` DB table.* Unlike every other question-bank content
+type (forensics/quiz), placement questions are read transiently, server-side,
+straight from the YAML at each step of the flow (`apps/web/src/lib/
+placement-content.ts`, mirrors `forensics-content.ts`) — there's no
+per-question user progress to index (no "best score per question"), so there
+was nothing for a DB row to usefully back. The seed script still runs
+`validatePlacementRefs`/`validatePlacementCoverage` (`packages/db/src/
+placement/parse.ts`) so a bad skill ref or a too-thin domain fails loudly at
+seed time with the usual discipline, just with 0 rows created — logged
+explicitly as "0 DB rows (content-only, no sync)" so a future reader doesn't
+mistake the missing count for a bug.
+
+*The adaptive ladder (`packages/db/src/placement/ladder.ts`), pure and
+heavily unit-tested (39 tests).* Domains are asked in a fixed block order —
+all 3 foundations questions, then all 3 linux, then windows, then networking
+— rather than interleaved, so the very first 3 questions are a coherent,
+familiar block and the early-exit decision point (below) is unambiguous.
+Within a domain: start at foundations tier; correct steps up one tier (capped
+at advanced), incorrect or "not sure" steps down one (floored at
+foundations); question selection is deterministic (first unused by
+`sortOrder`), so a given answer history always produces the same next
+question — no `Date.now()`/`Math.random()` anywhere in the module. Final
+per-domain level is **the highest tier ever answered correctly, not wherever
+the difficulty pointer ends up** — these can genuinely differ (a
+regression-guarding test walks correct→wrong→correct and confirms the result
+is FOUNDATIONS, not the STANDARD the pointer's final position would
+suggest), because placement must reflect what was actually demonstrated.
+**12 questions, 3 per domain** (not fewer) was a deliberate user call: with
+only 3 draws per domain, every domain — including each machine — can still
+walk foundations→standard→advanced and place at Advanced; a shorter check
+would have capped strong competitors below their real level. `forensics` is
+not assessed (Part A's Flow section only tests foundations/linux/windows/
+networking) and carries no `Placement.levels` entry — it's a technique
+pillar, not a machine track.
+
+*The early-exit off-ramp, added mid-session per explicit user direction.*
+After exactly the first question (foundations domain, foundations tier), if
+it was missed or answered "not sure," `nextStep` returns the *next* question
+already fetched, tagged `offerEarlyExit: true` — an offer the flow may
+present, never an automatic cutoff. Accepting it (`placement-flow.tsx`'s
+"That's all we need — start me at the beginning") calls `advancePlacement`
+with `endEarly: true`, which short-circuits straight to `earlyExitLevels()`
+(every domain FOUNDATIONS) without running the remaining ladder — "keep
+going" just dismisses the offer and shows the already-fetched question, no
+extra round trip. `offerEarlyExit` is true at exactly one point in a run
+(unit-tested): never on the first question itself, never again after a later
+miss.
+
+*Storage: one `Placement` row per user, no question-bank table (above),
+typed `TrackLevel` per domain rather than a bag of strings.* Additive
+migration `add_placement`: `experience`/`focus` are `String`/`Json`
+(self-report, no fixed enum benefit for a one-time answer set); `levels` is
+`Json` keyed by the 4 assessed domains, each value one of the existing
+`TrackLevel` enum's string forms; `answers` is the full re-derived
+`PlacementAnswer[]` history (never the client's own claims) kept for
+auditability. `userId` is `@unique` (not a separate re-take history table) —
+re-taking overwrites in place, matching the spec's "re-takeable" requirement
+without accumulating rows nobody reads. Prisma's `Json` input type wants a
+plain string-indexed object; casting a typed `PlacementAnswer[]` into it
+needed one explicit structural cast in `actions.ts` (the fields are already
+JSON-safe, only the nominal interface trips the check) — not a
+`JSON.parse(JSON.stringify(...))` round trip, to avoid an unnecessary
+serialize/deserialize on every write.
+
+*Stateless server actions, client holds the running answer list.*
+`advancePlacement` (`apps/web/src/app/app/placement/actions.ts`) re-derives
+and re-grades the **entire** answer history from the content-as-code bank on
+every call via `recordPlacementAnswer` — trusting only `questionId` +
+`choice` from the client, never a claimed domain/tier/correctness — the same
+discipline lesson checks/forensics/quiz grading already use. No
+in-progress-placement DB row exists; the client resubmits its whole answer
+array each step, mirroring the subnetting trainer's re-derive-from-seed
+pattern (034) rather than the alternative of a session/state table.
+`placement-flow.tsx` deliberately imports nothing from `@roundzero/db`
+(including types) — that package's `client.ts` constructs a real
+`PrismaClient` at module scope (034's exact concern), so even a `NOT_SURE`
+sentinel constant is duplicated as a plain literal in the client file rather
+than imported, matching `quiz-runner.tsx`'s existing precedent of not
+touching `@roundzero/db` from a `"use client"` file at all.
+
+*Copy discipline, enforced structurally, not just by wording.* No
+`ScoreLine` (not a scored round, 029's reasoning), no per-question
+correct/incorrect reveal during the check itself (unlike the quiz engine —
+placement is a placement instrument, not a practice quiz), and the result
+screen renders **only** the per-domain level lines — no score, no
+correct-count, no tally of any kind ever reaches the DOM, so there's no
+right/wrong signal left to leak through even by accident. Verified directly:
+the disposable end-to-end script asserts the rendered result HTML contains no
+`N / 12`-shaped substring.
+
+*Extended `TX_OPTIONS` timeout across every `seed.ts` transaction, found
+mid-session.* Bumping 3 lessons' `sortOrder` alongside creating 6 new ones (9
+lesson writes in one interactive transaction) hit Prisma's 5s default
+interactive-transaction timeout against this environment's Neon round trip
+(~230ms warm, ~2.1s on a cold first query — measured directly, not guessed).
+Added a shared `TX_OPTIONS = { timeout: 20_000 }` applied to all six
+`prisma.$transaction` calls in `seed.ts`, not just the one that hit it, so
+the next content-heavy session doesn't rediscover the same failure mode.
+
+No new dependency. `pnpm test` (210 `packages/db` — 171 + 39 new placement
+unit tests covering the ladder's stepping/clamping/selection/early-exit/
+level-mapping behavior and the bank parser's validation — + 157 `apps/web`,
+unchanged) / `pnpm lint` (eslint + tsc across all 3 workspaces) / `pnpm
+build` (root, CI placeholder env, no `LAB_BROKER_URL`) all pass, `/app/
+placement` present in the build's route list. `pnpm db:seed` run three times
+across the session's edits (lessons, then cards, then the published flip),
+each reporting the correct create/update counts on first run and
+all-unchanged on the next; temporarily pointing a placement question's
+`skillNodeId` at a nonexistent id was not separately re-verified this session
+(the parser/validator's behavior for that case is unit-tested directly,
+matching the precedent every other content type's seed-fail-loudly check
+already established). Browser verification used the disposable-account
+pattern from every prior content session (magic-link token read from its own
+`Verification` row, no real credentials, all rows deleted after) driven via
+direct HTTP + a script calling the exact same exported `ladder`/`grade`
+functions the server actions call — no browser-automation tool was available
+in this session either (020/034/035's same constraint): confirmed a fresh
+account sees the self-report step; an all-"not sure" run places every
+assessed domain at FOUNDATIONS with the early-exit offer firing after
+question 1 and warm, tally-free result copy; an all-correct run (after
+retaking) places every domain at ADVANCED, proving no domain is capped below
+it; retake truly resets to the self-report step; and completing the
+`what-is-an-os` lesson's check persists a 100% `LessonProgress` and enqueues
+its 2 drill cards, due immediately. A human should still do one manual
+click-through (typing into the actual radio/checkbox UI, confirming focus
+rings and the early-exit interstitial render correctly) before relying on
+this in production, same posture as every prior no-browser-tool session.

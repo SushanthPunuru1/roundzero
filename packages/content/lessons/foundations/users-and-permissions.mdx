@@ -1,0 +1,106 @@
+---
+slug: users-and-permissions
+title: Users, groups, and permissions
+domainId: foundations
+level: foundations
+minutes: 7
+sortOrder: 2
+published: true
+skills:
+  - foundations.core.users-perms
+check:
+  - q: "What's the core difference between an administrator (root) account and a standard user account?"
+    options:
+      - "Administrators can change system-wide settings and other people's files; standard users are limited to their own space"
+      - "Administrators have a different colored desktop background"
+      - "There's no real difference — it's just a label"
+      - "Standard users can't be logged into remotely"
+    answer: 0
+    why: "Admin/root is a set of real, enforced capabilities — installing software, changing other accounts, editing system files — not a title."
+  - q: "A machine has an account named `intern_bob` that isn't on the README's authorized-user list. What does that account most likely represent?"
+    options:
+      - "A harmless leftover that can be ignored"
+      - "An unauthorized account — a common planted vulnerability, worth investigating and likely removing"
+      - "A required system account"
+      - "The machine's built-in guest account, which is always safe"
+    answer: 1
+    why: "Any account not on the authorized list is exactly what these checklists are built to catch — cross-reference before deciding, but don't assume it's fine."
+  - q: "Why do operating systems have 'groups' in addition to individual user accounts?"
+    options:
+      - "Groups let you grant the same permission to many accounts at once, instead of setting it individually on every user"
+      - "Groups are just a way to organize desktop icons"
+      - "Groups replace the need for accounts entirely"
+      - "Only administrators are allowed to be in groups"
+    answer: 0
+    why: "Add an account to the 'Administrators' or 'sudo' group and it inherits that group's permissions — far less error-prone than configuring each user by hand."
+---
+
+If the last lesson was about what a machine *is*, this one is about who's
+allowed to do what to it. Access control — accounts, groups, and
+permissions — is the single most tested category in this competition,
+because "who can do what" is the actual definition of security.
+
+## Accounts: one identity per person (or service)
+
+A **user account** is an identity the operating system recognizes — a
+username, and internally, a unique ID number. Every process that runs and
+every file that exists is *owned* by some account. When you log in as
+yourself, everything you do happens "as" that account, and the OS can
+enforce rules based on who you are.
+
+Both Windows and Linux distinguish two broad kinds of accounts:
+
+- **Administrator accounts** (called `Administrator`/members of the
+  *Administrators* group on Windows, `root` or a `sudo`-capable user on
+  Linux) — can install software, create and delete other accounts, and
+  change system-wide settings.
+- **Standard accounts** — can run programs and manage their own files, but
+  are blocked from most system-altering actions unless explicitly granted
+  more.
+
+This split exists specifically so that a mistake, or a compromised account,
+under a standard user causes far less damage than the same mistake under an
+admin account. That's the whole reason "give people only the access they
+actually need" is a real security principle and not just tidiness.
+
+## Groups: permissions in bulk
+
+A **group** is a named bucket of accounts that all share certain
+permissions. Instead of configuring "can install software" on 20 separate
+user accounts, you put those 20 accounts in a group — `Administrators` on
+Windows, `sudo` (or `wheel`, on some Linux distributions) — and that one
+group membership grants the permission to everyone in it. Remove someone
+from the group and they lose the permission instantly, without touching
+their account settings at all.
+
+This is exactly why "unauthorized user in the admin group" is such a
+common and serious finding: it doesn't matter if the account itself looks
+harmless — group membership is the actual permission grant.
+
+## Permissions: rules attached to things, not just people
+
+Beyond account type, individual **files and folders** carry their own
+permission rules describing who can read them, who can write (change)
+them, and — on some systems — who can execute them as a program.
+Ownership matters too: a file has an owner (usually the account that
+created it), and permission rules are often expressed relative to that
+owner versus everyone else.
+
+This is why "everyone can edit this file" is a real, checkable
+vulnerability distinct from account privilege: even a standard user
+account, if a sensitive file's permissions are too loose, might be able to
+read or modify something it never should have been able to touch.
+
+## The pattern to recognize everywhere
+
+Whether it's Windows or Linux, the same shape repeats: **identity**
+(which account is this), **membership** (which groups is it in), and
+**permission** (what does that identity/group combination actually allow).
+A hardening checklist that asks you to "review users and groups" is asking
+you to check all three: is every account on this machine supposed to be
+here, is every admin-group member supposed to be an admin, and are file
+permissions no looser than they need to be.
+
+Get comfortable finding the answer to "who can do this, and why are they
+allowed to?" on any machine you touch — it's the question underneath
+almost every other lesson in this course.

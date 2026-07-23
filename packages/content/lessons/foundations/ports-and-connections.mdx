@@ -1,0 +1,101 @@
+---
+slug: ports-and-connections
+title: Ports and network connections
+domainId: foundations
+level: foundations
+minutes: 6
+sortOrder: 4
+published: true
+skills:
+  - foundations.core.ports
+check:
+  - q: "What is a network port?"
+    options:
+      - "A numbered channel a program uses to send or receive network traffic, letting many programs share one network connection without colliding"
+      - "A physical socket you plug an ethernet cable into"
+      - "A folder where downloaded files are stored"
+      - "A setting that controls internet speed"
+    answer: 0
+    why: "Ports are logical, not physical. Your machine has one network connection but can run dozens of programs each talking on their own numbered port."
+  - q: "A port shows up as 'listening' on a machine. What does that mean?"
+    options:
+      - "A program on that machine has opened the port and is waiting for an incoming connection"
+      - "The port is actively being attacked right now"
+      - "The port is permanently broken"
+      - "Nothing — listening ports are purely decorative"
+    answer: 0
+    why: "Listening means 'ready to accept a connection.' It's the network-visible sign that some service (the last lesson's topic) is running and reachable."
+  - q: "Why is 'an open port you can't explain' treated as a red flag during hardening?"
+    options:
+      - "Every open port belongs to some running program — if you can't identify which one or why it's needed, it might be something planted, like a backdoor"
+      - "Open ports always mean the machine is currently being hacked"
+      - "It isn't a red flag — more open ports is always better"
+      - "Ports have nothing to do with security"
+    answer: 0
+    why: "An open port is a direct, unexplained line to something on the machine. Being able to say 'this port belongs to this legitimate service' is the whole check."
+---
+
+The last lesson covered services — programs running unattended. This one
+covers how those services are actually reachable over a network at all:
+ports.
+
+## A port is a numbered channel, not a physical thing
+
+Your machine has one physical network connection (or one Wi-Fi radio), but
+it regularly has many programs talking over the network at the same
+time — a browser loading three tabs, an email client checking for new
+mail, a remote-login server waiting for someone to connect. A **port** is
+how the operating system tells all of that traffic apart: every piece of
+network traffic is tagged with a port number, and the OS routes it to
+whichever program is using that number.
+
+Port numbers range from 0 to 65535. A handful of low numbers are
+well-known conventions rather than hard rules — port 80 for plain web
+traffic, 443 for encrypted web traffic, 22 for SSH remote login, 3389 for
+Windows Remote Desktop. Programs are free to use other numbers, but
+sticking to the conventional ones is what lets two unrelated computers
+agree on how to talk without prior coordination.
+
+## Listening vs. connected
+
+You'll encounter two different states a port can be in, and the
+distinction matters:
+
+- **Listening** — a program has claimed this port and is sitting, ready,
+  waiting for someone to connect to it. This is the network-visible sign
+  that a service (from the last lesson) is actually running and reachable
+  from outside the machine, not just installed.
+- **Connected (established)** — an actual, active conversation is
+  happening on that port right now, between this machine and another one.
+
+A machine can have a port listening with zero active connections (a web
+server waiting for its first visitor of the day) — that's completely
+normal and doesn't mean anything is wrong. What matters for hardening is
+whether a port is listening *at all* when it has no legitimate reason to
+be.
+
+## Why an open port is a door
+
+Put the last two lessons together: a listening port exists because some
+service opened it. That means every listening port you find on a machine
+should map to an answer to the question "which program is this, and why
+does it need to be reachable over the network?" If you can't answer that —
+if a port is listening and you don't recognize what's behind it — that's
+exactly the kind of thing hardening checklists exist to catch: an
+unexpected door into the machine, possibly something planted deliberately
+(a backdoor) rather than a legitimate service someone forgot to remove.
+
+This is also why "listening port identification" shows up as its own
+skill in forensics investigations later in this course — a live listening
+port is one of the most direct, unambiguous pieces of evidence about
+what's actually running on a machine, no guessing required.
+
+## The picture so far
+
+You now have the four pieces this course keeps coming back to: the OS
+manages the machine, accounts and permissions decide who's allowed to act,
+services are programs running unattended, and ports are how those
+services become reachable over a network. Every one of the next lessons —
+passwords, hardening itself, and everything in the Windows/Linux/
+networking tracks — is really just applying pressure to one of these four
+places.

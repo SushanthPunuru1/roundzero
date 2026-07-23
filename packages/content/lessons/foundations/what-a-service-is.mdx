@@ -1,0 +1,100 @@
+---
+slug: what-a-service-is
+title: Services and why they're attack surface
+domainId: foundations
+level: foundations
+minutes: 6
+sortOrder: 3
+published: true
+skills:
+  - foundations.core.services
+check:
+  - q: "What is a service, in plain terms?"
+    options:
+      - "A program that runs in the background, usually starting automatically with the machine, without anyone actively using it in a window"
+      - "Any program with a visible window open"
+      - "A type of file permission"
+      - "A paid feature of the operating system"
+    answer: 0
+    why: "Services (Linux calls them daemons) run unattended — a web server, a print spooler, a remote-login server — waiting to do their job whenever it's needed."
+  - q: "Why does a hardening checklist ask you to review every running service, even ones that seem harmless?"
+    options:
+      - "Because every running service is a program an attacker could potentially exploit or abuse — fewer running means a smaller target"
+      - "Because services slow down the computer and should always be removed"
+      - "Because only Windows has services"
+      - "Because services can't be turned back on once disabled"
+    answer: 0
+    why: "Attack surface means 'the total set of things an attacker could try.' Every listening or running service adds to that set, needed or not."
+  - q: "A README says a scenario requires FTP to stay running. FTP has a history of security weaknesses. What's the correct move?"
+    options:
+      - "Uninstall FTP anyway — security always wins"
+      - "Leave it running and configure it as securely as the situation allows, since the scenario requires it"
+      - "Stop the service but leave the software installed"
+      - "Ignore FTP entirely since it's not your problem"
+    answer: 1
+    why: "'Disable what you don't need' cuts both ways — a required service stays up, hardened as much as possible; only truly unneeded ones get disabled."
+---
+
+The last two lessons covered what a machine is and who's allowed to touch
+it. This one covers the third piece: what's quietly *running* on it right
+now, without anyone sitting at the keyboard.
+
+## A service is a program with no one watching it
+
+Most programs you think of run because a person launched them — you double
+click a browser, you open a text editor. A **service** (Windows' term) or
+**daemon** (Linux's term for the same idea) is different: it starts
+automatically, usually when the machine boots, and keeps running in the
+background indefinitely, waiting to respond to something. A web server
+waits for a browser to connect to it. A print spooler waits for a print
+job. An SSH server waits for someone to try to log in remotely.
+
+You can't see most services in a normal desktop view — no window, no icon
+in the taskbar. That's exactly why they need a deliberate, separate
+review step during hardening: nothing about a machine's visible desktop
+tells you what's running underneath it.
+
+## Every running service is something an attacker could try
+
+Here's the idea this whole lesson exists to teach: **a service is a
+program an attacker can potentially interact with, without ever touching
+your keyboard**. If a service has a bug, or a weak configuration, or
+simply doesn't need to exist on this machine, it's a way in — a piece of
+what security people call the **attack surface**: the total set of things
+available for someone to attempt to exploit.
+
+This gives you a genuinely simple mental model for most of hardening: more
+unnecessary services running means more attack surface; fewer means less.
+It's why "list every running service and ask whether it needs to be there"
+is one of the very first things a hardening checklist asks you to do —
+before touching passwords, before touching files, before anything else.
+
+## "Disable what you don't need" — but check what you *do* need first
+
+The natural instinct is to shut down everything unfamiliar. That instinct
+is right most of the time and wrong in a way that costs real points: some
+services are explicitly required by the scenario (the next lesson's
+territory covers this in depth). Stopping or removing a **required**
+service is treated as a penalty, not a fix — even though, in isolation,
+that service might be exactly the kind of thing you'd otherwise want gone.
+
+So the actual rule has two halves:
+
+1. **Not needed, not required → disable it.** This shrinks attack surface
+   for free.
+2. **Required by the scenario → keep it running, but configure it as
+   securely as it can be.** You can't remove the door, so you make sure
+   it locks properly.
+
+Telling those two cases apart is exactly why "read the README first"
+(covered later in this domain) comes before "start hardening services."
+
+## The pattern, again
+
+Notice the throughline from the last two lessons: the OS is what runs
+everything, accounts and permissions control who's allowed to act, and
+services are the *what's currently acting without anyone watching it*
+layer. A service review is really just asking, for every single thing
+quietly running: does this need to exist here, and if so, is it as locked
+down as it can be? That question, asked over and over, is most of what
+hardening actually is.

@@ -1,0 +1,91 @@
+# Placement bank — networking domain. Contract: placement/README.md.
+version: 1
+domain: networking
+
+questions:
+  # === foundations tier =====================================================
+  - id: placement.networking.osi-purpose
+    tier: foundations
+    skillNodeId: networking.fundamentals.osi
+    prompt: "What is the OSI model used for?"
+    options:
+      - "A conceptual framework describing how network communication is layered, from physical wires to applications"
+      - "A specific brand of network switch"
+      - "A programming language for routers"
+      - "A type of firewall rule"
+    answer: 0
+    why: "The OSI model is a mental map for where a networking problem or protocol actually lives."
+
+  - id: placement.networking.tcp-vs-udp
+    tier: foundations
+    skillNodeId: networking.fundamentals.tcp-udp
+    prompt: "What's a key practical difference between TCP and UDP?"
+    options:
+      - "TCP confirms delivery and ordering; UDP sends without that guarantee, trading reliability for speed"
+      - "TCP is only used for email, UDP for everything else"
+      - "UDP always encrypts traffic and TCP never does"
+      - "They're two names for the exact same protocol"
+    answer: 0
+    why: "TCP's handshake and acknowledgments cost overhead UDP skips — the classic reliability-vs-speed tradeoff."
+
+  - id: placement.networking.port-number
+    tier: foundations
+    skillNodeId: networking.fundamentals.ports
+    prompt: "Which port does plain, unencrypted HTTP traffic typically use?"
+    options:
+      - "80"
+      - "443"
+      - "22"
+      - "3389"
+    answer: 0
+    why: "Port 80 is HTTP's classic default; 443 is HTTPS, 22 is SSH, 3389 is RDP."
+
+  # === standard tier =========================================================
+  - id: placement.networking.ios-modes
+    tier: standard
+    skillNodeId: networking.devices.ios-basics
+    prompt: "On a Cisco IOS device, what's the difference between user EXEC mode and privileged EXEC mode?"
+    options:
+      - "Privileged mode (enable) unlocks configuration and diagnostic commands that user mode can't run"
+      - "There's no real difference besides the prompt symbol"
+      - "User mode is only for wireless devices"
+      - "Privileged mode disables all show commands"
+    answer: 0
+    why: "enable is the gate between limited viewing and the commands that can actually change the device."
+
+  - id: placement.networking.vlan-purpose
+    tier: standard
+    skillNodeId: networking.devices.vlans
+    prompt: "What does a VLAN do, at a basic level?"
+    options:
+      - "Logically separates devices on the same physical switch into isolated broadcast domains"
+      - "Physically rewires which port connects to which cable"
+      - "Encrypts all traffic on the network automatically"
+      - "Assigns IP addresses to new devices"
+    answer: 0
+    why: "VLANs split one physical switch into multiple logical networks — segmentation without new hardware."
+
+  # === advanced tier ==========================================================
+  - id: placement.networking.acl-order
+    tier: advanced
+    skillNodeId: networking.devices.acls
+    prompt: "Why does the ORDER of rules in a Cisco ACL matter so much?"
+    options:
+      - "The device evaluates rules top-to-bottom and stops at the first match — a broad early rule can silently shadow a more specific one later"
+      - "ACL rules are always applied in alphabetical order regardless of how they're written"
+      - "Order only matters for outbound ACLs, never inbound"
+      - "Cisco devices automatically re-sort ACL rules for you"
+    answer: 0
+    why: "First-match-wins is the single most common source of \"my ACL doesn't do what I wrote\" bugs."
+
+  - id: placement.networking.subnetting-why
+    tier: advanced
+    skillNodeId: networking.fundamentals.subnetting
+    prompt: "Why might a network be split into multiple smaller subnets instead of one large flat network?"
+    options:
+      - "It limits broadcast traffic and lets you apply different access rules to different segments"
+      - "It's required for any network with more than one device"
+      - "It automatically doubles available bandwidth"
+      - "It removes the need for a default gateway"
+    answer: 0
+    why: "Smaller subnets contain broadcast traffic and let you segment trust boundaries — the same idea VLANs apply at layer 2."

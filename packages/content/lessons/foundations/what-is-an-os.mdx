@@ -1,0 +1,110 @@
+---
+slug: what-is-an-os
+title: What an operating system actually is
+domainId: foundations
+level: foundations
+minutes: 6
+sortOrder: 1
+published: true
+skills:
+  - foundations.core.os-basics
+check:
+  - q: "What is the kernel?"
+    options:
+      - "The core of the operating system that talks directly to the hardware and controls every other program's access to it"
+      - "A separate computer inside your computer"
+      - "The desktop background and icons"
+      - "A type of virus that hides in system files"
+    answer: 0
+    why: "The kernel is the innermost layer — memory, the CPU, disks, and the network all go through it. Everything else runs on top."
+  - q: "You open a web browser and a music player at the same time. What is each of them, from the OS's point of view?"
+    options:
+      - "Two files"
+      - "Two processes — running instances of a program, each with its own slice of memory and CPU time"
+      - "One process split in half"
+      - "Neither — only the OS itself counts as a process"
+    answer: 1
+    why: "A process is a program while it's running. The OS is the thing juggling many processes at once and keeping them from stepping on each other."
+  - q: "Why does 'harden the operating system' mean more than just 'install antivirus'?"
+    options:
+      - "Because antivirus doesn't exist"
+      - "Because the OS controls accounts, permissions, services, and settings — the actual mechanisms an attacker uses, not just known-bad files"
+      - "Because hardening only applies to hardware"
+      - "It doesn't — antivirus is the whole job"
+    answer: 1
+    why: "Hardening is about tightening the OS's own controls — who can log in, what can run, what's exposed — not just scanning for malware after the fact."
+---
+
+Every lesson after this one assumes you already know what "the operating
+system" is. This one makes sure that's actually true, because it's easy to
+use a computer for years without ever needing the precise answer.
+
+## Hardware, then the OS, then everything else
+
+A computer, stripped down, is hardware: a processor, memory, storage, a
+network card. None of that hardware knows how to do anything useful on its
+own. The **operating system** is the software that sits directly on top of
+the hardware and manages it — Windows, Linux, and macOS are all operating
+systems. Every other program you run — a browser, a game, a scoring
+engine — runs *on top of* the operating system and asks it for things:
+memory to use, a file to read, a network connection to open.
+
+This matters for security because the OS isn't just "the thing with the
+desktop icons." It's the layer that decides who's allowed to do what. When
+this course talks about "hardening a machine," it almost always means
+hardening the operating system's own settings — not installing some
+separate security product.
+
+## The kernel: the part that actually talks to hardware
+
+Inside the OS, the **kernel** is the core piece that directly controls the
+hardware — memory, the processor, disks, network devices. No ordinary
+program is allowed to touch that hardware directly; it has to go through
+the kernel and ask. This is exactly why an operating system can run dozens
+of programs "at once" on hardware that, at any single instant, is really
+only doing one thing: the kernel is constantly switching between programs,
+fast enough that it looks simultaneous.
+
+You don't need to know kernel internals for this competition. You do need
+to know that the kernel is the reason "who can do what to this machine" is
+even an enforceable question — permissions, users, and services are all
+concepts the kernel makes possible.
+
+## Processes: a program while it's running
+
+A **process** is a running instance of a program. Your file on disk (say,
+a web browser's `.exe` or binary) is just data sitting still — it becomes
+a process the moment you launch it, and the OS gives that process its own
+slice of memory and scheduled time on the processor. Open the same program
+twice and you can have two separate processes of it running at once.
+
+This distinction — program-as-file versus program-as-running-process — is
+the same one that shows up constantly in hardening work: a "service" you
+disable is really telling the OS not to start a certain process, and a
+"listening port" you investigate belongs to some specific running process
+that opened it.
+
+## Files: how the OS organizes everything that isn't running
+
+Everything not currently executing — documents, configuration, programs
+waiting to be launched, the OS's own settings — is stored as **files**,
+organized into a tree of folders (directories). The OS's filesystem tracks
+where every file physically lives on disk and who's allowed to read, write,
+or run it. That last part — who's allowed — is the permissions system,
+covered in the next lesson, and it's built directly into how the OS treats
+every single file.
+
+## Why "the OS" is the thing you're defending
+
+Put these three pieces together and you get the whole picture this course
+cares about: the kernel controls the hardware, processes are the programs
+currently running on it, and files are everything else, organized with
+permission rules attached. An attacker who compromises a machine is really
+trying to run a process they control, read or change files they shouldn't,
+or get the kernel to do something on their behalf. Hardening is the work of
+making all three of those harder: fewer unnecessary processes running,
+tighter permissions on files, and a kernel-level configuration that doesn't
+hand out more access than it needs to.
+
+Every lesson after this one is really just: which specific knob, on which
+specific piece of this picture, do you turn — and why.

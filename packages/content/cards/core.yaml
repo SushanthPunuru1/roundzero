@@ -15,6 +15,79 @@
 version: 1
 
 cards:
+  # === FOUNDATIONS — core concepts ========================================
+  - id: card.foundations.core.os-basics.kernel
+    skillNodeId: foundations.core.os-basics
+    type: CONCEPT
+    front: "What is the kernel?"
+    back: "The core of the OS that talks directly to the hardware and controls every other program's access to it."
+
+  - id: card.foundations.core.os-basics.process
+    skillNodeId: foundations.core.os-basics
+    type: CONCEPT
+    front: "What is a process?"
+    back: "A running instance of a program — the OS gives it its own memory and CPU time. A file on disk isn't a process until it's launched."
+
+  - id: card.foundations.core.users-perms.admin-vs-standard
+    skillNodeId: foundations.core.users-perms
+    type: CONCEPT
+    front: "Core difference between an admin/root account and a standard account?"
+    back: "Admins can change system-wide settings and other accounts; standard users are limited to their own space."
+
+  - id: card.foundations.core.users-perms.groups
+    skillNodeId: foundations.core.users-perms
+    type: CONCEPT
+    front: "Why do operating systems have groups, not just individual accounts?"
+    back: "A group lets you grant the same permission to many accounts at once, instead of configuring each user individually."
+
+  - id: card.foundations.core.services.what
+    skillNodeId: foundations.core.services
+    type: CONCEPT
+    front: "What is a service (Linux: daemon)?"
+    back: "A program that runs in the background automatically, with no one actively watching it — a web server, print spooler, SSH server."
+
+  - id: card.foundations.core.services.attack-surface
+    skillNodeId: foundations.core.services
+    type: CONCEPT
+    front: "Why does every running service count as 'attack surface'?"
+    back: "It's a program an attacker could try to interact with, without ever touching your keyboard. Fewer running services means less to attack."
+
+  - id: card.foundations.core.ports.what
+    skillNodeId: foundations.core.ports
+    type: CONCEPT
+    front: "What is a network port?"
+    back: "A numbered channel a program uses for network traffic — lets many programs share one network connection without colliding."
+
+  - id: card.foundations.core.ports.listening
+    skillNodeId: foundations.core.ports
+    type: CONCEPT
+    front: "A port shows up as 'listening.' What does that mean?"
+    back: "A program has claimed that port and is waiting for an incoming connection — the network-visible sign a service is running and reachable."
+
+  - id: card.foundations.core.passwords.hash
+    skillNodeId: foundations.core.passwords
+    type: CONCEPT
+    front: "What does the OS actually store when you set a password?"
+    back: "A hash — a one-way scramble of the password, not the password itself. Hashes can't be reversed back into the original."
+
+  - id: card.foundations.core.passwords.length-vs-complexity
+    skillNodeId: foundations.core.passwords
+    type: CONCEPT
+    front: "Why does length beat complexity for password strength?"
+    back: "Every added character multiplies the number of possible passwords to guess. Length scales guessing difficulty faster than swapping in one symbol."
+
+  - id: card.foundations.core.hardening.loop
+    skillNodeId: foundations.core.hardening
+    type: CONCEPT
+    front: "What's the hardening loop, in order?"
+    back: "Find the issue, fix it, verify the fix actually took. Skipping verify is the most common mistake under time pressure."
+
+  - id: card.foundations.core.hardening.why-verify
+    skillNodeId: foundations.core.hardening
+    type: CONCEPT
+    front: "Why is 'verify' its own separate step, not just trusting a fix worked?"
+    back: "Changes can fail silently — a typo, a service that needs a restart, a setting overridden elsewhere. Verifying is the only way to know a fix took."
+
   # === FOUNDATIONS — competition literacy ================================
   - id: card.foundations.competition.scoring-engine.state
     skillNodeId: foundations.competition.scoring-engine
