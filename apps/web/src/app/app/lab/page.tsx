@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { PageHeader } from "@roundzero/ui";
 
 import { auth } from "@/lib/auth";
+import { loadTrack, nextStepView } from "@/lib/track";
 import { LabConsole } from "./lab-console";
 
 export default async function LabPage() {
@@ -10,6 +11,10 @@ export default async function LabPage() {
   if (!session) {
     redirect("/sign-in");
   }
+
+  const track = await loadTrack(session.user.id);
+  // Don't suggest the lab itself as the next step from within the lab.
+  const nextStep = nextStepView(track.steps.filter((s) => s.kind !== "lab"));
 
   return (
     <div>
@@ -24,7 +29,7 @@ export default async function LabPage() {
         hosted deployment yet.
       </p>
 
-      <LabConsole />
+      <LabConsole nextStep={nextStep} />
     </div>
   );
 }

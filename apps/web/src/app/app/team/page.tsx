@@ -5,6 +5,7 @@ import { Badge, Card, PageHeader, Stat, StatStrip } from "@roundzero/ui";
 
 import { auth } from "@/lib/auth";
 import { canManageRoster, divisionLabel, sortRosterMembers } from "@/lib/teams";
+import { TeamChooser } from "../team-chooser";
 import { JoinCode } from "./join-code";
 import { RosterTable } from "./roster-table";
 
@@ -18,8 +19,21 @@ export default async function TeamPage() {
     where: { userId: session.user.id },
     include: { organization: true },
   });
+  // Non-members set up or join a team here (the dashboard at /app links here);
+  // this used to live on /app before /app became the dashboard.
   if (!membership) {
-    redirect("/app");
+    return (
+      <div>
+        <PageHeader
+          eyebrow="Team setup"
+          title="Set up your team"
+          support="Create a new roster as coach, or join one with a code from your team."
+        />
+        <div className="mt-8">
+          <TeamChooser />
+        </div>
+      </div>
+    );
   }
 
   const members = await prisma.member.findMany({

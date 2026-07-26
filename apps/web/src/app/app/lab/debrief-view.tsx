@@ -16,6 +16,7 @@ import {
 
 import { enqueueMissedDrills } from "./actions";
 import type { ScoreRow } from "./actions";
+import { NextStepInline, type NextStepView } from "../next-step-card";
 
 export interface ScoreSnapshot {
   elapsedMs: number;
@@ -32,6 +33,7 @@ export interface DebriefViewProps {
   onRetry: () => void;
   onBack: () => void;
   retrying?: boolean;
+  nextStep?: NextStepView | null;
 }
 
 function chartPointsFrom(history: ScoreSnapshot[]): TrajectoryPoint[] {
@@ -56,7 +58,7 @@ function chartPointsFrom(history: ScoreSnapshot[]): TrajectoryPoint[] {
  * ScoreLine list or the gauge strip, both plain DOM, correct with motion or
  * JS effects disabled.
  */
-export function DebriefView({ imageName, mode, history, rows, onRetry, onBack, retrying }: DebriefViewProps) {
+export function DebriefView({ imageName, mode, history, rows, onRetry, onBack, retrying, nextStep }: DebriefViewProps) {
   const latest = history.at(-1);
   const finalEarned = latest?.totalEarned ?? 0;
   const totalPossible = latest?.totalPossible ?? 0;
@@ -171,6 +173,8 @@ export function DebriefView({ imageName, mode, history, rows, onRetry, onBack, r
           </Button>
         </div>
       </div>
+
+      {nextStep && <NextStepInline step={nextStep} />}
     </div>
   );
 }

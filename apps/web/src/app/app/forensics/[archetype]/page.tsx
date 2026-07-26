@@ -7,6 +7,7 @@ import { PageHeader } from "@roundzero/ui";
 
 import { auth } from "@/lib/auth";
 import { loadForensicsSet } from "@/lib/forensics-content";
+import { loadTrack, nextStepView } from "@/lib/track";
 import { QuizRunner } from "@/components/quiz/quiz-runner";
 import { completeForensicsSet, gradeForensicsQuestion } from "./actions";
 
@@ -28,9 +29,13 @@ export default async function ForensicsSetPage({
     notFound();
   }
 
-  const progress = await prisma.forensicsProgress.findUnique({
-    where: { userId_archetype: { userId: session.user.id, archetype: info.value } },
-  });
+  const [progress, track] = await Promise.all([
+    prisma.forensicsProgress.findUnique({
+      where: { userId_archetype: { userId: session.user.id, archetype: info.value } },
+    }),
+    loadTrack(session.user.id),
+  ]);
+  const nextStep = nextStepView(track.steps);
 
   return (
     <div>
@@ -62,6 +67,7 @@ export default async function ForensicsSetPage({
         onComplete={completeForensicsSet.bind(null, archetypeKey)}
         backHref="/app/forensics"
         backLabel="Back to forensics"
+        nextStep={nextStep}
       />
     </div>
   );

@@ -94,12 +94,17 @@ late September; Linux labs by early November. August assumes reduced hours
       adaptive knowledge check (foundations/linux/windows/networking, 3
       each) → per-domain `TrackLevel` at `/app/placement`, skippable,
       re-takeable, non-punishing (micro-task deferred until labs exist, per
-      the original scope note). **Recommended-track generation (Part B) and
-      the dashboard "what's next" surface (Part C) are not built yet** — next
-      session.
+      the original scope note).
+- [x] Recommended track + dashboard — `docs/ONBOARDING_PATH_SPEC.md` Parts B
+      (the pure, heavily-unit-tested track generator: placement + progress +
+      taxonomy → an ordered queue of typed next-steps, derived on read) and C
+      (the `/app` dashboard: "Next up," a "Today" block, cross-pillar progress,
+      a warm non-blocking placement invite, and inline "Next up" after every
+      lesson/quiz/drill/lab). See DECISIONS 037.
 - [ ] Coach setup wizard: create team → invite → cadence → season plan
       generated from `Season` calendar data
-- [ ] First-session guided path for new students
+- [x] First-session guided path for new students (Part C above: the dashboard
+      is now the post-sign-in landing and removes the "what do I do?" decision)
 - [ ] Empty/loading/error states audited across every page
 - **Phase 1 gate:** own club completes Windows + Linux knowledge tracks;
   ≥ 80% weekly return over 3 weeks.

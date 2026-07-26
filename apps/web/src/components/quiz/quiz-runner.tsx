@@ -13,6 +13,8 @@ import Link from "next/link";
 import { AlertCircle, CircleCheck, Circle } from "lucide-react";
 import { Button, Card, ErrorNote, Eyebrow, Input, Kbd, Stat, StatStrip } from "@roundzero/ui";
 
+import { NextStepInline, type NextStepView } from "@/app/app/next-step-card";
+
 export interface QuizRunnerQuestion {
   id: string;
   prompt: string;
@@ -59,6 +61,7 @@ export function QuizRunner({
   onComplete,
   backHref,
   backLabel,
+  nextStep,
 }: {
   questions: QuizRunnerQuestion[];
   onGrade: (input: { questionId: string; submitted: string }) => Promise<QuizGradeResult>;
@@ -67,6 +70,7 @@ export function QuizRunner({
   }) => Promise<QuizCompleteResult>;
   backHref: string;
   backLabel: string;
+  nextStep?: NextStepView | null;
 }) {
   // Frozen at mount — a mid-session revalidation must never resync the
   // running queue out from under the student (DECISIONS 025/031).
@@ -163,6 +167,7 @@ export function QuizRunner({
             {summary.enqueued} missed question{summary.enqueued === 1 ? "" : "s"} added to your daily drill.
           </p>
         )}
+        {nextStep && <NextStepInline step={nextStep} />}
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant="ghost" className="w-fit" onClick={retake}>
             Retake

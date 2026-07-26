@@ -4,6 +4,7 @@ import { PageHeader, Stat, StatStrip } from "@roundzero/ui";
 
 import { auth } from "@/lib/auth";
 import { loadDrill } from "@/lib/drill";
+import { loadTrack, nextStepView } from "@/lib/track";
 import { DrillSession } from "./drill-session";
 
 export default async function DrillPage() {
@@ -12,7 +13,12 @@ export default async function DrillPage() {
     redirect("/sign-in");
   }
 
-  const drill = await loadDrill(session.user.id);
+  const [drill, track] = await Promise.all([
+    loadDrill(session.user.id),
+    loadTrack(session.user.id),
+  ]);
+  // Don't suggest the drill itself as the next step once it's done.
+  const nextStep = nextStepView(track.steps.filter((s) => s.kind !== "drill"));
 
   return (
     <div>
@@ -26,7 +32,7 @@ export default async function DrillPage() {
         <Stat label="Streak" value={`${drill.streak} day${drill.streak === 1 ? "" : "s"}`} />
       </StatStrip>
 
-      <DrillSession queue={drill.queue} />
+      <DrillSession queue={drill.queue} nextStep={nextStep} />
     </div>
   );
 }

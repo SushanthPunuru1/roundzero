@@ -10,6 +10,7 @@ import { Badge, PageHeader } from "@roundzero/ui";
 import { auth } from "@/lib/auth";
 import { loadLessonBySlug } from "@/lib/lesson-content";
 import { levelLabel } from "@/lib/lessons";
+import { loadTrack, nextStepView } from "@/lib/track";
 import { lessonComponents } from "./mdx-components";
 import { LessonCheck } from "./lesson-check";
 
@@ -30,7 +31,7 @@ export default async function LessonPage({
     notFound();
   }
 
-  const [progress, { content }] = await Promise.all([
+  const [progress, { content }, track] = await Promise.all([
     prisma.lessonProgress.findUnique({
       where: { userId_lessonSlug: { userId: session.user.id, lessonSlug: lesson.meta.slug } },
     }),
@@ -39,7 +40,10 @@ export default async function LessonPage({
       components: lessonComponents,
       options: { mdxOptions: { remarkPlugins: [remarkGfm] } },
     }),
+    // Treat this lesson as done so "Next up" points at the *following* step.
+    loadTrack(session.user.id, [lesson.meta.slug]),
   ]);
+  const nextStep = nextStepView(track.steps);
 
   return (
     <div>
@@ -73,6 +77,7 @@ export default async function LessonPage({
           options: question.options,
         }))}
         initialBestScore={progress?.checkScore ?? null}
+        nextStep={nextStep}
       />
     </div>
   );

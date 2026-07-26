@@ -1782,3 +1782,134 @@ its 2 drill cards, due immediately. A human should still do one manual
 click-through (typing into the actual radio/checkbox UI, confirming focus
 rings and the early-exit interstitial render correctly) before relying on
 this in production, same posture as every prior no-browser-tool session.
+
+**037 · 2026-07-26 · Onboarding path Session 2: `docs/ONBOARDING_PATH_SPEC.md`
+Parts B (recommended-track generator) + C (dashboard "what's next" +
+progress).** Turns the platform from a library-with-placement into a guided
+path: a pure function derives an ordered queue of next-steps from placement +
+progress + content, and `/app` becomes a real dashboard that surfaces it.
+Extends 036 (which shipped Parts D + A). Pure web logic + UI, no Docker, no
+schema change (the track is derived on read; `Placement` and every progress
+model already existed) — ships to Vercel production like every prior content
+session.
+
+*Part B — the generator is pure and lives in `packages/db/src/track/
+generate.ts`, a sibling of `placement/ladder.ts`.* Same discipline as the
+ladder: no DB/fs/framework imports, heavily unit-tested (57 tests), total
+(returns a non-empty queue for every valid input). `generateTrack(input)` →
+`TrackStep[]` where a step is `{kind: lesson|drill|quiz|subnetting|checklist|
+lab, ref, title, reason, status}`. The Prisma + content glue
+(`apps/web/src/lib/track.ts`: `loadTrack`, `loadPillarProgress`, `hrefForStep`,
+`normalizeFocus`/`normalizeLevels`, `toStepView`) loads the inputs and resolves
+routing — exactly how `loadDrill` wraps the pure `dueCards`/
+`selectNewFoundationsCards`. Routing (`hrefForStep`) is kept OUT of the pure
+function so it stays framework-free. The generator is **derived on read**
+(spec's explicit call): always fresh, no persistence, no staleness bugs.
+
+*The five generation rules, implemented literally.* (1) **Foundations gate** —
+if `levels.foundations === FOUNDATIONS` (a beginner, or a null/un-placed user
+treated as one), the queue always leads with the incomplete Foundations
+lessons in sortOrder; an expert placed ≥ STANDARD in foundations never sees
+them (also excluded from the rule-5 expansion pool). (2) **Focus machine** —
+`focus` maps `cisco → networking`, `unsure`/empty → all machines in a fixed
+Linux→Windows→Networking order; each focus domain's lessons are filtered to
+**level ≥ that domain's placement level** and ordered by (levelRank,
+sortOrder). This "≥ level, sortOrder-ordered" window (signed off by the product
+owner over a strict single-tier slice) honors "at or just above" in practice —
+sortOrder already sequences difficulty, advanced sorts last — while keeping
+rule 5 clean (the queue naturally holds everything up to the top tier). (3)
+**Interleave** — after every 2 lesson steps, a drill step (only if cards are
+due) and, for a networking run, the subnetting/networking trainer; a small
+dedupe prevents identical practice steps stacking. (4) **Lab gate** — robust to
+an empty prerequisite set (the amendment the product owner caught: today's repo
+has ZERO Linux lessons, so "all Linux fundamentals complete" would be vacuously
+true and surface the lab to a cold beginner — the opposite of the rule's
+intent). `linuxLabReady` prefers real content: if any Linux lessons at
+FOUNDATIONS/STANDARD exist, the gate is "all of them complete"; while none do,
+a proxy stands in — `linuxLevel ≥ STANDARD` OR every published Foundations
+lesson complete. A total beginner gets no lab; a diligent beginner who finished
+Foundations, or anyone with demonstrated Linux ability, does. When Linux
+lessons are added later the real gate takes over automatically. Both branches
+are unit-tested explicitly so this can't regress. The lab step is always
+`status: "available-when-runnable"` (the lab is local-only and not wired on the
+hosted deploy, DECISIONS 027/031) so the track presents it honestly, never as a
+link that dead-ends. (5) **Never empty** — when the focus queue is exhausted,
+expand to non-focus machines' incomplete lessons, then a keep-sharp floor
+(drill + checklist + a forensics quiz), so a fully-complete expert gets "here's
+what's next," never a dead end.
+
+*Part C — `/app` is now the dashboard for everyone (was a thin gate that
+redirected members to `/app/team`).* Removed that redirect (sign-in already
+lands on `/app`, so the dashboard is now the post-sign-in home). It renders:
+a warm, **non-blocking** placement invite for un-placed users (primary "Start
+placement" + an explicit "Skip and browse everything" escape); a "Next up" hero
+(top 3 track steps as single-click `NextStepCard`s, each with its plain
+`reason`); a "Today" `StatStrip` (cards due, drill streak, "Currently on"); a
+compact cross-pillar progress view (Foundations + the 4 machines/forensics,
+honest lesson counts + real quiz averages, a neutral/accent completion meter —
+**never `--score`**, which stays reserved for real scores per DESIGN.md, signed
+off); and team + browse-everything affordances. Team setup (`TeamChooser`) moved
+to `/app/team` for non-members (it used to live on `/app`), so nothing is lost
+by the redirect removal. `loadTodaySummary` (drill.ts) computes the streak
+read-only — deliberately NOT `loadDrill`, whose new-card top-up is a write that
+must stay a side effect of visiting `/app/drill` itself, not every dashboard
+load.
+
+*Inline "Next up" everywhere a task ends.* A shared `NextStepCard` /
+`NextStepInline` (`apps/web/src/app/app/next-step-card.tsx`) — an app-level
+composition of `packages/ui` tokens, NOT a new primitive (DESIGN.md rule 3,
+signed off) — renders on the dashboard AND inline after finishing a lesson
+check, a quiz (forensics + networking, via the shared `QuizRunner`), the drill,
+and the lab debrief, so a completed task points forward instead of dumping to
+an index. It is **client-safe**: it takes a fully-resolved, serializable
+`NextStepView` (href computed server-side) and imports only TYPES from
+`@roundzero/db`, so a `"use client"` surface rendering it never pulls Prisma
+into the client bundle (the 034/036 concern). The lesson page passes the
+just-finished slug as `alsoCompleted` to `loadTrack` so its inline "Next up" is
+the *following* step without a revalidation round trip; the drill and lab filter
+out their own kind so they don't recommend themselves.
+
+*Copy discipline (spec's non-negotiable).* Plain, warm, never gamified or
+ranking: "You placed at Standard for Linux — Standard lesson," "Start here —
+this builds the vocabulary everything else uses," "Honest completion across
+every pillar — no points, no rank." No streak-as-pressure (a 0 streak renders
+"—", not a shaming zero), no XP, no Lucide-icon-free emoji.
+
+No new dependency, no migration. `pnpm test` (267 `packages/db` — +57 track
+generator tests covering the foundations gate, the level window, the interleave
+cadence/dedupe, the empty-prereq AND lessons-present lab gates, queue
+advancement, and never-empty across a focus × levels × completion matrix — and
+165 `apps/web` — +8 track-glue tests for `hrefForStep`/normalize/pillar
+aggregation), `pnpm lint` (eslint + tsc across all 3 workspaces), and `pnpm
+build` (root, CI placeholder env, no `LAB_BROKER_URL`) all pass, with `/app`
+and every route in the build output. `pnpm db:seed` reported all-unchanged
+(no content touched this session).
+
+*Verification level, stated honestly (same posture as 020/034/035/036).* The
+track generator's correctness is covered by the 57 unit tests PLUS a disposable
+throwaway-user run against the real dev Neon DB that replicated `loadTrack`'s
+exact Prisma queries + normalization and drove `generateTrack` across all three
+dashboard states with real content (27 published lessons, 9 Foundations):
+brand-new (no placement → invite, top step = first Foundations lesson, no lab),
+mid-progress (placed, first 2 Foundations done → queue advances to the 3rd),
+and completed (all lessons done + expert placement → non-empty keep-sharp floor,
+no dead end). The dashboard and completion surfaces WERE verified rendering in
+a real browser engine this session (unlike 020/034/035/036, which had no such
+tool): a local dev server on `:3000` with a genuine minted session (the exact
+magic-link `Verification` row the plugin creates — `storeToken: "plain"`, so
+identifier == token — then the real `/api/auth/magic-link/verify` endpoint)
+returned HTTP 200 for `/app` with every section present (greeting, Next up,
+Today, Where you stand, all pillars, browse); the placement invite correctly
+showed for an un-placed user and disappeared once a `Placement` row existed
+(with "Currently on" then present); `/app/team` rendered the `TeamChooser` for a
+non-member; and all four completion-surface pages (`/app/lessons/[slug]`,
+`/app/forensics/[archetype]`, `/app/networking/[category]`, `/app/drill`,
+`/app/lab`) returned 200 with their added `loadTrack` calls. What was NOT
+browser-verified: a full interactive click-through (actually completing a
+lesson check / quiz / drill in the UI and watching the inline "Next up" appear
+via client state, and keyboard/focus-ring/reduced-motion behavior on the new
+surfaces) — those inline strips are behind client interaction that curl can't
+drive, and the product owner opted to verify the dashboard visually on the
+production deploy themselves. The throwaway user + all its rows were deleted
+afterward. A human should still do one manual interactive click-through of the
+inline "Next up" strips before fully relying on them in production.

@@ -90,3 +90,17 @@ export {
   recordAnswer as recordPlacementAnswer,
 } from "./placement/ladder";
 export type { NextStep as PlacementNextStep, PlacementAnswer } from "./placement/ladder";
+
+// Recommended-track generator (ONBOARDING_PATH_SPEC.md Part B) — pure, derived
+// on read. apps/web/src/lib/track.ts loads the inputs (placement + progress +
+// published lessons) from Prisma and calls generateTrack.
+export { generateTrack, linuxLabReady, resolveFocusDomains } from "./track/generate";
+export type {
+  FocusMachine,
+  TrackDomain,
+  TrackInput,
+  TrackLesson,
+  TrackStep,
+  TrackStepKind,
+  TrackStepStatus,
+} from "./track/generate";

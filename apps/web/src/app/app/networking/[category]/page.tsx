@@ -7,6 +7,7 @@ import { PageHeader } from "@roundzero/ui";
 
 import { auth } from "@/lib/auth";
 import { NETWORKING_QUIZ_CATEGORIES, loadNetworkingQuizSet } from "@/lib/networking-quiz-content";
+import { loadTrack, nextStepView } from "@/lib/track";
 import { QuizRunner } from "@/components/quiz/quiz-runner";
 import { completeQuizSet, gradeQuizQuestion } from "./actions";
 
@@ -30,9 +31,13 @@ export default async function NetworkingQuizSetPage({
     notFound();
   }
 
-  const progress = await prisma.quizProgress.findUnique({
-    where: { userId_quizId_category: { userId: session.user.id, quizId: QUIZ_ID, category } },
-  });
+  const [progress, track] = await Promise.all([
+    prisma.quizProgress.findUnique({
+      where: { userId_quizId_category: { userId: session.user.id, quizId: QUIZ_ID, category } },
+    }),
+    loadTrack(session.user.id),
+  ]);
+  const nextStep = nextStepView(track.steps);
 
   return (
     <div>
@@ -64,6 +69,7 @@ export default async function NetworkingQuizSetPage({
         onComplete={completeQuizSet.bind(null, category)}
         backHref="/app/networking"
         backLabel="Back to networking"
+        nextStep={nextStep}
       />
     </div>
   );

@@ -5,6 +5,7 @@ import { Circle, CircleCheck } from "lucide-react";
 import { Button, ErrorNote, Stat, StatStrip } from "@roundzero/ui";
 
 import { submitCheck, type CheckActionState } from "./actions";
+import { NextStepInline, type NextStepView } from "../../next-step-card";
 
 export interface LessonCheckQuestion {
   q: string;
@@ -17,10 +18,12 @@ export function LessonCheck({
   slug,
   questions,
   initialBestScore,
+  nextStep,
 }: {
   slug: string;
   questions: LessonCheckQuestion[];
   initialBestScore: number | null;
+  nextStep: NextStepView | null;
 }) {
   const [state, formAction, pending] = useActionState(submitCheck, initialState);
   const [answered, setAnswered] = useState<Set<number>>(new Set());
@@ -86,14 +89,17 @@ export function LessonCheck({
               );
             })}
           </div>
-          <Button
-            type="button"
-            variant="ghost"
-            className="w-fit"
-            onClick={() => setRetaking(true)}
-          >
-            Retake
-          </Button>
+          <div className="flex flex-col gap-6">
+            {nextStep && <NextStepInline step={nextStep} />}
+            <Button
+              type="button"
+              variant="ghost"
+              className="w-fit"
+              onClick={() => setRetaking(true)}
+            >
+              Retake
+            </Button>
+          </div>
         </div>
       ) : (
         <form action={formAction} className="mt-6 flex flex-col gap-6">

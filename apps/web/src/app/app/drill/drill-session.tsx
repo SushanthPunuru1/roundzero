@@ -7,6 +7,7 @@ import { Button, Card, EmptyState, ErrorNote, Eyebrow, Kbd } from "@roundzero/ui
 
 import { rateCard } from "./actions";
 import type { DrillCardView } from "@/lib/drill";
+import { NextStepInline, type NextStepView } from "../next-step-card";
 
 const RATINGS: { value: 1 | 2 | 3 | 4; label: string; hint: string }[] = [
   { value: 1, label: "Again", hint: "Didn't recall it" },
@@ -19,7 +20,13 @@ function typeLabel(type: DrillCardView["type"]): string {
   return type === "COMMAND" ? "Command" : "Concept";
 }
 
-export function DrillSession({ queue: liveQueue }: { queue: DrillCardView[] }) {
+export function DrillSession({
+  queue: liveQueue,
+  nextStep,
+}: {
+  queue: DrillCardView[];
+  nextStep?: NextStepView | null;
+}) {
   // Frozen at mount, deliberately never resynced from the `queue` prop.
   // Rating a card calls a server action that revalidates this route, which
   // makes Next.js re-render the parent Server Component and pass down a
@@ -79,16 +86,20 @@ export function DrillSession({ queue: liveQueue }: { queue: DrillCardView[] }) {
 
   if (done) {
     return (
-      <EmptyState
-        className="mt-8"
-        icon={CircleCheck}
-        message="All caught up — nice work. Come back tomorrow for more, or get ahead by reading a lesson."
-        action={
-          <Button asChild variant="ghost" size="sm">
-            <Link href="/app/lessons">Browse lessons</Link>
-          </Button>
-        }
-      />
+      <div className="mt-8 flex flex-col gap-6">
+        <EmptyState
+          icon={CircleCheck}
+          message="All caught up — nice work. Come back tomorrow for more, or keep your momentum with the next step."
+          action={
+            !nextStep ? (
+              <Button asChild variant="ghost" size="sm">
+                <Link href="/app/lessons">Browse lessons</Link>
+              </Button>
+            ) : undefined
+          }
+        />
+        {nextStep && <NextStepInline step={nextStep} />}
+      </div>
     );
   }
 

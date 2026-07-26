@@ -174,3 +174,22 @@ export async function countDueCards(userId: string, now: Date = new Date()): Pro
     where: { userId, due: { lte: now }, card: { active: true } },
   });
 }
+
+/** The dashboard "Today" summary: due-card count + current streak, computed
+ * read-only (no new-card top-up write, unlike loadDrill — that stays a
+ * side effect of visiting /app/drill itself). */
+export async function loadTodaySummary(
+  userId: string,
+  now: Date = new Date(),
+): Promise<{ dueCount: number; streak: number }> {
+  const [dueCount, reviewLogs] = await Promise.all([
+    countDueCards(userId, now),
+    prisma.reviewLog.findMany({ where: { userId }, select: { reviewedAt: true } }),
+  ]);
+  const streak = computeStreak(
+    reviewLogs.map((row) => row.reviewedAt),
+    now,
+    PLATFORM_TIME_ZONE,
+  );
+  return { dueCount, streak };
+}

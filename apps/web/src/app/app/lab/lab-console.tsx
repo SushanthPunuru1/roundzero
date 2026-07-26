@@ -16,6 +16,7 @@ import {
 
 import { launchLab, scoreLab, stopLab, type ScoreRow } from "./actions";
 import { DebriefView, type ScoreSnapshot } from "./debrief-view";
+import type { NextStepView } from "../next-step-card";
 
 const LAB_IMAGE_NAME = "linux-practice";
 const LAB_MODE = "Practice";
@@ -66,7 +67,7 @@ function shortId(id: string): string {
   return id.slice(0, 8);
 }
 
-export function LabConsole() {
+export function LabConsole({ nextStep }: { nextStep?: NextStepView | null }) {
   const [phase, setPhase] = useState<Phase>("idle");
   const [labId, setLabId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -297,6 +298,7 @@ export function LabConsole() {
             onRetry={() => void handleRetry()}
             onBack={handleBackToLab}
             retrying={retrying}
+            nextStep={nextStep}
           />
         </div>
       )}
