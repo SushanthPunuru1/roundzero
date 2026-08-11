@@ -1,15 +1,22 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { ArrowRight, Compass, Users } from "lucide-react";
+import { ArrowRight, Compass, ListChecks, Users } from "lucide-react";
 import { prisma } from "@roundzero/db";
-import { Button, Card, Eyebrow, PageHeader, Stat, StatStrip } from "@roundzero/ui";
+import { Button, Card, EmptyState, PageHeader, SectionHeader, Stat, StatStrip } from "@roundzero/ui";
 
 import { auth } from "@/lib/auth";
 import { viewerFromSession } from "@/lib/auth-helpers";
 import { loadTodaySummary } from "@/lib/drill";
-import { loadPillarProgress, loadTrack, toStepView, topSteps, type PillarProgress } from "@/lib/track";
-import { NextStepCard } from "./next-step-card";
+import {
+  loadPillarProgress,
+  loadTrack,
+  toStepView,
+  topSteps,
+  totalProgress,
+  type PillarProgress,
+} from "@/lib/track";
+import { NextStepHero, NextStepRow } from "./next-step-card";
 
 const PILLAR_HREF: Record<string, string> = {
   foundations: "/app/lessons",
@@ -18,6 +25,12 @@ const PILLAR_HREF: Record<string, string> = {
   networking: "/app/networking",
   forensics: "/app/forensics",
 };
+
+// One shared interaction treatment for every clickable row on this screen, so
+// hover/focus/easing can't drift apart per-component the way they had
+// (three rows were missing the design system's easing entirely).
+const ROW_INTERACTIVE =
+  "transition-colors duration-standard ease-standard hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg";
 
 export default async function DashboardPage() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -39,7 +52,9 @@ export default async function DashboardPage() {
   ]);
 
   const next = topSteps(steps, 3).map(toStepView);
+  const [leadStep, ...laterSteps] = next;
   const currentLesson = steps.find((s) => s.kind === "lesson");
+  const totals = totalProgress(pillars);
 
   return (
     <div className="flex flex-col gap-8">
@@ -51,39 +66,65 @@ export default async function DashboardPage() {
 
       {!hasPlacement && <PlacementInvite />}
 
-      {/* Next up — the single most important element for a beginner. */}
-      <section>
-        <Eyebrow as="h2">Next up</Eyebrow>
-        <p className="mt-1 text-sm text-text-dim">
-          A suggested order, not a cage — you can branch off any time.
-        </p>
-        <div className="mt-3 flex flex-col gap-2">
-          {next.map((step, i) => (
-            <NextStepCard key={`${step.kind}:${step.href}:${i}`} step={step} />
-          ))}
-        </div>
+      {/* Next up — the single most important element for a beginner, and now
+          shaped like it: one dominant step with a real action, the rest
+          demoted and numbered so the stack reads as an order, not a menu. */}
+      <section className="flex flex-col gap-3">
+        <SectionHeader
+          title="Next up"
+          support="A suggested order, not a cage — work top to bottom, or branch off any time."
+        />
+        {leadStep ? (
+          <>
+            <NextStepHero step={leadStep} />
+            {laterSteps.length > 0 && (
+              <div className="flex flex-col gap-2">
+                {laterSteps.map((step, i) => (
+                  <NextStepRow
+                    key={`${step.kind}:${step.href}`}
+                    step={step}
+                    ordinal={i + 2}
+                  />
+                ))}
+              </div>
+            )}
+          </>
+        ) : (
+          // The generator is total and should never return an empty track;
+          // this is the designed floor if it ever does, rather than a heading
+          // followed by nothing.
+          <EmptyState
+            icon={Compass}
+            message="No next step to suggest yet — browse the pillars and pick anything that looks useful."
+            action={
+              <Button asChild>
+                <Link href="/app/lessons">Browse lessons</Link>
+              </Button>
+            }
+          />
+        )}
       </section>
 
-      {/* Today */}
-      <section>
-        <Eyebrow as="h2">Today</Eyebrow>
-        <StatStrip className="mt-3">
-          <Stat label="Cards due" value={today.dueCount} />
-          <Stat
-            label="Drill streak"
-            value={today.streak === 0 ? "—" : `${today.streak} day${today.streak === 1 ? "" : "s"}`}
-          />
-          <Stat label="Currently on" value={currentLesson ? currentLesson.title : "—"} />
-        </StatStrip>
-      </section>
+      <TodaySection
+        dueCount={today.dueCount}
+        streak={today.streak}
+        currentLesson={currentLesson ? { title: currentLesson.title, ref: currentLesson.ref } : null}
+      />
 
       {/* Progress across pillars */}
-      <section>
-        <Eyebrow as="h2">Where you stand</Eyebrow>
-        <p className="mt-1 text-sm text-text-dim">
-          Honest completion across every pillar — no points, no rank.
-        </p>
-        <div className="mt-3 flex flex-col gap-2">
+      <section className="flex flex-col gap-3">
+        <SectionHeader
+          title="Where you stand"
+          support="Honest completion across every pillar — no points, no rank."
+          aside={
+            totals.total > 0 ? (
+              <span className="font-mono tabular-nums text-text-dim">
+                {totals.done} of {totals.total} lessons
+              </span>
+            ) : null
+          }
+        />
+        <div className="flex flex-col gap-2">
           {pillars.map((pillar) => (
             <PillarRow key={pillar.domain} pillar={pillar} href={PILLAR_HREF[pillar.domain]!} />
           ))}
@@ -119,7 +160,7 @@ function PlacementInvite() {
         </Button>
         <Link
           href="/app/lessons"
-          className="rounded-[3px] text-sm text-text-dim underline-offset-4 hover:text-text hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
+          className={`rounded-sm text-sm text-text-dim underline-offset-4 hover:text-text hover:underline ${ROW_INTERACTIVE}`}
         >
           Skip and browse everything
         </Link>
@@ -128,33 +169,115 @@ function PlacementInvite() {
   );
 }
 
-function PillarRow({ pillar, href }: { pillar: PillarProgress; href: string }) {
-  const { lessonsDone, lessonsTotal, label, detail } = pillar;
-  const pct = lessonsTotal > 0 ? Math.round((lessonsDone / lessonsTotal) * 100) : 0;
+/**
+ * Today. Previously three bare stats floating with no container, two of which
+ * read "0" and "—" for anyone who had just signed up — a status report of
+ * failure before they had done anything. Now it sits in a card, its empty
+ * values recruit instead of scoring, and "Currently on" (the likeliest thing
+ * on the row to be clicked) is actually a link.
+ */
+function TodaySection({
+  dueCount,
+  streak,
+  currentLesson,
+}: {
+  dueCount: number;
+  streak: number;
+  currentLesson: { title: string; ref: string } | null;
+}) {
+  const coldStart = dueCount === 0 && streak === 0;
 
   return (
-    <Link
-      href={href}
-      className="group flex items-center gap-4 rounded-md border border-hairline bg-surface px-4 py-3 transition-colors duration-150 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
-    >
+    <section className="flex flex-col gap-3">
+      <SectionHeader
+        title="Today"
+        support={
+          coldStart
+            ? "Your first recall cards are waiting — the drill introduces them the moment you open it."
+            : "Recall due now, your streak, and the lesson you're in the middle of."
+        }
+        aside={
+          <Link
+            href="/app/drill"
+            className={`inline-flex items-center gap-1 rounded-sm text-sm text-accent underline-offset-4 hover:underline ${ROW_INTERACTIVE}`}
+          >
+            {coldStart ? "Start your first drill" : "Open drill"}
+            <ArrowRight className="size-4" strokeWidth={1.75} aria-hidden="true" />
+          </Link>
+        }
+      />
+      <Card className="p-4">
+        <StatStrip>
+          <Stat
+            label="Cards due"
+            value={dueCount > 0 ? dueCount : "None due yet"}
+            mono={dueCount > 0}
+          />
+          <Stat
+            label="Drill streak"
+            value={streak > 0 ? `${streak} day${streak === 1 ? "" : "s"}` : "Not started"}
+            mono={streak > 0}
+          />
+          <Stat
+            label="Currently on"
+            mono={false}
+            value={
+              currentLesson ? (
+                <Link
+                  href={`/app/lessons/${currentLesson.ref}`}
+                  className={`rounded-sm underline-offset-4 hover:text-accent hover:underline ${ROW_INTERACTIVE}`}
+                >
+                  {currentLesson.title}
+                </Link>
+              ) : (
+                "Nothing started"
+              )
+            }
+          />
+        </StatStrip>
+      </Card>
+    </section>
+  );
+}
+
+/**
+ * A pillar's completion, as a segmented meter rather than a progress bar.
+ *
+ * The bar version rendered a full-width `--hairline` track behind the fill,
+ * so a pillar at 0% showed a solid grey bar that read as nearly complete.
+ * One tick per lesson can't be misread: nine empty ticks are visibly nine
+ * things not done. It also fixes the rhythm — every row is exactly two lines
+ * tall whether or not it has lessons or a detail figure, where before rows
+ * without a meter were ~7px shorter and the stack jittered.
+ */
+function PillarRow({ pillar, href }: { pillar: PillarProgress; href: string }) {
+  const { lessonsDone, lessonsTotal, label, detail } = pillar;
+
+  return (
+    <Link href={href} className={`group flex items-center gap-4 rounded-md border border-hairline bg-surface px-4 py-3 ${ROW_INTERACTIVE}`}>
       <div className="min-w-0 flex-1">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-4">
           <span className="text-sm font-medium text-text">{label}</span>
-          <span className="font-mono text-xs tabular-nums text-text-dim">
+          <span className="shrink-0 font-mono text-[13px] leading-5 tabular-nums text-text-dim">
             {lessonsTotal > 0 ? `${lessonsDone}/${lessonsTotal} lessons` : "No lessons yet"}
+            {detail && <span className="text-text-dim"> · {detail}</span>}
           </span>
         </div>
         {/* Completion meter — neutral/accent only; --score is reserved for
-            real scores (DESIGN.md). */}
-        {lessonsTotal > 0 && (
-          <div className="mt-2 h-1 overflow-hidden rounded-[3px] bg-hairline" aria-hidden="true">
-            <div className="h-full rounded-[3px] bg-accent" style={{ width: `${pct}%` }} />
-          </div>
-        )}
-        {detail && <p className="mt-2 text-xs text-text-dim">{detail}</p>}
+            real scores (DESIGN.md). Height is reserved even with no lessons
+            so every row in the stack is the same height. */}
+        <div className="mt-2 flex h-1 items-stretch gap-1" aria-hidden="true">
+          {lessonsTotal > 0 &&
+            Array.from({ length: lessonsTotal }, (_, i) => (
+              <span
+                key={i}
+                className={`flex-1 rounded-sm ${i < lessonsDone ? "bg-accent" : "bg-hairline"}`}
+              />
+            ))}
+        </div>
       </div>
       <ArrowRight
-        className="size-4 shrink-0 text-text-dim transition-transform duration-150 group-hover:translate-x-0.5"
+        className="size-4 shrink-0 text-text-dim transition-transform duration-standard ease-standard motion-safe:group-hover:translate-x-1"
         strokeWidth={1.75}
         aria-hidden="true"
       />
@@ -164,10 +287,7 @@ function PillarRow({ pillar, href }: { pillar: PillarProgress; href: string }) {
 
 function TeamCard({ teamName }: { teamName: string | null }) {
   return (
-    <Link
-      href="/app/team"
-      className="group flex items-center gap-4 rounded-md border border-hairline bg-surface px-4 py-4 transition-colors duration-150 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
-    >
+    <Link href="/app/team" className={`group flex items-center gap-4 rounded-md border border-hairline bg-surface px-4 py-4 ${ROW_INTERACTIVE}`}>
       <span className="flex size-9 shrink-0 items-center justify-center rounded-md border border-hairline bg-surface-2">
         <Users className="size-5 text-text-dim" strokeWidth={1.75} aria-hidden="true" />
       </span>
@@ -175,31 +295,36 @@ function TeamCard({ teamName }: { teamName: string | null }) {
         <span className="block text-sm font-medium text-text">
           {teamName ? teamName : "Set up or join a team"}
         </span>
-        <span className="mt-0.5 block text-sm text-text-dim">
+        <span className="mt-1 block text-sm text-text-dim">
           {teamName ? "View your roster and machine roles." : "Create a roster or join with a code from your coach."}
         </span>
       </span>
-      <ArrowRight className="size-4 shrink-0 text-text-dim" strokeWidth={1.75} aria-hidden="true" />
+      <ArrowRight
+        className="size-4 shrink-0 text-text-dim transition-transform duration-standard ease-standard motion-safe:group-hover:translate-x-1"
+        strokeWidth={1.75}
+        aria-hidden="true"
+      />
     </Link>
   );
 }
 
 function BrowseCard() {
   return (
-    <Link
-      href="/app/lessons"
-      className="group flex items-center gap-4 rounded-md border border-hairline bg-surface px-4 py-4 transition-colors duration-150 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
-    >
+    <Link href="/app/lessons" className={`group flex items-center gap-4 rounded-md border border-hairline bg-surface px-4 py-4 ${ROW_INTERACTIVE}`}>
       <span className="flex size-9 shrink-0 items-center justify-center rounded-md border border-hairline bg-surface-2">
-        <Compass className="size-5 text-text-dim" strokeWidth={1.75} aria-hidden="true" />
+        <ListChecks className="size-5 text-text-dim" strokeWidth={1.75} aria-hidden="true" />
       </span>
       <span className="min-w-0 flex-1">
         <span className="block text-sm font-medium text-text">Browse everything</span>
-        <span className="mt-0.5 block text-sm text-text-dim">
+        <span className="mt-1 block text-sm text-text-dim">
           Skip the track and explore any pillar directly.
         </span>
       </span>
-      <ArrowRight className="size-4 shrink-0 text-text-dim" strokeWidth={1.75} aria-hidden="true" />
+      <ArrowRight
+        className="size-4 shrink-0 text-text-dim transition-transform duration-standard ease-standard motion-safe:group-hover:translate-x-1"
+        strokeWidth={1.75}
+        aria-hidden="true"
+      />
     </Link>
   );
 }

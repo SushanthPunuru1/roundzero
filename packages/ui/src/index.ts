@@ -10,6 +10,7 @@ export {
 export { Badge, badgeVariants, type BadgeProps } from "./components/ui/badge";
 export { Select, type SelectProps } from "./components/ui/select";
 export { PageHeader, type PageHeaderProps } from "./components/ui/page-header";
+export { SectionHeader, type SectionHeaderProps } from "./components/ui/section-header";
 export { Avatar, avatarVariants, initials, type AvatarProps } from "./components/ui/avatar";
 export { Stat, StatStrip, type StatProps, type StatStripProps } from "./components/ui/stat-strip";
 export { EmptyState, type EmptyStateProps } from "./components/ui/empty-state";

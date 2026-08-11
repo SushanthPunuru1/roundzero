@@ -17,6 +17,11 @@ export interface CheckQuestion {
 export interface LessonMeta {
   slug: string;
   title: string;
+  /** One line of plain-language "why this lesson, why now", authored per
+   * lesson and surfaced verbatim as the reason on a track step / "Next up"
+   * card. Required: a generic per-bucket fallback in the track generator is
+   * a bug, not a feature (DECISIONS 038). */
+  why: string;
   domainId: string;
   level: TrackLevel;
   minutes: number;
@@ -32,11 +37,14 @@ export interface ParsedLesson {
 }
 
 /** The DB-row shape of a lesson: metadata synced by the seed, minus the
- * check questions (those live only in frontmatter, read at render time). */
-export type LessonRow = Omit<LessonMeta, "check">;
+ * check questions AND `why` — both are pure content read from frontmatter at
+ * request time, never indexed in Postgres (CLAUDE.md: "DB rows are an index
+ * of content, never the source of truth for it"). Keeping `why` out of the
+ * row is also what lets it ship with no migration. */
+export type LessonRow = Omit<LessonMeta, "check" | "why">;
 
 export function toLessonRow(meta: LessonMeta): LessonRow {
-  const { check: _check, ...row } = meta;
+  const { check: _check, why: _why, ...row } = meta;
   return row;
 }
 
@@ -76,6 +84,7 @@ interface RawCheckQuestion {
 interface RawFrontmatter {
   slug?: unknown;
   title?: unknown;
+  why?: unknown;
   domainId?: unknown;
   level?: unknown;
   minutes?: unknown;
@@ -136,6 +145,7 @@ export function parseLesson(text: string, where: string): ParsedLesson {
 
   const slug = assertNonEmptyString(raw.slug, "slug", where);
   const title = assertNonEmptyString(raw.title, "title", where);
+  const why = assertNonEmptyString(raw.why, "why", where);
   const domainId = assertNonEmptyString(raw.domainId, "domainId", where);
   if (!ID_PATTERN.test(domainId)) {
     throw new LessonError(`${where}: "domainId" "${domainId}" is not a well-formed dotted lowercase id`);
@@ -172,7 +182,7 @@ export function parseLesson(text: string, where: string): ParsedLesson {
   const check = parseCheck(raw.check, where);
 
   return {
-    meta: { slug, title, domainId, level, minutes: raw.minutes, sortOrder: raw.sortOrder, published: raw.published, skills, check },
+    meta: { slug, title, why, domainId, level, minutes: raw.minutes, sortOrder: raw.sortOrder, published: raw.published, skills, check },
     body: body.trim(),
   };
 }

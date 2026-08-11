@@ -44,17 +44,37 @@ export interface TrackStep {
    * here — this stays framework-free. */
   ref: string;
   title: string;
-  /** One-line, plain-language "why this, why now" — surfaced verbatim on the
-   * dashboard. Warm, never a rank or a score (spec copy principle). */
+  /**
+   * One-line, plain-language "why this, why now" — surfaced verbatim on the
+   * dashboard. Warm, never a rank or a score (spec copy principle).
+   *
+   * MUST be a property of the individual step, never of the bucket it came
+   * from. Until DECISIONS 038 this was a per-loop constant, so the top three
+   * steps of a beginner's track were three cards carrying one identical
+   * sentence. For lessons the text is authored per lesson in MDX frontmatter
+   * (`why:`); every other kind is a singleton step with its own line.
+   */
   reason: string;
+  /** Human pillar label for the step's eyebrow ("Foundations", "Networking").
+   * Carries more than the old kind label did: the kind is already obvious
+   * from the icon, the pillar is not. */
+  pillar: string;
+  /** Honest time cost in minutes where one is known (lessons author it in
+   * frontmatter), null where inventing a number would be a lie. */
+  minutes: number | null;
   status: TrackStepStatus;
 }
 
 export interface TrackLesson {
   slug: string;
   title: string;
+  /** Authored per-lesson reason from MDX frontmatter. Optional at the type
+   * level only so a caller that genuinely has no content index still type
+   * checks; a missing value fires `onMissingWhy` and falls back. */
+  why?: string | null;
   domainId: string; // top-level SkillNode id: "foundations" | "linux" | ...
   level: TrackLevel;
+  minutes: number;
   sortOrder: number;
 }
 
@@ -72,6 +92,13 @@ export interface TrackInput {
   /** Cards due for review right now (from countDueCards). Gates the
    * interleaved drill step; the never-empty floor shows a drill regardless. */
   dueCardCount: number;
+  /**
+   * Called with the slug of any lesson queued without an authored `why`.
+   * The generator stays pure — the caller decides how to report it (apps/web
+   * logs a warning). Reaching this means a content bug: `why` is required by
+   * the lesson parser, so a populated content set can never trigger it.
+   */
+  onMissingWhy?: (slug: string) => void;
 }
 
 const LEVEL_RANK: Record<TrackLevel, number> = { FOUNDATIONS: 0, STANDARD: 1, ADVANCED: 2 };
@@ -95,8 +122,26 @@ const DOMAIN_LABEL: Record<TrackDomain, string> = {
   networking: "Networking",
 };
 
-function levelLabel(level: TrackLevel): string {
-  return level.charAt(0) + level.slice(1).toLowerCase();
+/** Pillar label for any domain id, including ones outside TrackDomain
+ * (e.g. "forensics"), so a step's eyebrow is never blank. */
+function pillarLabel(domainId: string): string {
+  return DOMAIN_LABEL[domainId as TrackDomain] ?? domainId.charAt(0).toUpperCase() + domainId.slice(1);
+}
+
+/**
+ * The last-resort reason for a lesson whose frontmatter `why` is missing.
+ * Deliberately the only generic lesson reason left in this file: `why` is a
+ * required frontmatter field, so this is unreachable for a well-formed
+ * content set and its appearance in the UI means content is broken. Any
+ * queue position that renders it also fires `onMissingWhy`.
+ */
+export const FALLBACK_LESSON_REASON = "Next in your track.";
+
+function reasonForLesson(lesson: TrackLesson, onMissingWhy?: (slug: string) => void): string {
+  const why = lesson.why?.trim();
+  if (why) return why;
+  onMissingWhy?.(lesson.slug);
+  return FALLBACK_LESSON_REASON;
 }
 
 /** Resolves the ordered, de-duplicated list of machine domains a track should
@@ -116,7 +161,15 @@ export function resolveFocusDomains(focus: FocusMachine[]): TrackDomain[] {
 }
 
 function lessonStep(lesson: TrackLesson, reason: string): TrackStep {
-  return { kind: "lesson", ref: lesson.slug, title: lesson.title, reason, status: "ready" };
+  return {
+    kind: "lesson",
+    ref: lesson.slug,
+    title: lesson.title,
+    reason,
+    pillar: pillarLabel(lesson.domainId),
+    minutes: lesson.minutes,
+    status: "ready",
+  };
 }
 
 function bySortThenLevel(a: TrackLesson, b: TrackLesson): number {
@@ -156,11 +209,21 @@ const LAB_STEP: TrackStep = {
   ref: "linux-practice",
   title: "Practice Linux lab",
   reason: "You've got the fundamentals — harden a real machine when you can run it locally.",
+  pillar: "Linux",
+  minutes: null,
   status: "available-when-runnable",
 };
 
 function drillStep(reason: string): TrackStep {
-  return { kind: "drill", ref: "daily", title: "Daily drill", reason, status: "ready" };
+  return {
+    kind: "drill",
+    ref: "daily",
+    title: "Daily drill",
+    reason,
+    pillar: "Recall",
+    minutes: null,
+    status: "ready",
+  };
 }
 
 /** The relevant trainer/quiz to interleave after a domain's lessons, if that
@@ -173,6 +236,8 @@ function trainerStepsForDomain(domain: TrackDomain): TrackStep[] {
         ref: "subnetting",
         title: "Subnetting trainer",
         reason: "Subnetting is muscle memory — a few reps lock it in.",
+        pillar: "Networking",
+        minutes: null,
         status: "ready",
       },
       {
@@ -180,6 +245,8 @@ function trainerStepsForDomain(domain: TrackDomain): TrackStep[] {
         ref: "networking",
         title: "Networking quiz",
         reason: "Check what stuck from the networking lessons.",
+        pillar: "Networking",
+        minutes: null,
         status: "ready",
       },
     ];
@@ -198,21 +265,22 @@ export function generateTrack(input: TrackInput): TrackStep[] {
     windows: "FOUNDATIONS",
     networking: "FOUNDATIONS",
   };
-  const { completed, lessons, dueCardCount } = input;
+  const { completed, lessons, dueCardCount, onMissingWhy } = input;
   const isBeginner = levels.foundations === "FOUNDATIONS";
 
   const incompleteInDomain = (domain: string): TrackLesson[] =>
     lessons.filter((l) => l.domainId === domain && !completed.has(l.slug)).sort(bySortThenLevel);
 
   // The lesson spine, in track order, tagged with the domain it came from so
-  // interleaving can pick a relevant trainer.
-  const spine: { lesson: TrackLesson; reason: string; domain: TrackDomain }[] = [];
+  // interleaving can pick a relevant trainer. Each entry carries the lesson's
+  // OWN authored reason — never one shared by the loop that queued it.
+  const spine: { lesson: TrackLesson; domain: TrackDomain }[] = [];
   const queuedSlugs = new Set<string>();
 
-  const pushLesson = (lesson: TrackLesson, reason: string, domain: TrackDomain) => {
+  const pushLesson = (lesson: TrackLesson, domain: TrackDomain) => {
     if (queuedSlugs.has(lesson.slug)) return;
     queuedSlugs.add(lesson.slug);
-    spine.push({ lesson, reason, domain });
+    spine.push({ lesson, domain });
   };
 
   // Rule 1 — Foundations gate. A beginner (or an un-placed user) always gets
@@ -220,7 +288,7 @@ export function generateTrack(input: TrackInput): TrackStep[] {
   // service".
   if (isBeginner) {
     for (const lesson of incompleteInDomain("foundations")) {
-      pushLesson(lesson, "Start here — this builds the vocabulary everything else uses.", "foundations");
+      pushLesson(lesson, "foundations");
     }
   }
 
@@ -232,11 +300,7 @@ export function generateTrack(input: TrackInput): TrackStep[] {
       (l) => LEVEL_RANK[l.level] >= LEVEL_RANK[placementLevel],
     );
     for (const lesson of machineLessons) {
-      pushLesson(
-        lesson,
-        `You placed at ${levelLabel(placementLevel)} for ${DOMAIN_LABEL[domain]} — ${levelLabel(lesson.level)} lesson.`,
-        domain,
-      );
+      pushLesson(lesson, domain);
     }
   }
 
@@ -252,7 +316,7 @@ export function generateTrack(input: TrackInput): TrackStep[] {
 
   let sinceInterleave = 0;
   for (const entry of spine) {
-    steps.push(lessonStep(entry.lesson, entry.reason));
+    steps.push(lessonStep(entry.lesson, reasonForLesson(entry.lesson, onMissingWhy)));
     sinceInterleave += 1;
     if (sinceInterleave >= 2) {
       sinceInterleave = 0;
@@ -278,12 +342,7 @@ export function generateTrack(input: TrackInput): TrackStep[] {
     const expansionDomains = allDomains.filter((d) => !coveredDomains.has(d));
     for (const domain of expansionDomains) {
       for (const lesson of incompleteInDomain(domain)) {
-        pushStep(
-          lessonStep(
-            lesson,
-            `You're through your focus track — branch into ${DOMAIN_LABEL[domain]} next.`,
-          ),
-        );
+        pushStep(lessonStep(lesson, reasonForLesson(lesson, onMissingWhy)));
       }
     }
   }
@@ -297,6 +356,8 @@ export function generateTrack(input: TrackInput): TrackStep[] {
       ref: "linux-core",
       title: "Linux hardening checklist",
       reason: "Run the canonical checklist end to end to find what you'd miss under time.",
+      pillar: "Linux",
+      minutes: null,
       status: "ready",
     });
     pushStep({
@@ -304,6 +365,8 @@ export function generateTrack(input: TrackInput): TrackStep[] {
       ref: "forensics",
       title: "Forensics practice",
       reason: "Forensics points come early and cheap — keep them fast.",
+      pillar: "Forensics",
+      minutes: null,
       status: "ready",
     });
     if (linuxLabReady(lessons, completed, levels.linux)) pushStep(LAB_STEP);

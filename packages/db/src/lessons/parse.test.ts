@@ -11,6 +11,7 @@ import {
 const VALID_TEXT = `---
 slug: scoring-engine
 title: How the scoring engine behaves
+why: "Knowing how the engine checks your work stops you fighting it mid-round."
 domainId: foundations
 level: foundations
 minutes: 7
@@ -46,6 +47,7 @@ describe("parseLesson", () => {
     expect(meta).toEqual({
       slug: "scoring-engine",
       title: "How the scoring engine behaves",
+      why: "Knowing how the engine checks your work stops you fighting it mid-round.",
       domainId: "foundations",
       level: "FOUNDATIONS",
       minutes: 7,
@@ -76,6 +78,21 @@ describe("parseLesson", () => {
   it("rejects a non-positive minutes value", () => {
     const text = VALID_TEXT.replace("minutes: 7", "minutes: 0");
     expect(() => parseLesson(text, "test.mdx")).toThrow(/"minutes" must be a positive integer/);
+  });
+
+  // `why` is required at the content boundary so the track generator's
+  // fallback stays unreachable for well-formed content (DECISIONS 038).
+  it("rejects a lesson with no `why`", () => {
+    const text = VALID_TEXT.replace(
+      /^why: .*$/m,
+      "",
+    );
+    expect(() => parseLesson(text, "test.mdx")).toThrow(/missing or non-string "why"/);
+  });
+
+  it("rejects a blank `why`", () => {
+    const text = VALID_TEXT.replace(/^why: .*$/m, 'why: "   "');
+    expect(() => parseLesson(text, "test.mdx")).toThrow(/missing or non-string "why"/);
   });
 
   it("rejects an empty skills array", () => {
@@ -172,7 +189,7 @@ describe("validateSkillRefs", () => {
 });
 
 describe("toLessonRow", () => {
-  it("strips the check questions, keeping every other field", () => {
+  it("strips the check questions and `why`, keeping every other field", () => {
     const { meta } = parseLessons([{ path: "a.mdx", text: VALID_TEXT }])[0]!;
     const row = toLessonRow(meta);
     expect(row).toEqual({
@@ -186,5 +203,9 @@ describe("toLessonRow", () => {
       skills: ["foundations.competition.scoring-engine"],
     });
     expect((row as { check?: unknown }).check).toBeUndefined();
+    // `why` is prose read from frontmatter at request time, never indexed in
+    // Postgres — keeping it out of the row is what let it ship with no
+    // migration (DECISIONS 038).
+    expect((row as { why?: unknown }).why).toBeUndefined();
   });
 });

@@ -1913,3 +1913,82 @@ drive, and the product owner opted to verify the dashboard visually on the
 production deploy themselves. The throwaway user + all its rows were deleted
 afterward. A human should still do one manual interactive click-through of the
 inline "Next up" strips before fully relying on them in production.
+
+**038 · 2026-08-10 · Track step reasons are authored per lesson in
+frontmatter, not generated per bucket; dashboard "Next up" becomes a
+hierarchy instead of three equal cards.**
+`generateTrack` built a step's `reason` inside the loop that queued it, so
+every Foundations lesson shared one literal ("Start here — this builds the
+vocabulary everything else uses."), every focus-machine lesson shared a
+placement restatement, and every expansion lesson shared a third. A brand-new
+user's top three cards were therefore three copies of one sentence — the
+reported bug. The type comment claimed "why this, why now"; the code
+delivered "why this bucket". Fix: `why` is now a REQUIRED lesson frontmatter
+field (27/27 authored, all distinct, all under 110 chars), parsed and
+validated by `parseLesson`, and all three per-bucket constants are deleted.
+The single remaining generic string, `FALLBACK_LESSON_REASON`, is
+unreachable for well-formed content and fires an `onMissingWhy(slug)`
+callback when used — the generator stays pure, apps/web logs the warning.
+Tests assert the top three steps carry three distinct reasons, that no two
+lessons ever share a reason, that no two ADJACENT steps share one, and that
+the fallback fires exactly zero times across every focus × level × completion
+combination.
+
+`why` is read from `packages/content` at request time, NOT added to the
+`Lesson` table: `LessonRow` explicitly omits it, so the seed and schema are
+untouched. Rationale is CLAUDE.md's own rule — "DB rows are an index of
+content, never the source of truth for it" — and the practical consequence
+that the field ships with no migration and no deploy-ordering hazard against
+the production DB. `lesson-content.ts` gained a process-lifetime memoized
+index because the old linear scan (readdir + parse every file until the slug
+matched) would have run per queued lesson; the lesson page gets that speedup
+too. One production-only trap this created and closed:
+`outputFileTracingIncludes` shipped lesson MDX only for `/app/lessons/**`,
+but `loadTrack` is called from six routes, so the include now covers the
+whole `/app` subtree — without it those functions would have ENOENT'd on
+Vercel while building fine locally.
+
+Screen-craft fixes shipped in the same pass, all on the dashboard: `Next up`
+is now one dominant hero (real "Start lesson" primary action, capped 62ch
+measure) plus ordinal-numbered compact rows, because three identical cards
+read as a menu when they are a sequence; the eyebrow carries pillar + honest
+minutes instead of the kind already shown by the icon; a step with status
+`available-when-runnable` (the lab) is no longer wrapped in a `<Link>` at all
+— it previously rendered a "Runs locally" chip inside a live link that
+dead-ends on production, which is exactly what the status exists to prevent.
+New `SectionHeader` primitive in `packages/ui` fills the 20/28 section-title
+tier DESIGN.md specifies but nothing rendered: screens had been using
+`<Eyebrow as="h2">`, making section headings 11px caps — smaller than the
+14px support line beneath them, inverting the hierarchy the checklist asks
+for. `Stat` gained `mono` (default true) so "Currently on" stops typesetting
+a lesson title in mono with tabular figures, and that value is now a link
+(it was the likeliest click target on the row and inert). Today's empty
+values recruit rather than report failure ("None due yet" + "Your first
+recall cards are waiting…") and the section sits in a card instead of reading
+as loose text. Pillar rows use a segmented per-lesson meter rather than a
+progress bar, because a 0% bar rendered a full-width `--hairline` track that
+read as nearly complete; ticks also make every row exactly two lines tall,
+fixing the ~7px jitter between rows with and without a meter. `Where you
+stand` gained the one aggregate number it lacked ("2 of 27 lessons").
+`--duration-standard` / `--ease-standard` are now theme tokens because three
+surfaces had silently fallen back to Tailwind's default easing by omitting
+it, and a global `prefers-reduced-motion` block plus `motion-safe:` on the
+arrow transforms implements DESIGN.md's reduced-motion rule, which had only
+ever been honored inside CountUp and RunTrajectoryChart. `avg()` returns null
+instead of `Math.round(0/0)`.
+
+Verified this session: 446 unit tests pass (278 in packages/db, 168 in
+apps/web), ESLint clean on every changed file, `packages/ui` typechecks
+clean, and an end-to-end run of the real generator over the real 27 published
+lessons in the exact brand-new-user state (no placement, nothing completed,
+no cards due) produces three distinct reasons with pillar + minutes and zero
+fallback hits. NOT verified this session, and the reason is environmental:
+the sandbox has no DNS to Neon and `binaries.prisma.sh` returns 403, so
+`prisma generate` could not run — meaning `next build`, a full `apps/web`
+typecheck against the real client, and any browser render were impossible
+here. The remaining `tsc` output in apps/web is entirely implicit-any noise
+from a hand-written Prisma stub used to let the pure tests import, and every
+file changed in this pass is clean of it. A human should confirm the Vercel
+production build and click through `/app` — in particular the hero's
+keyboard focus ring, the reduced-motion behaviour, and the lab card's
+non-link state — before relying on this.

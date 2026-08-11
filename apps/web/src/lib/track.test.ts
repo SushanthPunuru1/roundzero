@@ -1,13 +1,21 @@
 import { describe, expect, it } from "vitest";
 import type { TrackStep } from "@roundzero/db";
 
-import { aggregatePillars, hrefForStep, normalizeFocus, normalizeLevels } from "./track";
+import {
+  aggregatePillars,
+  hrefForStep,
+  normalizeFocus,
+  normalizeLevels,
+  totalProgress,
+} from "./track";
 
 const step = (over: Partial<TrackStep>): TrackStep => ({
   kind: "lesson",
   ref: "x",
   title: "t",
   reason: "r",
+  pillar: "Foundations",
+  minutes: 7,
   status: "ready",
   ...over,
 });
@@ -87,5 +95,45 @@ describe("aggregatePillars", () => {
     });
     expect(pillars.map((p) => p.domain)).toEqual(["foundations", "linux", "windows", "networking", "forensics"]);
     expect(pillars.find((p) => p.domain === "forensics")!.detail).toBe("90% quiz avg");
+  });
+
+  // avg() used to return Math.round(0/0) === NaN on an empty array. Both call
+  // sites guarded it, so this never shipped a "NaN% quiz avg" — but the guard
+  // now lives in avg() itself rather than in every caller.
+  it("never renders NaN when a pillar has no scores at all", () => {
+    const pillars = aggregatePillars({
+      lessons: [],
+      completedSlugs: new Set(),
+      networkingQuizScores: [],
+      subnettingBest: null,
+      forensicsScores: [],
+    });
+    for (const pillar of pillars) {
+      expect(pillar.detail ?? "").not.toContain("NaN");
+    }
+    expect(pillars.find((p) => p.domain === "networking")!.detail).toBeNull();
+    expect(pillars.find((p) => p.domain === "forensics")!.detail).toBeNull();
+  });
+});
+
+describe("totalProgress", () => {
+  it("sums lessons across every pillar", () => {
+    const pillars = aggregatePillars({
+      lessons: [
+        { domainId: "foundations", slug: "f1" },
+        { domainId: "foundations", slug: "f2" },
+        { domainId: "windows", slug: "w1" },
+        { domainId: "networking", slug: "n1" },
+      ],
+      completedSlugs: new Set(["f1", "n1"]),
+      networkingQuizScores: [],
+      subnettingBest: null,
+      forensicsScores: [],
+    });
+    expect(totalProgress(pillars)).toEqual({ done: 2, total: 4 });
+  });
+
+  it("is zero/zero rather than NaN for an empty content set", () => {
+    expect(totalProgress([])).toEqual({ done: 0, total: 0 });
   });
 });

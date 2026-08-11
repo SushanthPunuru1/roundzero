@@ -6,14 +6,31 @@ import { Eyebrow } from "./eyebrow";
 export interface StatProps {
   label: React.ReactNode;
   value: React.ReactNode;
+  /**
+   * Whether the value is machine data (mono, tabular-nums) or prose.
+   * Defaults to true because most Stats are counts.
+   *
+   * Set false for a value that is a NAME rather than a number — a lesson
+   * title typeset in mono with tabular figures reads as machine output and
+   * gets the letter-spacing of a serial number. DESIGN.md scopes mono to
+   * "anything from the machine's world", which a lesson title is not.
+   */
+  mono?: boolean;
   className?: string;
 }
 
-function Stat({ label, value, className }: StatProps) {
+function Stat({ label, value, mono = true, className }: StatProps) {
   return (
-    <div className={cn("flex flex-col gap-1", className)}>
+    <div className={cn("flex min-w-0 flex-col gap-1", className)}>
       <Eyebrow as="span">{label}</Eyebrow>
-      <span className="font-mono text-sm tabular-nums text-text">{value}</span>
+      <span
+        className={cn(
+          "min-w-0 text-sm text-text",
+          mono ? "font-mono tabular-nums" : "truncate font-medium",
+        )}
+      >
+        {value}
+      </span>
     </div>
   );
 }

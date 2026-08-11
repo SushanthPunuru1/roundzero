@@ -10,7 +10,14 @@ const nextConfig: NextConfig = {
   // directory so lesson MDX ships in the Vercel function bundle.
   outputFileTracingRoot: path.join(__dirname, "../.."),
   outputFileTracingIncludes: {
-    "/app/lessons/**": ["../../packages/content/lessons/**/*.mdx"],
+    // Lesson MDX is needed by every route that builds a track, not just the
+    // lesson pages: DECISIONS 038 moved the per-step `why` line into lesson
+    // frontmatter, and loadTrack() reads it. loadTrack is called from /app,
+    // /app/drill, /app/lab, /app/lessons/[slug], /app/forensics/[archetype]
+    // and /app/networking/[category] — so the include has to cover the whole
+    // /app subtree or those functions ENOENT in production only.
+    "/app": ["../../packages/content/lessons/**/*.mdx"],
+    "/app/**": ["../../packages/content/lessons/**/*.mdx"],
     "/app/forensics/**": ["../../packages/content/forensics/**/*.yaml"],
     "/app/networking/**": ["../../packages/content/networking-quiz/**/*.yaml"],
     "/app/placement/**": ["../../packages/content/placement/**/*.yaml"],

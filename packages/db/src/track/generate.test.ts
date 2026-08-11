@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { TrackLevel } from "../taxonomy/parse";
 import {
+  FALLBACK_LESSON_REASON,
   generateTrack,
   linuxLabReady,
   resolveFocusDomains,
@@ -13,8 +14,19 @@ import {
 
 // --- fixtures -------------------------------------------------------------
 
+// `why` mirrors production content: authored per lesson, so it is distinct
+// for every slug. A fixture that shared one string across lessons would hide
+// exactly the bug DECISIONS 038 fixed.
 function L(slug: string, domainId: string, level: TrackLevel, sortOrder: number): TrackLesson {
-  return { slug, title: `Lesson ${slug}`, domainId, level, sortOrder };
+  return {
+    slug,
+    title: `Lesson ${slug}`,
+    why: `Why you want ${slug} right now.`,
+    domainId,
+    level,
+    minutes: 6 + (sortOrder % 5),
+    sortOrder,
+  };
 }
 
 // Mirrors today's published set shape: foundations + windows + networking
@@ -66,6 +78,128 @@ function input(over: Partial<TrackInput> = {}): TrackInput {
 
 const slugs = (steps: { kind: string; ref: string }[]) =>
   steps.filter((s) => s.kind === "lesson").map((s) => s.ref);
+
+// --- reasons are per-step, never per-bucket (DECISIONS 038) --------------
+
+describe("step reasons", () => {
+  it("gives the first three steps three DISTINCT reason strings", () => {
+    // The regression this exists for: Rule 1 pushed every Foundations lesson
+    // with one shared literal, so a brand-new user's top three cards carried
+    // one identical sentence.
+    const steps = generateTrack(input({ focus: ["linux"], levels: BEGINNER_LEVELS }));
+    const topThree = steps.slice(0, 3);
+    expect(topThree).toHaveLength(3);
+
+    const reasons = topThree.map((s) => s.reason);
+    expect(new Set(reasons).size).toBe(3);
+    for (const reason of reasons) {
+      expect(reason.trim()).not.toBe("");
+    }
+  });
+
+  it("uses each lesson's authored `why` verbatim as its reason", () => {
+    const steps = generateTrack(input({ focus: ["linux"], levels: BEGINNER_LEVELS }));
+    const lessonSteps = steps.filter((s) => s.kind === "lesson");
+    const whyBySlug = new Map(ALL_LESSONS.map((l) => [l.slug, l.why]));
+    for (const step of lessonSteps) {
+      expect(step.reason).toBe(whyBySlug.get(step.ref));
+    }
+  });
+
+  it("never gives two different lessons the same reason", () => {
+    // Scoped to lessons on purpose: a practice step (drill, trainer) is ONE
+    // step that recurs by design as Rule 3 interleaves it, so its reason
+    // repeating in the queue is correct. Two distinct lessons sharing a
+    // sentence is the actual bug.
+    for (const focus of [["unsure"], ["linux"], ["windows"], ["cisco"]] as FocusMachine[][]) {
+      const steps = generateTrack(input({ focus, dueCardCount: 3 }));
+      const byReason = new Map<string, string>();
+      for (const step of steps.filter((s) => s.kind === "lesson")) {
+        const clash = byReason.get(step.reason);
+        expect(
+          clash === undefined || clash === step.ref,
+          `lessons "${clash}" and "${step.ref}" share the reason "${step.reason}"`,
+        ).toBe(true);
+        byReason.set(step.reason, step.ref);
+      }
+    }
+  });
+
+  it("never repeats a reason on two ADJACENT steps", () => {
+    // Two cards in a row saying the same thing is the visible symptom users
+    // reported, regardless of which rule produced them.
+    for (const focus of [["unsure"], ["linux"], ["windows"], ["cisco"]] as FocusMachine[][]) {
+      const steps = generateTrack(input({ focus, dueCardCount: 3 }));
+      for (let i = 1; i < steps.length; i += 1) {
+        expect(steps[i]!.reason).not.toBe(steps[i - 1]!.reason);
+      }
+    }
+  });
+
+  it("fires onMissingWhy ZERO times for a fully-populated track", () => {
+    const missing: string[] = [];
+    // Every focus / level / completion combination, so no code path that
+    // queues a lesson can quietly reach the fallback.
+    const focuses: FocusMachine[][] = [["unsure"], ["linux"], ["windows"], ["cisco"], ["windows", "cisco"], []];
+    for (const focus of focuses) {
+      for (const levels of [null, BEGINNER_LEVELS, EXPERT_LEVELS]) {
+        for (const completed of [new Set<string>(), new Set(["f-os", "f-users"])]) {
+          const steps = generateTrack(
+            input({ focus, levels, completed, dueCardCount: 2, onMissingWhy: (slug) => missing.push(slug) }),
+          );
+          expect(steps.every((s) => s.reason !== FALLBACK_LESSON_REASON)).toBe(true);
+        }
+      }
+    }
+    expect(missing).toEqual([]);
+  });
+
+  it("falls back AND reports when a lesson genuinely has no authored why", () => {
+    const missing: string[] = [];
+    const noWhy: TrackLesson[] = [
+      { slug: "orphan", title: "Orphan", domainId: "foundations", level: "FOUNDATIONS", minutes: 5, sortOrder: 1 },
+    ];
+    const steps = generateTrack(
+      input({ lessons: noWhy, focus: ["linux"], onMissingWhy: (slug) => missing.push(slug) }),
+    );
+    expect(steps[0]!.reason).toBe(FALLBACK_LESSON_REASON);
+    expect(missing).toEqual(["orphan"]);
+  });
+
+  it("treats a blank/whitespace why as missing rather than rendering an empty line", () => {
+    const missing: string[] = [];
+    const blank: TrackLesson[] = [
+      { slug: "blank", title: "Blank", why: "   ", domainId: "foundations", level: "FOUNDATIONS", minutes: 5, sortOrder: 1 },
+    ];
+    const steps = generateTrack(
+      input({ lessons: blank, focus: ["linux"], onMissingWhy: (slug) => missing.push(slug) }),
+    );
+    expect(steps[0]!.reason).toBe(FALLBACK_LESSON_REASON);
+    expect(missing).toEqual(["blank"]);
+  });
+});
+
+// --- every step carries pillar + honest cost ------------------------------
+
+describe("step presentation fields", () => {
+  it("gives every step a non-empty pillar label", () => {
+    const steps = generateTrack(input({ focus: ["unsure"], dueCardCount: 4 }));
+    for (const step of steps) {
+      expect(step.pillar.trim()).not.toBe("");
+    }
+  });
+
+  it("carries the lesson's authored minutes, and null where a cost would be invented", () => {
+    const steps = generateTrack(input({ focus: ["cisco"], dueCardCount: 4 }));
+    const lesson = steps.find((s) => s.kind === "lesson")!;
+    const bySlug = new Map(ALL_LESSONS.map((l) => [l.slug, l.minutes]));
+    expect(lesson.minutes).toBe(bySlug.get(lesson.ref));
+
+    for (const step of steps.filter((s) => s.kind !== "lesson")) {
+      expect(step.minutes).toBeNull();
+    }
+  });
+});
 
 // --- Rule 1: Foundations gate --------------------------------------------
 

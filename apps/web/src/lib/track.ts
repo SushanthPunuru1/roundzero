@@ -18,6 +18,7 @@ import {
 } from "@roundzero/db";
 
 import { countDueCards } from "./drill";
+import { loadLessonWhyIndex } from "./lesson-content";
 import type { NextStepView } from "@/app/app/next-step-card";
 
 const FOCUS_VALUES = new Set<FocusMachine>(["windows", "linux", "cisco", "unsure"]);
@@ -83,11 +84,11 @@ export interface LoadedTrack {
  * revalidation round trip.
  */
 export async function loadTrack(userId: string, alsoCompleted: string[] = []): Promise<LoadedTrack> {
-  const [placement, lessons, progress, dueCardCount] = await Promise.all([
+  const [placement, lessonRows, progress, dueCardCount] = await Promise.all([
     prisma.placement.findUnique({ where: { userId } }),
     prisma.lesson.findMany({
       where: { published: true },
-      select: { slug: true, title: true, domainId: true, level: true, sortOrder: true },
+      select: { slug: true, title: true, domainId: true, level: true, minutes: true, sortOrder: true },
     }),
     prisma.lessonProgress.findMany({ where: { userId }, select: { lessonSlug: true } }),
     countDueCards(userId),
@@ -95,12 +96,26 @@ export async function loadTrack(userId: string, alsoCompleted: string[] = []): P
 
   const completed = new Set<string>([...progress.map((p) => p.lessonSlug), ...alsoCompleted]);
 
+  // The DB row is the index (what's published, at what level, in what order);
+  // the authored `why` comes from the MDX frontmatter it was indexed from.
+  const whyBySlug = loadLessonWhyIndex();
+  const lessons = lessonRows.map((row) => ({ ...row, why: whyBySlug.get(row.slug) ?? null }));
+
   const steps = generateTrack({
     focus: normalizeFocus(placement?.focus),
     levels: placement ? normalizeLevels(placement.levels) : null,
     lessons,
     completed,
     dueCardCount,
+    onMissingWhy: (slug) => {
+      // Unreachable for well-formed content: `why` is a required frontmatter
+      // field, so this only fires if a DB Lesson row has no matching MDX file
+      // (a stale index — the seed was not re-run after content moved).
+      console.warn(
+        `[track] lesson "${slug}" has no authored \`why\` in frontmatter; ` +
+          `falling back to a generic reason. Re-run \`pnpm db:seed\` if the lesson was removed or renamed.`,
+      );
+    },
   });
 
   return { steps, hasPlacement: placement !== null };
@@ -118,6 +133,8 @@ export function toStepView(step: TrackStep): NextStepView {
     kind: step.kind,
     title: step.title,
     reason: step.reason,
+    pillar: step.pillar,
+    minutes: step.minutes,
     href: hrefForStep(step),
     status: step.status,
   };
@@ -159,7 +176,10 @@ const PILLAR_LABELS: Record<string, string> = {
 };
 const PILLAR_ORDER = ["foundations", "linux", "windows", "networking", "forensics"];
 
-function avg(scores: number[]): number {
+/** Mean, rounded. Returns null for an empty set rather than NaN — callers
+ * guard today, but `Math.round(0/0)` is a landmine one refactor away. */
+function avg(scores: number[]): number | null {
+  if (scores.length === 0) return null;
   return Math.round(scores.reduce((sum, s) => sum + s, 0) / scores.length);
 }
 
@@ -179,11 +199,13 @@ export function aggregatePillars(inputs: PillarInputs): PillarProgress[] {
     let detail: string | null = null;
     if (domain === "networking") {
       const parts: string[] = [];
-      if (inputs.networkingQuizScores.length > 0) parts.push(`${avg(inputs.networkingQuizScores)}% quiz avg`);
+      const quizAvg = avg(inputs.networkingQuizScores);
+      if (quizAvg !== null) parts.push(`${quizAvg}% quiz avg`);
       if (inputs.subnettingBest !== null) parts.push(`subnetting best ${inputs.subnettingBest}%`);
       detail = parts.length > 0 ? parts.join(" · ") : null;
     } else if (domain === "forensics") {
-      detail = inputs.forensicsScores.length > 0 ? `${avg(inputs.forensicsScores)}% quiz avg` : null;
+      const quizAvg = avg(inputs.forensicsScores);
+      detail = quizAvg !== null ? `${quizAvg}% quiz avg` : null;
     }
     return {
       domain,
@@ -193,6 +215,15 @@ export function aggregatePillars(inputs: PillarInputs): PillarProgress[] {
       detail,
     };
   });
+}
+
+/** The one aggregate number that anchors "Where you stand" — without it the
+ * section is five ratios and no answer to "how am I doing overall". */
+export function totalProgress(pillars: PillarProgress[]): { done: number; total: number } {
+  return pillars.reduce(
+    (acc, pillar) => ({ done: acc.done + pillar.lessonsDone, total: acc.total + pillar.lessonsTotal }),
+    { done: 0, total: 0 },
+  );
 }
 
 /** Loads the cross-pillar progress view for the dashboard. */
