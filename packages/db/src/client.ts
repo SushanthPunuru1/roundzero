@@ -94,6 +94,11 @@ export type { NextStep as PlacementNextStep, PlacementAnswer } from "./placement
 // Recommended-track generator (ONBOARDING_PATH_SPEC.md Part B) — pure, derived
 // on read. apps/web/src/lib/track.ts loads the inputs (placement + progress +
 // published lessons) from Prisma and calls generateTrack.
+// Team checklist fork/diff (ROADMAP M2). Pure — apps/web loads the rows and
+// calls these, same shape as the track generator below.
+export { diffFork, initialForkItems, isCleanFork, reorder, resolveFork } from "./checklists/fork";
+export type { ForkDiff, ForkItemRow, ResolvedItem, UpstreamItem } from "./checklists/fork";
+
 export { FALLBACK_LESSON_REASON, generateTrack, linuxLabReady, resolveFocusDomains } from "./track/generate";
 export type {
   FocusMachine,
