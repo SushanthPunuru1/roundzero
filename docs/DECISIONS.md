@@ -2017,3 +2017,15 @@ of the track, which for a new user is literally the hero's own title
 restated below it. Looking backward is the only one of the two a user can't
 already see on this screen. Deploy of 7aa8cf4 confirmed READY in production
 before these landed.
+
+**038b · 2026-08-11 · Render tests for the next-step card's un-clickable
+state.** The `available-when-runnable` lab card can only be reached by an
+account whose track is lab-ready, so live click-through never covers it —
+which is how it shipped as a "Runs locally" chip inside a live `<Link>` in
+the first place. `next-step-card.test.tsx` asserts the contract directly
+(13 tests): a non-runnable step renders no anchor and no trailing arrow, the
+hero offers only an explainer link instead of a primary action, the eyebrow
+carries pillar and omits time rather than inventing it, the ordinal renders,
+and the hero's accent drops under `muted`. Each assertion was mutation-
+verified — reverting the fix in a scratch copy fails precisely the test
+written for it and nothing else.
