@@ -1,0 +1,105 @@
+---
+slug: linux-sudo-and-sudoers
+title: sudo, groups, and the sudoers file
+why: "An unauthorized sudoer is root with extra steps — and the file that grants it can lock you out."
+domainId: linux
+level: standard
+minutes: 8
+sortOrder: 2
+published: true
+skills:
+  - linux.accounts.sudoers
+check:
+  - q: "Why edit /etc/sudoers with visudo instead of nano or vim directly?"
+    options:
+      - "visudo is faster"
+      - "visudo checks the syntax before saving, and a broken sudoers file can lock you out of sudo entirely"
+      - "Only visudo can write to /etc/sudoers"
+      - "visudo automatically backs up the file"
+    answer: 1
+    why: "A syntax error in sudoers is not a warning — sudo refuses to run at all. If you have no root shell open, that machine is finished for the round."
+  - q: "What does a NOPASSWD rule in the sudo config do?"
+    options:
+      - "Blocks that user from using sudo"
+      - "Lets that user run sudo commands without being prompted for their password"
+      - "Removes the user's password entirely"
+      - "Requires a password on every command, even repeated ones"
+    answer: 1
+    why: "It removes the password check for privileged commands. Anyone who gets that user's session gets root with no further hurdle."
+  - q: "Where do you need to look for sudo rules?"
+    options:
+      - "/etc/sudoers only"
+      - "/etc/sudoers and every file in /etc/sudoers.d/"
+      - "/etc/passwd"
+      - "The sudo group in /etc/group only"
+    answer: 1
+    why: "Modern systems include /etc/sudoers.d/ from the main file, so a rule dropped in there is fully live while /etc/sudoers looks untouched."
+---
+
+Removing a user from the `sudo` group feels like you have handled privilege
+escalation. Often you have not, because sudo takes its rules from more than
+one place and only one of them is a group.
+
+## Who currently has sudo
+
+Group membership is the common path:
+
+```
+getent group sudo
+```
+
+That prints the sudo group and its members. To remove someone:
+
+```
+sudo deluser baduser sudo
+```
+
+Note what that does and does not do — it removes the user from the group,
+not from the machine. If the README also says the account is unauthorized,
+you still have to remove the account itself.
+
+## The file that outranks the group
+
+`/etc/sudoers` can grant privileges directly, without any group involved. So
+can any file in `/etc/sudoers.d/`, because the main file includes that
+directory. A single dropped-in file is enough:
+
+```
+sudo grep -r NOPASSWD /etc/sudoers /etc/sudoers.d/
+```
+
+`NOPASSWD` means sudo without a password prompt. On a hardened image there
+is normally no reason for it to exist. Read what you find before deleting —
+some images ship a legitimate rule the README depends on.
+
+## Editing safely
+
+Always:
+
+```
+sudo visudo
+```
+
+To edit a drop-in file specifically:
+
+```
+sudo visudo -f /etc/sudoers.d/somefile
+```
+
+`visudo` parses the file before it saves. If you introduce a syntax error it
+refuses to write and tells you the line. Editing `/etc/sudoers` with a plain
+editor and saving a typo means the next `sudo` fails, and with no root shell
+already open there is no way back.
+
+## What a good rule looks like
+
+The default Ubuntu line is:
+
+```
+%sudo   ALL=(ALL:ALL) ALL
+```
+
+That grants the `sudo` group full privileges, with a password prompt. Rules
+that deviate from this shape deserve a second look — particularly ones
+naming an individual user, ones ending in `NOPASSWD: ALL`, and ones granting
+a specific binary that can spawn a shell.

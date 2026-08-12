@@ -1,0 +1,134 @@
+---
+slug: linux-updates-firewall-sysctl
+title: Updates, the firewall, and sysctl
+why: "Updates take longest to run, so start them first — then enable the firewall without cutting yourself off."
+domainId: linux
+level: standard
+minutes: 9
+sortOrder: 8
+published: true
+skills:
+  - linux.updates-network.apt
+  - linux.updates-network.ufw
+  - linux.updates-network.sysctl
+check:
+  - q: "What must you do before running `sudo ufw enable` on a machine you are connected to remotely?"
+    options:
+      - "Reboot first"
+      - "Allow the required services first, e.g. `sudo ufw allow OpenSSH`"
+      - "Set the default policy to allow"
+      - "Nothing — ufw permits existing connections automatically"
+    answer: 1
+    why: "ufw's default incoming policy is deny. Enabling it before allowing SSH drops your own session and locks you out of a remote machine."
+  - q: "Why start the package update early in a round?"
+    options:
+      - "Updates are worth more points earlier"
+      - "It takes a long time and runs in the background while you work on other items"
+      - "Other hardening steps fail if packages are stale"
+      - "The scoring engine only checks updates in the first ten minutes"
+    answer: 1
+    why: "It is the one task whose duration you do not control. Starting it first means it finishes while you work through accounts and services instead of sitting watching it."
+  - q: "What does the sysctl setting `net.ipv4.ip_forward = 0` do?"
+    options:
+      - "Blocks all IPv4 traffic"
+      - "Stops the machine routing packets between networks"
+      - "Disables IPv4 in favour of IPv6"
+      - "Turns off the loopback interface"
+    answer: 1
+    why: "ip_forward turns the host into a router. Unless the scenario is a router or gateway, a workstation forwarding packets is unnecessary and is a scored finding."
+---
+
+Three items that share one property: they are easy, they are almost always
+scored, and two of them can lock you out of the machine if you do them in
+the wrong order.
+
+## Updates — start these first
+
+Package updates take longer than anything else you will do, and the time is
+not under your control. Start them at the beginning of a round and let them
+run while you work on accounts:
+
+```
+sudo apt update
+sudo apt upgrade -y
+```
+
+`apt update` refreshes the package list. `apt upgrade` installs what is
+available. The list refresh alone scores nothing — you need the upgrade.
+
+Then make it ongoing:
+
+```
+sudo apt install unattended-upgrades
+sudo dpkg-reconfigure --priority=low unattended-upgrades
+```
+
+`unattended-upgrades` applies security updates automatically. It is commonly
+disabled on vulnerable images and is a separate scored item from the upgrade
+itself.
+
+One thing to check while you are here: `/etc/apt/sources.list` and
+`/etc/apt/sources.list.d/`. A bad or unofficial repository entry is
+occasionally planted, and it means the machine trusts packages from somewhere
+it should not.
+
+## The firewall — allow before you enable
+
+UFW's default incoming policy is deny. That is what you want, and it is also
+exactly why the order here matters:
+
+```
+sudo ufw allow OpenSSH
+sudo ufw enable
+```
+
+Allow first, enable second. Reversed, the enable drops every connection that
+is not already permitted — including yours, on a remote box, with no way
+back in.
+
+Then confirm what you have:
+
+```
+sudo ufw status verbose
+```
+
+Allow only what the README requires. If the image is a web server, that is
+probably `80` and `443`. If it is not, those rules do not belong.
+
+## sysctl — kernel network settings
+
+These live in `/etc/sysctl.conf` or a file under `/etc/sysctl.d/`:
+
+```
+net.ipv4.ip_forward = 0
+net.ipv4.tcp_syncookies = 1
+net.ipv4.conf.all.accept_redirects = 0
+net.ipv4.conf.all.send_redirects = 0
+net.ipv4.conf.all.accept_source_route = 0
+```
+
+`ip_forward = 0` stops the machine routing packets between networks. A
+workstation has no reason to act as a router, and an image shipped with it
+enabled is a finding. The exception is a scenario where the box genuinely is
+a gateway — the README will say so.
+
+`tcp_syncookies = 1` helps the machine survive a SYN flood.
+
+The `redirects` settings stop the machine accepting or sending ICMP redirect
+messages, which can otherwise be used to reroute its traffic.
+
+Apply them without a reboot:
+
+```
+sudo sysctl -p
+```
+
+Verify a single value:
+
+```
+sysctl net.ipv4.ip_forward
+```
+
+Editing the file alone does not change the running kernel. If you skip
+`sysctl -p` and the scoring engine reads live values, you get nothing for the
+work.

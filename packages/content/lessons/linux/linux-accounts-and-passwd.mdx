@@ -1,0 +1,108 @@
+---
+slug: linux-accounts-and-passwd
+title: Users, /etc/passwd, and /etc/shadow
+why: "Every Linux image starts with an account you weren't told about. This is how you find it."
+domainId: linux
+level: standard
+minutes: 9
+sortOrder: 1
+published: true
+skills:
+  - linux.accounts.passwd-shadow
+  - linux.accounts.uid0
+check:
+  - q: "Which command lists only the human user accounts on a typical Ubuntu box?"
+    options:
+      - "cat /etc/passwd"
+      - "awk -F: '$3>=1000 && $3<65534 {print $1}' /etc/passwd"
+      - "ls /home"
+      - "getent group users"
+    answer: 1
+    why: "System accounts live below UID 1000 and nobody sits at 65534. Filtering on the UID field is the only reliable way — /home can be empty for a real account, and full of leftovers for one that no longer exists."
+  - q: "You find a second account with UID 0. What does that mean?"
+    options:
+      - "Nothing — UID 0 is assigned to several system accounts by design"
+      - "It is a full root-equivalent account; the OS authorizes by UID, not by name"
+      - "It is a disabled account"
+      - "It is the account that owns /etc/shadow"
+    answer: 1
+    why: "The kernel checks the number, not the name. Any account with UID 0 is root under a different label, which is exactly why it is a favourite hiding place."
+  - q: "Why check /etc/shadow for empty password fields rather than trying to log in as each user?"
+    options:
+      - "Logging in as each user is slower but equally reliable"
+      - "An empty second field means the account authenticates with no password at all, and the file shows it directly"
+      - "/etc/shadow stores the plaintext password"
+      - "You cannot log in as another user without their password"
+    answer: 1
+    why: "The second colon-separated field of /etc/shadow holds the password hash. Empty means no password is required. Reading it is instant and exhaustive."
+---
+
+Linux does not have one list of users — it has two files that work together,
+and knowing which one answers which question is most of this skill. This
+lesson is about reading them fast enough to spot the account that should not
+be there.
+
+## The two files
+
+`/etc/passwd` is the account list: name, UID, group, home directory, shell.
+It is world-readable, which surprises people, but it holds no passwords.
+
+`/etc/shadow` is the password file: the hash, and the aging rules attached
+to it. It is readable only by root, which is why nearly every command here
+starts with `sudo`.
+
+A user exists because there is a line in `/etc/passwd`. Whether they can log
+in, and how, is answered by `/etc/shadow`.
+
+## Reading the account list
+
+The field order in `/etc/passwd` is fixed and colon-separated:
+
+```
+username:x:UID:GID:comment:home:shell
+```
+
+Field 3 is the UID, and it is the field that matters. Accounts below 1000
+are system accounts created by packages. Real people start at 1000. The
+account `nobody` sits at 65534.
+
+```
+awk -F: '$3>=1000 && $3<65534 {print $1}' /etc/passwd
+```
+
+That is your list of humans. Compare it against the README, line by line.
+Anyone on the machine but not in the README is unauthorized; anyone in the
+README but not on the machine may need creating.
+
+## UID 0 is the one that matters
+
+Linux decides who is root by UID, not by username. An account named
+`backupsvc` with UID 0 is root with a boring name.
+
+```
+awk -F: '$3==0 {print $1}' /etc/passwd    # should print only: root
+```
+
+If that prints anything besides `root`, you have found a scored item. Do not
+change the UID and move on — read the README first, because the fix is
+usually removing the account, not renaming it.
+
+## Blank and weak passwords
+
+An account with an empty password field authenticates with nothing at all:
+
+```
+sudo awk -F: '($2==""){print $1}' /etc/shadow
+```
+
+The second field is the hash. Empty means no password. A `!` or `*` there
+means the account is locked, which is normal and correct for system
+accounts like `daemon` or `sys` — do not "fix" those.
+
+## The trap worth remembering
+
+A suspicious-sounding username is not evidence. An account called
+`hackerman` that appears in the README is authorized, and removing it costs
+you points. An account called `svc-backup` that does not appear in the
+README is not authorized, however plausible it sounds. The README is the
+authority, every time.

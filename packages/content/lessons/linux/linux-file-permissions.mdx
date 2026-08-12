@@ -1,0 +1,121 @@
+---
+slug: linux-file-permissions
+title: File permissions that get scored
+why: "A world-readable shadow file and a stray SUID binary are both quiet, both scored."
+domainId: linux
+level: standard
+minutes: 9
+sortOrder: 7
+published: true
+skills:
+  - linux.files-perms.sensitive-modes
+  - linux.files-perms.suid
+  - linux.files-perms.world-writable
+check:
+  - q: "What are the correct modes for /etc/shadow, /etc/passwd, and /etc/sudoers?"
+    options:
+      - "644, 644, 644"
+      - "640, 644, 440"
+      - "600, 600, 600"
+      - "777, 755, 755"
+    answer: 1
+    why: "shadow 640 (root and the shadow group), passwd 644 (world-readable by design, it holds no secrets), sudoers 440 (read-only even for root, to make accidental edits harder)."
+  - q: "Why is an unexpected SUID binary dangerous?"
+    options:
+      - "It consumes more memory than a normal binary"
+      - "It runs with the file owner's privileges regardless of who executes it"
+      - "It cannot be deleted without root"
+      - "It automatically runs at boot"
+    answer: 1
+    why: "SUID means the process takes the owner's identity. If the owner is root, any user who can execute it gets root-level action — instant privilege escalation."
+  - q: "Why does /tmp need the sticky bit?"
+    options:
+      - "To stop the directory being deleted"
+      - "So users can only delete their own files in a world-writable directory"
+      - "To make files in it persist across reboots"
+      - "To prevent programs writing to it"
+    answer: 1
+    why: "/tmp has to be world-writable to be useful. The sticky bit is what stops one user deleting or renaming another user's files there."
+---
+
+Permission findings are quiet. Nothing breaks, nothing looks wrong on the
+surface, and the scoring engine notices immediately. These are among the
+fastest points on a Linux image once you know exactly what to look at.
+
+## The three files with fixed correct answers
+
+```
+/etc/shadow    640
+/etc/passwd    644
+/etc/sudoers   440
+```
+
+`/etc/shadow` holds password hashes and must not be world-readable. A
+world-readable shadow file is a scored finding on essentially every image
+that plants it, because it hands every local user the material for an
+offline cracking attempt.
+
+`/etc/passwd` is deliberately world-readable — it holds no secrets, and
+ordinary commands need it to map UIDs to names. Do not "harden" it to 600;
+you will break things and score nothing.
+
+`/etc/sudoers` at 440 is read-only even for root. That is intentional: it
+makes an accidental edit take a deliberate extra step.
+
+To check and fix:
+
+```
+ls -l /etc/shadow /etc/passwd /etc/sudoers
+sudo chmod 640 /etc/shadow
+sudo chmod 440 /etc/sudoers
+```
+
+## SUID binaries
+
+A SUID binary runs with its **owner's** privileges, not the privileges of
+whoever executed it. When the owner is root, any user who can run it can
+take a root-level action. That is why a planted SUID binary is a complete
+privilege-escalation path in one file.
+
+```
+sudo find / -perm -4000 -type f 2>/dev/null
+```
+
+The `2>/dev/null` discards permission-denied noise from directories you
+cannot read, which otherwise buries the results.
+
+A normal system returns a familiar list — `sudo`, `su`, `passwd`, `mount`,
+`ping` and a handful of others. What you are hunting is the entry that does
+not belong: a copy of `bash`, `find`, `vim`, `nmap` or `python` with the
+SUID bit set. Any of those with SUID is an immediate root shell for any
+user.
+
+```
+sudo chmod u-s /path/to/binary
+```
+
+Compare against a known-good list rather than trusting your memory, and be
+careful not to strip SUID from something legitimate — `sudo` and `passwd`
+genuinely need it.
+
+## World-writable directories and the sticky bit
+
+```
+sudo find / -type d -perm -0002 -not -path "/proc/*" 2>/dev/null
+```
+
+A world-writable directory lets any user drop files in — which combines
+badly with anything that later executes what it finds there.
+
+`/tmp` is the deliberate exception. It has to be world-writable to do its
+job, and the sticky bit is what makes that safe:
+
+```
+ls -ld /tmp        # expect drwxrwxrwt
+sudo chmod 1777 /tmp
+```
+
+The trailing `t` is the sticky bit. With it, a user can create files in
+`/tmp` but can only delete or rename their own. Without it, any user can
+delete anyone's files there — including replacing a file another process is
+about to read.

@@ -1,0 +1,106 @@
+---
+slug: linux-ssh-hardening
+title: SSH hardening
+why: "SSH is the one service you can lock yourself out of. Do it in the right order."
+domainId: linux
+level: standard
+minutes: 10
+sortOrder: 4
+published: true
+skills:
+  - linux.ssh.permitrootlogin
+  - linux.ssh.passwordauth
+  - linux.ssh.limits
+check:
+  - q: "Why run `sudo sshd -t` before restarting SSH?"
+    options:
+      - "It reloads the configuration without restarting"
+      - "It tests the config for syntax errors; restarting with a broken config can kill SSH"
+      - "It shows which users are currently connected"
+      - "It regenerates the host keys"
+    answer: 1
+    why: "A syntax error means sshd refuses to start. If SSH is required by the README, that is a penalty, and on a remote box you have also just removed your own way back in."
+  - q: "You set PasswordAuthentication in /etc/ssh/sshd_config on Ubuntu 24 and nothing changes. Why?"
+    options:
+      - "The setting requires a reboot"
+      - "A drop-in file in /etc/ssh/sshd_config.d/ overrides it"
+      - "PasswordAuthentication was renamed"
+      - "The setting only applies to root"
+    answer: 1
+    why: "Cloud images ship /etc/ssh/sshd_config.d/50-cloud-init.conf, which is included and takes effect. Editing the main file leaves the drop-in winning."
+  - q: "How do you check SSH's merged effective configuration rather than one file?"
+    options:
+      - "cat /etc/ssh/sshd_config"
+      - "sudo sshd -T"
+      - "systemctl status ssh"
+      - "ssh -v localhost"
+    answer: 1
+    why: "sshd -T prints the configuration sshd will actually use, after every include and drop-in is merged. It is the only answer that survives the drop-in trap."
+---
+
+SSH is usually required to stay running, which makes it the one service
+where a careless edit costs you twice: the scored item stays open, and you
+lose your own access to the machine. The order of operations here matters
+more than on any other item.
+
+## The settings that get scored
+
+In `/etc/ssh/sshd_config`:
+
+```
+PermitRootLogin no
+PermitEmptyPasswords no
+MaxAuthTries 3
+X11Forwarding no
+```
+
+`PermitRootLogin no` is nearly always correct — administrators should log in
+as themselves and escalate with sudo, which leaves an audit trail that
+direct root login does not.
+
+`PasswordAuthentication` is the one to read carefully. It is **not**
+automatically "no". If the README says the team logs in with passwords,
+setting it to `no` locks everyone out and costs points. Follow the README,
+not habit.
+
+## The drop-in trap
+
+This is the single most common way to get SSH wrong on a modern image.
+
+Ubuntu 22 and 24 ship a directory of include files:
+
+```
+/etc/ssh/sshd_config.d/
+```
+
+The main config includes it, typically at the very top — and in SSH's config
+model **the first occurrence of a setting wins**. So a value in
+`50-cloud-init.conf` beats the same value further down in `sshd_config`. You
+edit the main file, restart cleanly, and the setting has not changed.
+
+Always confirm against the merged configuration:
+
+```
+sudo sshd -T | grep -i permitrootlogin
+```
+
+`sshd -T` prints what sshd will actually use, after every include is
+resolved. If the file says one thing and `sshd -T` says another, the drop-in
+is the file you need to fix.
+
+## Applying changes without locking yourself out
+
+Test, then restart. Never the other way around:
+
+```
+sudo sshd -t && sudo systemctl restart ssh
+```
+
+`sshd -t` parses the config and reports syntax errors. The `&&` means the
+restart only happens if the test passed. Get in the habit of typing both
+halves together — a broken config plus a restart is how a remote box becomes
+unreachable.
+
+If you are working over SSH, keep your current session open while you test
+the change in a second connection. Your existing session survives a restart;
+a new one proves the config still lets you in.

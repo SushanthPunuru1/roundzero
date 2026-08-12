@@ -1,0 +1,114 @@
+---
+slug: linux-services-and-ports
+title: Services and listening ports
+why: "Every listening port is a door. This is how you find them and which ones you must not close."
+domainId: linux
+level: standard
+minutes: 9
+sortOrder: 5
+published: true
+skills:
+  - linux.services-persistence.systemd-audit
+  - linux.services-persistence.critical
+check:
+  - q: "Which command shows every listening port together with the process that owns it?"
+    options:
+      - "ps aux"
+      - "sudo ss -tulpn"
+      - "systemctl list-units"
+      - "netstat -r"
+    answer: 1
+    why: "ss -tulpn gives TCP and UDP listeners with the owning process. Without sudo you get the ports but not the process names, which is the half you need."
+  - q: "What does `sudo systemctl disable --now telnet` do?"
+    options:
+      - "Stops the service now but it returns at next boot"
+      - "Prevents it starting at boot but leaves it running now"
+      - "Stops it now AND prevents it starting at boot"
+      - "Uninstalls the package"
+    answer: 2
+    why: "disable handles boot, --now handles the running instance. Doing only one of the two is a common way to lose the point — either it comes back on reboot, or it is still serving right now."
+  - q: "The README says the FTP server is required for the scenario. FTP is insecure. What do you do?"
+    options:
+      - "Stop and disable it — insecure services should always be removed"
+      - "Leave it running and harden its configuration instead"
+      - "Uninstall the package and note it in your report"
+      - "Change it to run on a non-standard port"
+    answer: 1
+    why: "Stopping a README-required service is a penalty, not a missed point. Required services get hardened in place — the README defines the scenario you are securing, not a suggestion."
+---
+
+Every service listening on a port is a way into the machine. Most images
+ship at least one that has no business running. The skill is finding all of
+them quickly, and then being disciplined about which ones you are allowed to
+touch.
+
+## Inventory first
+
+```
+sudo ss -tulpn
+```
+
+Read the flags as a sentence: TCP, UDP, listening, numeric, with process.
+The `sudo` matters — without it you still see the ports, but the process
+column comes back empty, and a port with no owner tells you very little.
+
+The output gives you the port, the address it is bound to, and the program
+holding it. An address of `0.0.0.0` or `[::]` means it is listening on every
+interface — reachable from the network. `127.0.0.1` means local only, which
+is a meaningfully smaller problem.
+
+To see what systemd is managing:
+
+```
+systemctl list-units --type=service --state=running
+```
+
+## The usual suspects
+
+These appear repeatedly on vulnerable images because they are legacy,
+plaintext, or simply unnecessary:
+
+- **telnet / telnetd** — plaintext remote login. There is no configuration
+  that makes this acceptable; SSH replaces it.
+- **vsftpd / FTP** — plaintext file transfer, and often configured to allow
+  anonymous access.
+- **rsh / rlogin** — older than telnet and worse.
+- **Samba** — legitimate on file servers, unnecessary attack surface
+  elsewhere.
+- **Apache / nginx** — fine if the image is a web server, otherwise a full
+  web server nobody asked for.
+
+To stop one properly:
+
+```
+sudo systemctl disable --now telnet
+```
+
+`disable` stops it coming back at boot. `--now` stops it running this
+second. Do one without the other and you have half-fixed it — which usually
+scores nothing.
+
+If the service should not exist at all, remove the package:
+
+```
+sudo apt purge telnetd
+```
+
+## The rule that costs the most points
+
+**Read the README before you disable anything.**
+
+Images routinely require a service that looks like an obvious problem. An
+FTP server, a web server, even a database — if the README says it is part of
+the scenario, stopping it is a **penalty**. Not a missed point, an actual
+deduction, and often a large one because the scoring engine treats it as
+breaking the machine's purpose.
+
+A required service is not exempt from hardening. It is exempt from being
+turned off. You still tighten its configuration, still remove anonymous
+access, still restrict it to the interfaces it needs. The work changes shape,
+it does not disappear.
+
+Before you touch any service, ask: does the README name it? If yes, harden.
+If no, disable. If you are unsure, re-read the README rather than guessing —
+the penalty for a wrong guess is bigger than the point for a right one.

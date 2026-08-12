@@ -1,0 +1,135 @@
+---
+slug: linux-persistence-hunting
+title: Hunting persistence
+why: "An attacker's cron job survives your password change. Hunting persistence is its own skill."
+domainId: linux
+level: standard
+minutes: 10
+sortOrder: 6
+published: true
+skills:
+  - linux.services-persistence.cron
+  - linux.services-persistence.rc-bashrc
+  - linux.services-persistence.authorized-keys
+  - linux.services-persistence.malware
+check:
+  - q: "Which set of locations must you check for cron persistence?"
+    options:
+      - "/etc/crontab only"
+      - "/etc/crontab, /etc/cron.d/, /etc/cron.{hourly,daily,weekly,monthly}/, and /var/spool/cron/crontabs/"
+      - "The output of `crontab -l` for the current user"
+      - "/var/log/cron"
+    answer: 1
+    why: "Cron reads from several places. Checking only the system crontab or only your own user crontab leaves the other locations completely unexamined."
+  - q: "Why does a rogue authorized_keys entry matter even after you set a strong password on every account?"
+    options:
+      - "It does not — changing the password revokes all access"
+      - "Key-based SSH authentication does not use the password at all"
+      - "authorized_keys stores a copy of the old password hash"
+      - "It only matters if PermitRootLogin is enabled"
+    answer: 1
+    why: "A public key in authorized_keys authenticates without a password. Every password on the box can change and that key still works, which is exactly why attackers leave one."
+  - q: "You find a line at the bottom of a user's ~/.bashrc that pipes a remote script to bash. When does it run?"
+    options:
+      - "At boot, before any user logs in"
+      - "Every time that user opens an interactive shell"
+      - "Only when the user runs it manually"
+      - "Once, at the next reboot"
+    answer: 1
+    why: "Shell startup files run on every interactive login for that user, which makes them a reliable re-infection point that survives you cleaning up elsewhere."
+---
+
+Finding a malicious file is the easy half. The hard half is that something
+put it there, and that something usually arranged to run again. Persistence
+hunting is a checklist of places a payload can hide and wait — none of which
+are affected by changing passwords or removing users.
+
+## Cron, in all of its locations
+
+Cron is the most common persistence mechanism because it is reliable and
+built in. It also reads from more places than most people check:
+
+```
+/etc/crontab
+/etc/cron.d/
+/etc/cron.hourly/  /etc/cron.daily/  /etc/cron.weekly/  /etc/cron.monthly/
+/var/spool/cron/crontabs/
+```
+
+The last one is per-user, and it is the one people forget. Do not use
+`crontab -l` alone — that shows only the current user's jobs.
+
+```
+sudo ls -la /var/spool/cron/crontabs/
+sudo cat /etc/crontab
+sudo ls -la /etc/cron.d/
+```
+
+What you are looking for: anything referencing a script in `/tmp`, a raw IP
+address, `curl` or `wget` piped into a shell, base64, or a filename designed
+to look boring. A job running every minute is worth a second look — real
+administrative tasks rarely need that frequency.
+
+## Shell startup files
+
+Anything in a user's shell startup runs every time they open an interactive
+shell:
+
+```
+~/.bashrc
+~/.bash_profile
+~/.profile
+/etc/profile
+/etc/bash.bashrc
+```
+
+A single appended line at the bottom of `.bashrc` is enough, and because the
+rest of the file is legitimate it survives a skim. Read to the end of the
+file, not the top.
+
+## rc.local
+
+```
+/etc/rc.local
+```
+
+Legacy, but still honoured if present and executable. It runs at boot as
+root. On a modern image its mere existence is worth investigating.
+
+## Rogue SSH keys
+
+This is the one that defeats password work entirely:
+
+```
+sudo find /home /root -name authorized_keys
+```
+
+A public key in that file authenticates without any password. You can set a
+20-character password on every account on the machine and the key still
+works. Read every file the search returns and remove any key you cannot
+account for from the README.
+
+While you are there, check for keys in unexpected places — a `.ssh`
+directory owned by a service account that has no reason to accept logins is
+itself the finding.
+
+## Listeners and prohibited tools
+
+A netcat listener, a miner, or a hacking tool left on the box is usually
+scored directly:
+
+```
+sudo ss -tulpn
+sudo find / -name "nc" -o -name "ncat" -o -name "netcat" 2>/dev/null
+```
+
+Cross-reference anything listening against what the README says should be
+running. A process with a plausible name listening on a high random port is
+a classic — check the actual binary path, not just the name it reports.
+
+## Order matters
+
+Clean persistence **before** you finish the account work, not after. If you
+remove a malicious user while their cron job is still installed, the job can
+recreate the account and you will find it again on your next pass, having
+lost the time in between.

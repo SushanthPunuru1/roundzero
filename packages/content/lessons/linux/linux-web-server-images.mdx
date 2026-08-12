@@ -1,0 +1,132 @@
+---
+slug: linux-web-server-images
+title: Images where a web server must stay up
+why: "When the README requires Apache to stay up, hardening means tightening it, not stopping it."
+domainId: linux
+level: advanced
+minutes: 8
+sortOrder: 9
+published: true
+skills:
+  - linux.web-variant.apache-php
+check:
+  - q: "The README says the Apache site must remain reachable. Apache is running as root. What is the right fix?"
+    options:
+      - "Stop Apache — running as root is unacceptable"
+      - "Leave it; the README requires the service"
+      - "Reconfigure it to run as the www-data user and keep the site up"
+      - "Change the port it listens on"
+    answer: 2
+    why: "Required means it must keep serving, not that it must keep its current configuration. Dropping privileges keeps the service available while removing the risk."
+  - q: "Why does `ServerTokens Prod` / `ServerSignature Off` matter?"
+    options:
+      - "It measurably improves performance"
+      - "It stops Apache advertising its exact version in responses and error pages"
+      - "It is required for TLS to work"
+      - "It disables directory listings"
+    answer: 1
+    why: "Version disclosure hands an attacker the exact build to look up known vulnerabilities against. It is low-effort information leakage and is commonly scored."
+  - q: "What does `Options -Indexes` do?"
+    options:
+      - "Disables PHP execution in that directory"
+      - "Stops Apache generating a file listing when no index file is present"
+      - "Turns off URL rewriting"
+      - "Removes the directory from search engines"
+    answer: 1
+    why: "Without it, a directory containing no index.html is served as a browsable file list, which frequently exposes backups, configs and files nobody intended to publish."
+---
+
+Some images ship with Apache and PHP running, and the README requires the
+site to stay reachable. This is the hardest shape of Linux hardening,
+because the usual instinct — find the exposed service, turn it off — is
+exactly the wrong move and carries a penalty.
+
+Required means the service keeps serving. It does not mean the service keeps
+its current configuration.
+
+## Do not drop privileges by stopping the service
+
+Check what Apache is running as:
+
+```
+ps aux | grep apache2
+```
+
+The parent process runs as root because it must bind port 80. The **worker**
+processes should not. On Ubuntu they should be `www-data`, set in
+`/etc/apache2/apache2.conf`:
+
+```
+User www-data
+Group www-data
+```
+
+If workers are running as root, a flaw in any hosted application becomes a
+root compromise rather than a `www-data` one. Fixing this keeps the site up
+and removes most of the risk.
+
+## Stop advertising the version
+
+```
+ServerTokens Prod
+ServerSignature Off
+```
+
+By default Apache announces its exact version, and often the OS, in response
+headers and on generated error pages. That tells an attacker precisely which
+known vulnerabilities to try. On Ubuntu these usually belong in
+`/etc/apache2/conf-available/security.conf`.
+
+## Turn off directory listings
+
+```
+<Directory /var/www/html>
+    Options -Indexes
+</Directory>
+```
+
+Without this, a directory with no index file is served as a browsable list.
+That is how backup files, `.sql` dumps and editor swap files end up public —
+nobody linked them, but nobody had to.
+
+## File ownership under the web root
+
+```
+sudo find /var/www -type f -exec chmod 644 {} \;
+sudo find /var/www -type d -exec chmod 755 {} \;
+```
+
+Files readable, directories traversable, neither writable by the world. A
+world-writable file under the web root means anyone who can write to it can
+change what the site serves.
+
+Be specific about ownership: the web server needs to **read** its content.
+It rarely needs to **write** it. A document root owned entirely by
+`www-data` with write permission is more access than most sites require.
+
+## PHP settings worth checking
+
+In `/etc/php/*/apache2/php.ini`:
+
+```
+display_errors = Off
+expose_php = Off
+```
+
+`display_errors` on a production site prints file paths, query fragments and
+sometimes credentials straight to the browser when something breaks.
+`expose_php` adds the PHP version to response headers — the same
+version-disclosure problem as `ServerTokens`.
+
+## Apply changes safely
+
+Apache has the same test-before-restart discipline as SSH:
+
+```
+sudo apache2ctl configtest && sudo systemctl restart apache2
+```
+
+`configtest` parses the configuration and reports errors. If it fails, the
+restart does not happen and the site stays up on the old config. Restarting
+a required service into a broken config takes the site down, which is the
+penalty you were trying to avoid in the first place.
