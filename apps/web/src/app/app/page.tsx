@@ -41,7 +41,7 @@ export default async function DashboardPage() {
   const viewer = viewerFromSession(session);
   const firstName = viewer.name.trim().split(/\s+/)[0] || "there";
 
-  const [{ steps, hasPlacement }, pillars, today, membership] = await Promise.all([
+  const [{ steps, hasPlacement }, pillars, today, membership, lastDone] = await Promise.all([
     loadTrack(session.user.id),
     loadPillarProgress(session.user.id),
     loadTodaySummary(session.user.id),
@@ -49,11 +49,20 @@ export default async function DashboardPage() {
       where: { userId: session.user.id },
       include: { organization: { select: { name: true } } },
     }),
+    // "Last completed", not "currently on": the old stat showed the first
+    // lesson of the track, which for a new user IS the Next up hero — the
+    // same title restated a few hundred pixels below it. Looking backward is
+    // both non-duplicative and the only one of the two a user can't already
+    // see on this screen.
+    prisma.lessonProgress.findFirst({
+      where: { userId: session.user.id },
+      orderBy: { completedAt: "desc" },
+      select: { lessonSlug: true, lesson: { select: { title: true } } },
+    }),
   ]);
 
   const next = topSteps(steps, 3).map(toStepView);
   const [leadStep, ...laterSteps] = next;
-  const currentLesson = steps.find((s) => s.kind === "lesson");
   const totals = totalProgress(pillars);
 
   return (
@@ -76,7 +85,7 @@ export default async function DashboardPage() {
         />
         {leadStep ? (
           <>
-            <NextStepHero step={leadStep} />
+            <NextStepHero step={leadStep} muted={!hasPlacement} />
             {laterSteps.length > 0 && (
               <div className="flex flex-col gap-2">
                 {laterSteps.map((step, i) => (
@@ -108,7 +117,7 @@ export default async function DashboardPage() {
       <TodaySection
         dueCount={today.dueCount}
         streak={today.streak}
-        currentLesson={currentLesson ? { title: currentLesson.title, ref: currentLesson.ref } : null}
+        lastDone={lastDone ? { title: lastDone.lesson.title, slug: lastDone.lessonSlug } : null}
       />
 
       {/* Progress across pillars */}
@@ -179,11 +188,11 @@ function PlacementInvite() {
 function TodaySection({
   dueCount,
   streak,
-  currentLesson,
+  lastDone,
 }: {
   dueCount: number;
   streak: number;
-  currentLesson: { title: string; ref: string } | null;
+  lastDone: { title: string; slug: string } | null;
 }) {
   const coldStart = dueCount === 0 && streak === 0;
 
@@ -219,18 +228,18 @@ function TodaySection({
             mono={streak > 0}
           />
           <Stat
-            label="Currently on"
+            label="Last completed"
             mono={false}
             value={
-              currentLesson ? (
+              lastDone ? (
                 <Link
-                  href={`/app/lessons/${currentLesson.ref}`}
+                  href={`/app/lessons/${lastDone.slug}`}
                   className={`rounded-sm underline-offset-4 hover:text-accent hover:underline ${ROW_INTERACTIVE}`}
                 >
-                  {currentLesson.title}
+                  {lastDone.title}
                 </Link>
               ) : (
-                "Nothing started"
+                "Nothing yet"
               )
             }
           />

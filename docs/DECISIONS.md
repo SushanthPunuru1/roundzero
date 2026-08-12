@@ -1970,12 +1970,21 @@ progress bar, because a 0% bar rendered a full-width `--hairline` track that
 read as nearly complete; ticks also make every row exactly two lines tall,
 fixing the ~7px jitter between rows with and without a meter. `Where you
 stand` gained the one aggregate number it lacked ("2 of 27 lessons").
-`--duration-standard` / `--ease-standard` are now theme tokens because three
-surfaces had silently fallen back to Tailwind's default easing by omitting
-it, and a global `prefers-reduced-motion` block plus `motion-safe:` on the
-arrow transforms implements DESIGN.md's reduced-motion rule, which had only
-ever been honored inside CountUp and RunTrajectoryChart. `avg()` returns null
-instead of `Math.round(0/0)`.
+Motion is single-sourced because three surfaces had silently fallen back to
+Tailwind's default easing by omitting it. `--ease-standard` goes in `@theme`
+— `--ease-*` IS a Tailwind v4 namespace and generates `ease-standard`. There
+is NO `--duration-*` namespace, though: declaring one compiles to nothing,
+so the first cut of this left every element carrying `duration-standard`
+with no transition-duration at all — hovers became instant rather than
+150ms, a regression invisible to tests, typecheck, and lint alike. Caught by
+compiling `globals.css` through PostCSS and asserting the utility is
+actually emitted; `duration-standard` is now an explicit `@utility`. Worth
+remembering: a Tailwind v4 theme variable in an unrecognized namespace fails
+silently, so any new token should be checked against compiled output rather
+than assumed. A global `prefers-reduced-motion` block plus `motion-safe:` on
+the arrow transforms implements DESIGN.md's reduced-motion rule, which had
+only ever been honored inside CountUp and RunTrajectoryChart. `avg()`
+returns null instead of `Math.round(0/0)`.
 
 Verified this session: 446 unit tests pass (278 in packages/db, 168 in
 apps/web), ESLint clean on every changed file, `packages/ui` typechecks
@@ -1992,3 +2001,19 @@ file changed in this pass is clean of it. A human should confirm the Vercel
 production build and click through `/app` — in particular the hero's
 keyboard focus ring, the reduced-motion behaviour, and the lab card's
 non-link state — before relying on this.
+
+**038a · 2026-08-11 · Follow-ups to 038, from reviewing the shipped result.**
+Two accent-bordered `p-6` cards rendered stacked for a brand-new user (the
+placement invite and the new Next up hero), so neither read as the answer to
+"what now" — the hero takes a `muted` prop that drops the accent border and
+icon tint while `!hasPlacement`, and the two cards now share one alpha
+(`accent/30`) instead of 30 and 40. `Button` was still carrying
+`duration-150 ease-[cubic-bezier(...)]` inline, the exact drift the motion
+tokens exist to prevent; it uses `duration-standard ease-standard` now.
+Pillar + minutes no longer hide below 640px on compact rows — that hid the
+information the eyebrow exists to carry. And "Currently on" is now "Last
+completed": it had been `steps.find(kind === "lesson")`, i.e. the first step
+of the track, which for a new user is literally the hero's own title
+restated below it. Looking backward is the only one of the two a user can't
+already see on this screen. Deploy of 7aa8cf4 confirmed READY in production
+before these landed.

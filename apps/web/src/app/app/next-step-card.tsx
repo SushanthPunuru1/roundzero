@@ -101,20 +101,39 @@ function RunsLocallyNote() {
  * Step 1 — the one thing to do now. Dominant by padding, type size, and a
  * real primary action rather than a trailing chevron 700px from the text.
  */
-export function NextStepHero({ step, className }: { step: NextStepView; className?: string }) {
+export function NextStepHero({
+  step,
+  muted = false,
+  className,
+}: {
+  step: NextStepView;
+  /**
+   * Drop the accent border and icon tint, keeping the size and the primary
+   * action. Set when something above this card is the real first thing to do
+   * — today that's the placement invite, which is also accent-bordered. Two
+   * accent cards stacked make neither one the answer to "what now".
+   */
+  muted?: boolean;
+  className?: string;
+}) {
   const Icon = ICON_BY_KIND[step.kind];
   const runnable = step.status === "available-when-runnable";
 
   return (
     <div
       className={cn(
-        "flex flex-col gap-4 rounded-md border border-accent/40 bg-surface p-6 sm:flex-row sm:items-center sm:justify-between",
+        "flex flex-col gap-4 rounded-md border bg-surface p-6 sm:flex-row sm:items-center sm:justify-between",
+        muted ? "border-hairline" : "border-accent/30",
         className,
       )}
     >
       <div className="flex min-w-0 items-start gap-4">
         <span className="flex size-9 shrink-0 items-center justify-center rounded-md border border-hairline bg-surface-2">
-          <Icon className="size-5 text-accent" strokeWidth={1.75} aria-hidden="true" />
+          <Icon
+            className={cn("size-5", muted ? "text-text-dim" : "text-accent")}
+            strokeWidth={1.75}
+            aria-hidden="true"
+          />
         </span>
         {/* Capped so the reason wraps at a readable measure instead of
             stretching to the full 1100px container. */}
@@ -176,13 +195,20 @@ export function NextStepRow({
       <span className="flex size-8 shrink-0 items-center justify-center rounded-md border border-hairline bg-surface-2">
         <Icon className="size-4 text-text-dim" strokeWidth={1.75} aria-hidden="true" />
       </span>
-      <span className="min-w-0 max-w-[62ch] flex-1">
+      {/* Deliberately NOT capped to a 62ch measure like the hero: these lines
+          are single-line and truncated, so a narrow cap would ellipsis an
+          authored reason mid-sentence — which would undo the whole point of
+          authoring them. They get the full remaining row width; the ~110-char
+          ceiling documented in the lessons README keeps them inside it. */}
+      <span className="min-w-0 flex-1">
         <span className="block truncate text-sm font-medium text-text">{step.title}</span>
         <span className="mt-1 block truncate text-sm text-text-dim">{step.reason}</span>
       </span>
       {/* Right cluster: gives the trailing arrow a neighbour instead of
-          leaving it stranded at the far edge of a 1100px row. */}
-      <StepMeta step={step} className="hidden shrink-0 sm:flex" />
+          leaving it stranded at the far edge of a 1100px row. Kept at every
+          width — the pillar and the time cost are the point of the eyebrow,
+          so hiding them on small screens hid the information itself. */}
+      <StepMeta step={step} className="shrink-0" />
       {runnable ? (
         <RunsLocallyNote />
       ) : (

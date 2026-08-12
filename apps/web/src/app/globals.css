@@ -25,6 +25,9 @@
      license) and swap these fallback stacks for @font-face-backed ones. */
   --font-body: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono-stack: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+
+  /* DESIGN.md Motion: "One duration, one easing." */
+  --duration-standard: 150ms;
 }
 
 @theme inline {
@@ -45,12 +48,20 @@
   --radius-md: 6px;
   --radius-sm: 3px;
 
-  /* DESIGN.md Motion: "One duration, one easing." These generate the
-     `duration-standard` / `ease-standard` utilities, so no screen hand-rolls
-     an arbitrary-value easing again (three surfaces had silently fallen back
-     to Tailwind's default ease by omitting it). */
-  --duration-standard: 150ms;
+  /* `--ease-*` IS a Tailwind v4 theme namespace, so this alone generates the
+     `ease-standard` utility — no screen hand-rolls an arbitrary-value easing
+     again (three surfaces had silently fallen back to Tailwind's default ease
+     by omitting it). */
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* There is NO `--duration-*` theme namespace in Tailwind v4 — `duration-*`
+   takes bare numeric values instead. Declaring one in @theme silently emits
+   nothing, which left every element using `duration-standard` with no
+   transition-duration at all (i.e. instant, not 150ms). Declare the utility
+   explicitly so the token stays single-sourced and actually compiles. */
+@utility duration-standard {
+  transition-duration: var(--duration-standard);
 }
 
 /* DESIGN.md Motion: "Respect prefers-reduced-motion: disable transforms and

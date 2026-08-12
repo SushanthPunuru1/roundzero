@@ -48,6 +48,10 @@ function StatStrip({ children, className }: StatStripProps) {
         <div
           key={index}
           className={cn(
+            // min-w-0 so a Stat with a prose (non-mono) value can actually
+            // truncate — a flex item defaults to min-width:auto, which would
+            // let a long lesson title stretch the strip instead.
+            "min-w-0",
             index > 0 && "border-l border-hairline pl-8",
           )}
         >
