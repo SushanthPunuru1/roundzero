@@ -203,7 +203,7 @@ function TodaySection({
         support={
           coldStart
             ? "Your first recall cards are waiting — the drill introduces them the moment you open it."
-            : "Recall due now, your streak, and the lesson you're in the middle of."
+            : "Recall due now, your streak, and the last lesson you finished."
         }
         aside={
           <Link
