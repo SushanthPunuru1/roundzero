@@ -6,7 +6,64 @@ lands ~early-to-mid November. Phase 1 must be live for our own club by
 late September; Linux labs by early November. August assumes reduced hours
 (SAT retake); September coexists with EA essays.
 
+## Locked build order
+
+This supersedes the phase-gate sequencing and the calendar map below, both
+of which are kept for reference. Decided deliberately; not up for
+re-litigation each session.
+
+### 1. Everything user-facing — content AND unfinished functionality
+
+In this order:
+
+1. Linux lesson set (current)
+2. Checklist trio — team fork UI, diff view against upstream, print/PDF
+   export. Pure fork/diff/reorder logic already landed in
+   `packages/db/src/checklists/fork.ts`; what remains is server actions and
+   the three surfaces.
+3. Remaining lesson sets — Forensics, Scripting, Meta-skills
+4. Coach setup wizard
+5. Content-depth pass to fatten every bank
+
+Functionality sits inside this step rather than after it because the design
+pass cannot run on screens that do not exist, and fork/diff, print export
+and the coach wizard are all user-facing surfaces.
+
+### 2. Infrastructure — the hosting launch
+
+Server, orchestrator, gVisor isolation, egress lockdown, pooling, teardown
+— so the lab runs for someone other than the author.
+
+### 3. Full design pass — the whole app at once
+
+**Prerequisite, and the first task of this step: self-host Switzer and IBM
+Plex Mono.** `DESIGN.md` specifies both; `globals.css` still carries a TODO
+and falls back to `ui-sans-serif` / `ui-monospace` system stacks. Every
+screen critiqued so far has been rendering the fallback, so any typography
+tuning done before the real faces land is tuning the wrong thing. Fonts
+first, then everything else.
+
+Input for the rest of the pass is `docs/DESIGN_GRIPES.md`, not taste.
+
+### 4. Club onboarding
+
+Only after 3.
+
+**Nobody uses this app — including the author's own club — until the design
+pass is done.** Early user testing and soft launches have been considered
+and rejected. Do not propose them. The reason the design pass comes after
+content is that designing around placeholder or absent content produces
+screens that break the moment real content lands; the reason onboarding
+comes after design is that a first impression is spent once.
+
+Consequence for every session in steps 1 and 2: screens may ship visually
+rough. They may NOT ship with hand-rolled primitives — see `CLAUDE.md`
+golden rule 3. Rough-but-composed is cheap to fix in step 3; hand-rolled is
+not.
+
 ## Calendar map
+
+Superseded by the locked build order above; retained for reference.
 
 | Window | Build | Gate |
 |---|---|---|
@@ -106,8 +163,9 @@ late September; Linux labs by early November. August assumes reduced hours
 - [x] First-session guided path for new students (Part C above: the dashboard
       is now the post-sign-in landing and removes the "what do I do?" decision)
 - [ ] Empty/loading/error states audited across every page
-- **Phase 1 gate:** own club completes Windows + Linux knowledge tracks;
-  ≥ 80% weekly return over 3 weeks.
+- **Phase 1 gate (deferred to step 4 of the locked order):** own club
+  completes Windows + Linux knowledge tracks; ≥ 80% weekly return over
+  3 weeks.
 
 ## Phase 2 — Linux live labs (October → early November)
 
@@ -118,7 +176,8 @@ non-negotiable before any external user) · Go agent: YAML check evaluation,
 from spec Appendix A · terminal-only sessions (xterm.js/ttyd) — desktops
 deferred · generated README per instance · debrief page with ScoreLine list;
 missed items auto-enqueue to SRS.
-**Gate:** 25 external users complete a lab; cold start < 20s; zero
+**Gate (evaluated after the design pass, not before it — see locked build
+order above):** 25 external users complete a lab; cold start < 20s; zero
 isolation incidents.
 
 ## Phase 3+ (pointers only)

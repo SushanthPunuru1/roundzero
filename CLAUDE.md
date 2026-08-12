@@ -6,14 +6,28 @@ Full product spec: `docs/spec.md`. Roadmap and gates: `docs/ROADMAP.md`.
 
 ## Current focus
 
-**Phase 2 — Linux live labs.** Phase 1 (M1-M4) is done. The Go scoring
-agent + `linux-practice` vulnerable image (`agent/`) are done and proven.
-Current slice: the in-browser lab terminal — `lab-broker/` (local container
-lifecycle + terminal bridge) and `apps/web`'s `/app/lab` surface. See
-`docs/ROADMAP.md` for the full Phase 2 gate. Do not build ahead of it
-(multi-tenant isolation, gVisor, pooling, the real orchestrator, cloud
-deploy — those are explicitly later sessions). If a task drifts past the
-current slice, stop and flag it instead of building it.
+**Sequencing authority: `docs/ROADMAP.md`'s "Locked build order" section.**
+That section supersedes the calendar map and phase gates elsewhere in the
+roadmap — read it before starting work, don't restate it here.
+
+Active slice: the Linux lesson set (step 1.1 of the locked order). Next up
+after that is the checklist trio — team fork (customize, add, reorder),
+diff against upstream canonical, and print/PDF export (load-bearing: teams
+use printed references during a round). The pure fork/diff/reorder logic is
+already done and unit-tested in `packages/db/src/checklists/fork.ts`; no
+migration is needed, the schema already carries `sourceVersion`,
+`upstreamItemId`, `removed`, and nullable overrides. Still to build: server
+actions, the `/app/checklists/[id]` editing UI, the diff view, and the
+print surface.
+
+Two fork invariants worth not rediscovering: a fork stores OVERRIDES, not
+copies (an untouched item keeps inheriting upstream corrections; only
+edited fields pin), and removal is a soft-hide (`removed: true`) so the
+diff can tell a deliberate team drop from an item upstream never had.
+
+Infrastructure (orchestrator, gVisor, pooling, cloud deploy) and the full
+design pass both stay explicitly later, per the locked order. If a task
+drifts past the current slice, stop and flag it instead of building it.
 
 ## Golden rules
 
@@ -39,6 +53,9 @@ current slice, stop and flag it instead of building it.
 8. **Minors use this platform.** Data minimization always: display handle,
    grade band, no DOB, no unnecessary PII. Never log request bodies
    containing personal data.
+9. **No early user testing, soft launches, or club onboarding before the
+   design pass.** This was decided, not an open question — see
+   `docs/ROADMAP.md`'s locked build order.
 
 ## Stack (locked — change only via docs/DECISIONS.md)
 
