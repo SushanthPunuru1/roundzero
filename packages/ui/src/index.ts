@@ -1,5 +1,7 @@
 export { Button, buttonVariants, type ButtonProps } from "./components/ui/button";
 export { Input, type InputProps } from "./components/ui/input";
+export { Textarea, type TextareaProps } from "./components/ui/textarea";
+export { Checkbox, type CheckboxProps } from "./components/ui/checkbox";
 export {
   Card,
   CardHeader,

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  canEditTeamChecklist,
   canJoinTeam,
   canManageRoster,
   canPromoteToCaptain,
@@ -75,6 +76,20 @@ describe("canManageRoster", () => {
 
   it("denies a member", () => {
     expect(canManageRoster("member")).toBe(false);
+  });
+});
+
+describe("canEditTeamChecklist", () => {
+  it("allows a coach", () => {
+    expect(canEditTeamChecklist("coach")).toBe(true);
+  });
+
+  it("allows a captain", () => {
+    expect(canEditTeamChecklist("captain")).toBe(true);
+  });
+
+  it("denies a member", () => {
+    expect(canEditTeamChecklist("member")).toBe(false);
   });
 });
 

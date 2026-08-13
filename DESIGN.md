@@ -99,20 +99,20 @@ Build it once in `packages/ui`, prop-driven, before any screen uses it.
 
 ## packages/ui v1 inventory
 
-Built: Button (primary / ghost / destructive) · Input · Select · Card ·
-Badge/Chip (category, division, level) · Avatar (deterministic initials) ·
-PageHeader (eyebrow, title, support line, actions) · Eyebrow (the small-caps
-label — PageHeader and Stat both compose it) · Stat/StatStrip (the
+Built: Button (primary / ghost / destructive) · Input · Textarea (Input's
+styling, resizable) · Select · Checkbox (explicit-border box, print-safe) ·
+Card · Badge/Chip (category, division, level) · Avatar (deterministic
+initials) · PageHeader (eyebrow, title, support line, actions) · Eyebrow (the
+small-caps label — PageHeader and Stat both compose it) · Stat/StatStrip (the
 gauge-strip row) · EmptyState (icon, one sentence, one action) · ErrorNote
 (bordered AlertCircle note, neutral — not `--penalty`) · Kbd (keyboard-hint
 chip) · ScoreLine (the signature grammar) · TerminalFrame (xterm.js wrapper
 shell) · CountUp (the one expressive motion) · RunTrajectoryChart
 (enhancement-only trajectory chart, `aria-hidden`).
 
-Not yet built: Checkbox · DataTable (13px, sticky header, tabular-nums,
-currently hand-rolled per-screen — team's roster-table is the closest
-precedent) · Toast · Dialog · CommandPalette (⌘K, Kbd above is a building
-block for it).
+Not yet built: DataTable (13px, sticky header, tabular-nums, currently
+hand-rolled per-screen — team's roster-table is the closest precedent) ·
+Toast · Dialog · CommandPalette (⌘K, Kbd above is a building block for it).
 
 Every screen composes from these. New primitive → add here, tokenized,
 then use.

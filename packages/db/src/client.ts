@@ -14,6 +14,12 @@ if (process.env.NODE_ENV !== "production") {
 // `@prisma/client` dependency just for enum types/values.
 export { Division, MachineRole, TrackLevel, OS, CardType, ForensicsArchetype } from "@prisma/client";
 
+// `Prisma.DbNull` is the sentinel a nullable Json column needs to actually
+// clear it — a bare JS `null` is ambiguous for Json fields, so the checklist
+// fork write-path (revert-to-upstream on `commands`) needs this re-export
+// too rather than taking a direct `@prisma/client` dependency in apps/web.
+export { Prisma } from "@prisma/client";
+
 // Re-exported so apps/web can parse/grade a lesson MDX file it reads from
 // packages/content without duplicating the frontmatter contract (README.md
 // in packages/content/lessons) or the check-grading math.

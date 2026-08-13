@@ -2,8 +2,8 @@ import { headers } from "next/headers";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, ChevronRight, TriangleAlert } from "lucide-react";
-import { prisma } from "@roundzero/db";
-import { Badge, Eyebrow, PageHeader } from "@roundzero/ui";
+import { prisma, diffFork, isCleanFork, resolveFork } from "@roundzero/db";
+import { Badge, Button, Eyebrow, PageHeader } from "@roundzero/ui";
 
 import { auth } from "@/lib/auth";
 import {
@@ -13,7 +13,23 @@ import {
   osLabel,
   type ChecklistItemView,
 } from "@/lib/checklists";
+import { canEditTeamChecklist } from "@/lib/teams";
+import { toForkItemRow, toUpstreamItem } from "@/lib/checklist-fork";
 import { CommandBlock } from "./command-block";
+import { CreateForkButton } from "./create-fork-button";
+import { ForkEditor } from "./fork-editor";
+
+function BackLink() {
+  return (
+    <Link
+      href="/app/checklists"
+      className="inline-flex items-center gap-1.5 text-sm text-text-dim hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
+    >
+      <ArrowLeft className="size-3.5" strokeWidth={1.75} aria-hidden="true" />
+      Checklists
+    </Link>
+  );
+}
 
 export default async function ChecklistDetailPage({
   params,
@@ -41,6 +57,62 @@ export default async function ChecklistDetailPage({
     notFound();
   }
 
+  const member = await prisma.member.findFirst({ where: { userId: session.user.id } });
+  const canEdit = member ? canEditTeamChecklist(member.role) : false;
+
+  const teamChecklist = member
+    ? await prisma.teamChecklist.findFirst({
+        where: { organizationId: member.organizationId, sourceId: id },
+        include: { items: true },
+      })
+    : null;
+
+  const printAction = (
+    <Button asChild variant="ghost" size="sm">
+      <Link href={`/app/checklists/${id}/print`}>Print</Link>
+    </Button>
+  );
+
+  if (teamChecklist) {
+    const upstream = template.items.map(toUpstreamItem);
+    const forkRows = teamChecklist.items.map(toForkItemRow);
+    const resolved = resolveFork(forkRows, upstream);
+    const diff = diffFork(forkRows, upstream);
+    const visibleCount = resolved.filter((item) => !item.removed).length;
+
+    return (
+      <div>
+        <BackLink />
+        <PageHeader
+          className="mt-3"
+          eyebrow={template.season.title}
+          title={
+            <span className="flex flex-wrap items-center gap-3">
+              <Badge>{osLabel(template.os)}</Badge>
+              {template.title}
+            </span>
+          }
+          support="Your team's fork. Untouched items keep inheriting upstream corrections."
+          actions={
+            <div className="flex items-center gap-2">
+              {printAction}
+              {!isCleanFork(diff) && (
+                <Button asChild variant="ghost" size="sm">
+                  <Link href={`/app/checklists/${id}/diff`}>View diff</Link>
+                </Button>
+              )}
+            </div>
+          }
+        />
+        <p className="mt-1 font-mono text-sm tabular-nums text-text-dim">{visibleCount} items</p>
+
+        <div className="mt-8">
+          <ForkEditor teamChecklistId={teamChecklist.id} items={resolved} canEdit={canEdit} />
+        </div>
+      </div>
+    );
+  }
+
   const itemViews: ChecklistItemView[] = template.items.map((item) => ({
     id: item.id,
     skillNodeId: item.skillNodeId,
@@ -59,13 +131,7 @@ export default async function ChecklistDetailPage({
 
   return (
     <div>
-      <Link
-        href="/app/checklists"
-        className="inline-flex items-center gap-1.5 text-sm text-text-dim hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
-      >
-        <ArrowLeft className="size-3.5" strokeWidth={1.75} aria-hidden="true" />
-        Checklists
-      </Link>
+      <BackLink />
 
       <PageHeader
         className="mt-3"
@@ -75,6 +141,12 @@ export default async function ChecklistDetailPage({
             <Badge>{osLabel(template.os)}</Badge>
             {template.title}
           </span>
+        }
+        actions={
+          <div className="flex items-center gap-2">
+            {printAction}
+            {canEdit && <CreateForkButton templateId={id} />}
+          </div>
         }
       />
       <p className="mt-1 font-mono text-sm tabular-nums text-text-dim">

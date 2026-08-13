@@ -24,7 +24,8 @@ export default async function ChecklistsPage() {
       <PageHeader eyebrow="Reference" title="Checklists" />
       <p className="mt-1 text-sm text-text-dim">
         The canonical hardening checklists — every item ties to a skill node and, where one
-        exists, a lesson. Read-only for now; team forks land next.
+        exists, a lesson. A coach or captain can customize one for your team from its detail
+        page; everyone else sees the canonical version or your team's fork, read-only.
       </p>
       <StatStrip className="mt-6">
         <Stat label="Checklists" value={templates.length} />

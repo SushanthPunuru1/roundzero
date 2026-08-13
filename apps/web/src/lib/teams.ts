@@ -33,6 +33,12 @@ export function canManageRoster(role: string): boolean {
   return role === "coach";
 }
 
+/** Coach or captain may edit a team's checklist fork (create, edit items,
+ * reorder, accept upstream changes); plain members get read-only. */
+export function canEditTeamChecklist(role: string): boolean {
+  return role === "coach" || role === "captain";
+}
+
 export function canPromoteToCaptain(targetRole: string): boolean {
   return targetRole === "member";
 }
