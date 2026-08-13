@@ -10,13 +10,14 @@ Full product spec: `docs/spec.md`. Roadmap and gates: `docs/ROADMAP.md`.
 That section supersedes the calendar map and phase gates elsewhere in the
 roadmap — read it before starting work, don't restate it here.
 
-Active slice: the Linux lesson set (step 1.1 of the locked order). Next up
-after that is the checklist trio — team fork (customize, add, reorder),
-diff against upstream canonical, and print/PDF export (load-bearing: teams
-use printed references during a round). The pure fork/diff/reorder logic is
-already done and unit-tested in `packages/db/src/checklists/fork.ts`; no
-migration is needed, the schema already carries `sourceVersion`,
-`upstreamItemId`, `removed`, and nullable overrides. Still to build: server
+Active slice: the checklist trio (step 1.2 of the locked order) — team fork
+(customize, add, reorder), diff against upstream canonical, and print/PDF
+export (load-bearing: teams use printed references during a round). The pure
+fork/diff/reorder logic is already done and unit-tested in
+`packages/db/src/checklists/fork.ts`. The schema carries `sourceVersion`,
+`upstreamItemId`, `removed`, and nullable overrides on `why`/`commands` —
+`action` was the one exception, non-nullable by oversight rather than design,
+fixed by a small additive migration (see `docs/DECISIONS.md`). Still to build: server
 actions, the `/app/checklists/[id]` editing UI, the diff view, and the
 print surface.
 

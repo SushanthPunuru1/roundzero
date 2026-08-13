@@ -260,7 +260,7 @@ model TeamChecklistItem {
   teamChecklist   TeamChecklist @relation(fields: [teamChecklistId], references: [id], onDelete: Cascade)
   upstreamItemId  String? // null = team-added item
   sortOrder       Int
-  action          String
+  action          String? // null = inherit from upstream, same as why/commands
   why             String?
   commands        Json?
   removed         Boolean       @default(false) // soft-hide upstream items

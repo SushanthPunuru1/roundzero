@@ -2,9 +2,11 @@
 // DB/framework access — apps/web loads the rows and calls these, exactly how
 // track/generate.ts is wrapped by lib/track.ts.
 //
-// The data model already carries everything this needs (TeamChecklist.
-// sourceVersion, TeamChecklistItem.upstreamItemId / .removed / nullable
-// overrides), so forking and diffing shipped with no migration.
+// The data model carries everything this needs (TeamChecklist.sourceVersion,
+// TeamChecklistItem.upstreamItemId / .removed / nullable overrides on
+// action/why/commands), so this pure layer shipped with no migration. A
+// later migration DID make TeamChecklistItem.action nullable to match
+// why/commands, which this file always assumed — see docs/DECISIONS.md.
 //
 // Two ideas do all the work here:
 //
