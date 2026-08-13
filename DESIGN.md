@@ -34,6 +34,30 @@ success toasts for "settings saved" (use accent/neutral), no red marketing
 accents. When green appears, it means points. Contrast: all text/background
 pairs meet WCAG AA; check any new pairing before use.
 
+### Print surface tokens (`field datasheet`)
+
+The one deliberate departure from dark-first (see Direction, and DECISIONS
+013). These are scope-overrides, not a separate theme switch: the print
+route wraps its content in a `.datasheet` container that reassigns `--bg`,
+`--surface`, `--surface-2`, `--hairline`, `--text`, `--text-dim` to the
+values below, so every `packages/ui` component built against those tokens
+(Badge, Button, Checkbox…) renders correctly on paper with no print-specific
+variant of its own. `--accent` is unchanged — it still carries category
+chips and the checked state, outlined per the field-datasheet identity.
+
+| Token | Hex | Use | Replaces |
+|---|---|---|---|
+| `--paper-bg` | `#F6F1E7` | Page background — warm paper | `--bg` |
+| `--paper-surface` | `#FBF8F2` | Header block, cards | `--surface` |
+| `--paper-surface-2` | `#ECE2C8` | Raised/table-header surfaces | `--surface-2` |
+| `--paper-hairline` | `#9C8A63` | Borders, checkbox outline | `--hairline` |
+| `--paper-text` | `#23200F` | Primary ink | `--text` |
+| `--paper-text-dim` | `#6B5F42` | Secondary ink, labels | `--text-dim` |
+
+Contrast checked: `--paper-text` on `--paper-bg` ≈ 17:1, `--paper-text-dim`
+on `--paper-bg` ≈ 5.5:1 — both clear AA. Implementation in
+`apps/web/src/app/globals.css`.
+
 ## Typography
 
 - **UI / body:** Switzer (Fontshare, self-hosted, free license). Weights

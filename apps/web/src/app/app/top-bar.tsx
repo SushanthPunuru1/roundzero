@@ -34,7 +34,7 @@ export function TopBar({
   const pathname = usePathname();
 
   return (
-    <header className="sticky top-0 z-10 h-14 shrink-0 border-b border-hairline bg-bg/95 backdrop-blur-sm">
+    <header className="sticky top-0 z-10 h-14 shrink-0 border-b border-hairline bg-bg/95 backdrop-blur-sm print:hidden">
       <div className="mx-auto flex h-full max-w-[1100px] items-center justify-between gap-4 px-6">
         <div className="flex items-center gap-6">
           <Link

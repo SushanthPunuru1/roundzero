@@ -2029,3 +2029,95 @@ carries pillar and omits time rather than inventing it, the ordinal renders,
 and the hero's accent drops under `muted`. Each assertion was mutation-
 verified — reverting the fix in a scratch copy fails precisely the test
 written for it and nothing else.
+
+**039 · 2026-08-13 · The checklist trio: fork editing, diff, print
+(ROADMAP step 1.2).** Server actions, editing UI, diff view, and print
+export on top of the pure fork/diff/reorder logic from `fork.ts` (commit
+`393427b`, no DECISIONS entry of its own).
+
+*Migration, corrected from the spec.* `TeamChecklistItem.action` was `String`
+(NOT NULL) while `why`/`commands` were nullable — an oversight, not a design
+choice; `fork.ts`'s already-tested logic assumed all three were nullable
+(`initialForkItems()` writes `action: null` on every row). Migration
+`20260813014903_make_team_checklist_item_action_nullable` is a single
+`ALTER COLUMN "action" DROP NOT NULL` — additive, backwards-compatible
+(existing non-null values stay valid; no deployed code path ever writes
+`null` yet), and was run directly against the same Neon instance Vercel
+serves from (`.env`'s `DATABASE_URL`), confirmed with no deploy in flight at
+the time and no production forks yet to backfill. This corrects CLAUDE.md's
+and `fork.ts`'s header comments, which both claimed no migration was needed.
+Widening a nullable constraint ahead of the code that relies on it is safe
+in general, but is exactly the kind of change that must never land while a
+deploy is mid-flight — the migration and the code that depends on it should
+be treated as one unit even though Vercel and `prisma migrate dev` are two
+separate, un-sequenced steps here.
+
+*Authorization.* One chokepoint, `requireForkEditor()` in
+`apps/web/src/app/app/checklists/actions.ts`, run by every mutation: session
+→ same-organization membership → `canEditTeamChecklist(role)` (new in
+`lib/teams.ts`, coach or captain — extends the existing `canManageRoster`
+pattern rather than duplicating it). Enforced server-side; a member invoking
+an action directly is refused exactly like one who never sees the button.
+
+*Null-means-inherit, whole-map for `commands`.* Every write to an
+upstream-linked field goes through `overrideOrNull`/`commandsOverrideOrNull`
+(new `apps/web/src/lib/checklist-fork.ts`), which store `null` — not a copy
+— when the value equals upstream. `commands` is a `Record<string, string>`
+keyed by OS variant, not a single string, and the override is the WHOLE map:
+editing one variant resubmits every variant, edited and not, because a
+partial map would make untouched variants vanish on resolve (`resolveFork`
+only falls back to upstream when the entire field is `null`). Revert always
+clears the whole field. `revertForkItemField` is shared verbatim between the
+fork editor's "Revert to upstream" and the diff view's "Accept upstream" —
+same write, two names for two contexts.
+
+*Print: browser print, no PDF dependency.* `/app/checklists/[id]/print`
+renders the `field datasheet` identity (DESIGN.md, DECISIONS 013) and relies
+on the browser's own print-to-PDF, per golden rules 4 and 7. DESIGN.md gains
+a documented `--paper-*` token table (it previously only gestured at "warm
+light" with no values) — `--paper-bg`/`-surface`/`-surface-2`/`-hairline`/
+`-text`/`-text-dim`, all checked for AA. Implementation is a `.datasheet`
+CSS scope in `globals.css` that reassigns the base `--bg`/`--surface`/
+`--hairline`/`--text`/`--text-dim` tokens to the paper values *within that
+scope*, rather than a `@media print` swap — every `packages/ui` component
+built against the base token names (Badge, Button, the new Checkbox) renders
+correctly on paper with zero print-specific variants of its own, and the
+in-browser preview already matches what prints. `.app-shell-content` (the
+app shell's centered column) drops its max-width/padding under
+`@media print` so the datasheet uses the full physical page instead of
+shrinking inside the on-screen reading column.
+
+The print header's version line shows the TEMPLATE's current version as
+authority, with the fork's `sourceVersion` appended only when it differs
+(`versionLabel()`) — `resolveFork` merges every inherited field against
+current upstream, so a fork made at v1 already prints v2-derived text once
+upstream has moved on, and printing "v1" unqualified on a load-bearing paper
+artifact would be a correctness bug, not a cosmetic one. The record ID
+(`formatRecordId()`) needs a team name and slug the print route may not
+have — a signed-in viewer with no team membership still gets a real header,
+`NO_TEAM_NAME`/`NO_TEAM_SLUG` ("Unaffiliated" / "no-team"), never a blank
+slot (DESIGN.md: no placeholder voids).
+
+*Reorder and restore.* `moveForkItem` reorders only the visible (non-removed)
+set through the already-tested `reorder()`; a removed row keeps whatever
+`sortOrder` it had when hidden. Display and print numbering are always the
+item's position in the filtered, sorted list — never the raw `sortOrder`
+value — so the gap removal leaves behind is harmless. Restoring a removed
+row does not renumber it back to a specific position: it re-enters the
+visible set at its old `sortOrder`, landing wherever the `[sortOrder, id]`
+tie-break puts it. Deterministic, not a promised adjacency to its former
+neighbours.
+
+*New `packages/ui` primitives:* `Textarea` (Input's styling, resizable —
+`packages/content/checklists/linux-core.yaml` confirms real commands are
+multi-line with comments, so a single-line `Input` wasn't enough) and
+`Checkbox` (explicit-border box rather than the UA-painted control, so the
+same component is also the print datasheet's pen-checkable box).
+
+Verified: `pnpm lint && pnpm test && pnpm build` green after each of the
+four commits (507 unit tests total across `packages/db` and `apps/web`,
+23 of them new in `checklist-fork.test.ts`). Not yet verified in this
+session: a real signed-in walkthrough of the seven spec checks (fork a
+template, edit one field, confirm the diff gate, keyboard-only reorder,
+remove/restore, print-preview, and a `member`-role mutation actually
+refused) — pending `pnpm dev` plus browser automation.

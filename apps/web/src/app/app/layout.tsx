@@ -23,7 +23,7 @@ export default async function AppLayout({
     <div className="flex min-h-full flex-col">
       <TopBar name={viewer.name} email={viewer.email} dueCount={dueCount} />
       <main className="flex-1">
-        <div className="mx-auto max-w-[1100px] px-6 py-8">{children}</div>
+        <div className="app-shell-content mx-auto max-w-[1100px] px-6 py-8">{children}</div>
       </main>
     </div>
   );

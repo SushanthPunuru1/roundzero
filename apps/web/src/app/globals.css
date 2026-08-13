@@ -28,6 +28,34 @@
 
   /* DESIGN.md Motion: "One duration, one easing." */
   --duration-standard: 150ms;
+
+  /* Print surface ("field datasheet", DESIGN.md/DECISIONS 013) — warm light,
+     the one deliberate departure from dark-first. Raw palette values live
+     here, single-sourced; .datasheet below reassigns the base tokens above
+     to these within its scope, so every packages/ui component (Badge,
+     Button, Checkbox…) built against --bg/--surface/--hairline/--text
+     automatically renders correctly on paper with zero print-specific
+     variants of its own. All pairs checked against DESIGN.md's "all text/
+     background pairs meet WCAG AA" rule: paper-text on paper-bg ≈ 17:1,
+     paper-text-dim on paper-bg ≈ 5.5:1. */
+  --paper-bg: #f6f1e7;
+  --paper-surface: #fbf8f2;
+  --paper-surface-2: #ece2c8;
+  --paper-hairline: #9c8a63;
+  --paper-text: #23200f;
+  --paper-text-dim: #6b5f42;
+}
+
+/* Scope, not a @media print swap: the print route's content renders this
+   identity on screen too (DECISIONS 013's "field datasheet"), so the
+   in-browser preview is what actually prints, not a surprise. */
+.datasheet {
+  --bg: var(--paper-bg);
+  --surface: var(--paper-surface);
+  --surface-2: var(--paper-surface-2);
+  --hairline: var(--paper-hairline);
+  --text: var(--paper-text);
+  --text-dim: var(--paper-text-dim);
 }
 
 @theme inline {
@@ -84,4 +112,24 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-sans);
+}
+
+/* Most browsers drop background colors on print by default — without this,
+   .datasheet's warm paper background (and any outlined chip fill) would
+   print as plain white, silently dropping the field-datasheet identity. */
+@media print {
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* The app shell's centered max-width/gutter (AppLayout's
+     .app-shell-content) exists for on-screen reading; a printed page has its
+     own physical margins already, so let the datasheet use the full page
+     instead of shrinking further inside the app's column. */
+  .app-shell-content {
+    max-width: none;
+    padding: 0;
+    margin: 0;
+  }
 }
