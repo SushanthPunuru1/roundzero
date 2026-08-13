@@ -265,6 +265,15 @@ model TeamChecklistItem {
   commands        Json?
   removed         Boolean       @default(false) // soft-hide upstream items
 
+  // What upstream said for each field the moment it was overridden. Null
+  // whenever that field isn't overridden. diffFork's only source of truth
+  // for "upstream drifted since this was pinned" — comparing the override
+  // against CURRENT upstream can't tell that apart from "the team wrote
+  // different text on purpose", which is the normal shape of a customization.
+  actionSnapshot   String?
+  whySnapshot      String?
+  commandsSnapshot Json?
+
   @@index([teamChecklistId])
 }
 

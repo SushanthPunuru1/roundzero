@@ -43,6 +43,9 @@ export interface PrismaForkItemRowLike {
   why: string | null;
   commands: unknown;
   removed: boolean;
+  actionSnapshot: string | null;
+  whySnapshot: string | null;
+  commandsSnapshot: unknown;
 }
 
 export function toForkItemRow(row: PrismaForkItemRowLike): ForkItemRow {
@@ -54,7 +57,23 @@ export function toForkItemRow(row: PrismaForkItemRowLike): ForkItemRow {
     why: row.why,
     commands: (row.commands as Record<string, string> | null) ?? null,
     removed: row.removed,
+    actionSnapshot: row.actionSnapshot,
+    whySnapshot: row.whySnapshot,
+    commandsSnapshot: (row.commandsSnapshot as Record<string, string> | null) ?? null,
   };
+}
+
+/**
+ * The snapshot to store alongside an override write. Null override (the
+ * field isn't actually pinned — either it was never touched, or the new
+ * value matched upstream and overrideOrNull/commandsOverrideOrNull already
+ * collapsed it to null) means null snapshot — nothing to remember. A real
+ * override means recording what upstream says RIGHT NOW, so a later diff
+ * can tell "upstream moved since this was written" apart from "this was
+ * always different, on purpose" (see fork.ts's diffFork).
+ */
+export function snapshotFor<T>(override: T | null, upstreamValue: T): T | null {
+  return override === null ? null : upstreamValue;
 }
 
 /**

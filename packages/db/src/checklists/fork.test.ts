@@ -34,6 +34,9 @@ function row(over: Partial<ForkItemRow> & { id: string }): ForkItemRow {
     why: null,
     commands: null,
     removed: false,
+    actionSnapshot: null,
+    whySnapshot: null,
+    commandsSnapshot: null,
     ...over,
   };
 }
@@ -49,6 +52,11 @@ describe("initialForkItems", () => {
     expect(items.map((i) => i.upstreamItemId)).toEqual(["a", "b", "c"]);
     expect(items.map((i) => i.sortOrder)).toEqual([0, 1, 2]);
     expect(items.every((i) => i.action === null && i.why === null && i.commands === null)).toBe(true);
+    expect(
+      items.every(
+        (i) => i.actionSnapshot === null && i.whySnapshot === null && i.commandsSnapshot === null,
+      ),
+    ).toBe(true);
   });
 });
 
@@ -125,15 +133,37 @@ describe("diffFork", () => {
   });
 
   // The category that actually matters: the team is pinned to older wording
-  // and will never see the correction unless told.
+  // and will never see the correction unless told. A conflict requires a
+  // snapshot of what upstream said AT OVERRIDE TIME — without it, this would
+  // be indistinguishable from a deliberate customization (see the two tests
+  // below), which is exactly the bug this snapshot exists to prevent.
   it("reports an upstream change hidden underneath a team override", () => {
     const fork = freshFork();
     fork[1]!.action = "Our wording";
+    fork[1]!.actionSnapshot = "Do b"; // what upstream said when the override was written
     const diff = diffFork(fork, [U("a", 0), U("b", 1, { action: "Upstream corrected" }), U("c", 2)]);
     expect(diff.updatedConflicting).toHaveLength(1);
     expect(diff.updatedConflicting[0]!.item.id).toBe("b");
     expect(diff.updatedConflicting[0]!.fields).toEqual(["action"]);
     expect(diff.updatedConflicting[0]!.teamValues.action).toBe("Our wording");
+  });
+
+  // Regression coverage for the bug a snapshot-free comparison has: an
+  // override that simply differs from upstream (the normal, intended
+  // shape of a customization) is NOT the same thing as upstream drifting
+  // underneath a pinned field, and must never be reported as a conflict.
+  it("does NOT report a conflict for a deliberate customization when upstream hasn't moved", () => {
+    const fork = freshFork();
+    fork[1]!.action = "Our own wording, deliberately different from upstream";
+    fork[1]!.actionSnapshot = "Do b"; // upstream said this when overridden, and still does
+    expect(diffFork(fork, UPSTREAM).updatedConflicting).toEqual([]);
+  });
+
+  it("treats an override with no snapshot (a legacy row) as a customization, not a conflict", () => {
+    const fork = freshFork();
+    fork[1]!.action = "Our wording"; // overridden, but actionSnapshot was never recorded
+    const diff = diffFork(fork, [U("a", 0), U("b", 1, { action: "Upstream corrected" }), U("c", 2)]);
+    expect(diff.updatedConflicting).toEqual([]);
   });
 
   it("does NOT report a conflict when the team override happens to match upstream", () => {
@@ -172,14 +202,20 @@ describe("diffFork", () => {
     expect(diffFork(fork, UPSTREAM).teamAdded).toBe(1);
   });
 
-  it("detects a commands override regardless of key order", () => {
+  it("detects a commands conflict regardless of key order, only when upstream moved since the snapshot", () => {
     const fork = freshFork();
-    fork[0]!.commands = { ubuntu24: "b", ubuntu22: "a" };
-    const upstream = [U("a", 0, { commands: { ubuntu22: "a", ubuntu24: "b" } }), U("b", 1), U("c", 2)];
-    expect(diffFork(fork, upstream).updatedConflicting).toEqual([]);
+    const snapshotAtOverride = { ubuntu22: "a", ubuntu24: "b" };
+    fork[0]!.commands = { ubuntu24: "b-team", ubuntu22: "a-team" };
+    fork[0]!.commandsSnapshot = snapshotAtOverride;
 
-    fork[0]!.commands = { ubuntu22: "different" };
-    expect(diffFork(fork, upstream).updatedConflicting).toHaveLength(1);
+    // Upstream unchanged since the snapshot (same content, different key
+    // order) — sameCommands is order-independent, so no conflict.
+    const unchanged = [U("a", 0, { commands: { ubuntu24: "b", ubuntu22: "a" } }), U("b", 1), U("c", 2)];
+    expect(diffFork(fork, unchanged).updatedConflicting).toEqual([]);
+
+    // Upstream moved since the snapshot — conflict.
+    const moved = [U("a", 0, { commands: { ubuntu22: "a", ubuntu24: "b-corrected" } }), U("b", 1), U("c", 2)];
+    expect(diffFork(fork, moved).updatedConflicting).toHaveLength(1);
   });
 });
 

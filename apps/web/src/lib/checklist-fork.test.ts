@@ -9,6 +9,7 @@ import {
   overrideOrNull,
   parseCommandsDraft,
   sameCommandsMap,
+  snapshotFor,
   toForkItemRow,
   toUpstreamItem,
   versionLabel,
@@ -176,6 +177,9 @@ describe("toForkItemRow", () => {
         why: null,
         commands: null,
         removed: false,
+        actionSnapshot: null,
+        whySnapshot: null,
+        commandsSnapshot: null,
       }),
     ).toEqual({
       id: "row1",
@@ -185,6 +189,9 @@ describe("toForkItemRow", () => {
       why: null,
       commands: null,
       removed: false,
+      actionSnapshot: null,
+      whySnapshot: null,
+      commandsSnapshot: null,
     });
   });
 
@@ -198,6 +205,9 @@ describe("toForkItemRow", () => {
         why: "Our README always asks for it.",
         commands: { all: "cat /etc/issue.net" },
         removed: false,
+        actionSnapshot: null,
+        whySnapshot: null,
+        commandsSnapshot: null,
       }),
     ).toEqual({
       id: "row2",
@@ -207,7 +217,43 @@ describe("toForkItemRow", () => {
       why: "Our README always asks for it.",
       commands: { all: "cat /etc/issue.net" },
       removed: false,
+      actionSnapshot: null,
+      whySnapshot: null,
+      commandsSnapshot: null,
     });
+  });
+
+  it("passes through a recorded snapshot, defaulting a Json null commandsSnapshot to plain null", () => {
+    expect(
+      toForkItemRow({
+        id: "row3",
+        upstreamItemId: "linux.setup.readme",
+        sortOrder: 0,
+        action: "Our wording",
+        why: null,
+        commands: null,
+        removed: false,
+        actionSnapshot: "Upstream's wording at override time",
+        whySnapshot: null,
+        commandsSnapshot: null,
+      }),
+    ).toEqual(
+      expect.objectContaining({
+        actionSnapshot: "Upstream's wording at override time",
+        whySnapshot: null,
+        commandsSnapshot: null,
+      }),
+    );
+  });
+});
+
+describe("snapshotFor", () => {
+  it("is null when the override is null — nothing to remember", () => {
+    expect(snapshotFor(null, "current upstream value")).toBeNull();
+  });
+
+  it("is the current upstream value when there's a real override", () => {
+    expect(snapshotFor("team's wording", "current upstream value")).toBe("current upstream value");
   });
 });
 

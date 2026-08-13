@@ -12,6 +12,7 @@ import {
   commandsOverrideOrNull,
   overrideOrNull,
   parseCommandsDraft,
+  snapshotFor,
   toUpstreamItem,
 } from "@/lib/checklist-fork";
 
@@ -201,9 +202,13 @@ export async function updateForkItemText(
       return { error: "That item's upstream checklist entry was retired." };
     }
     const nextValue = overrideOrNull(value, upstreamItem[field]);
+    const snapshot = snapshotFor(nextValue, upstreamItem[field]);
     await prisma.teamChecklistItem.update({
       where: { id: itemId },
-      data: field === "action" ? { action: nextValue } : { why: nextValue },
+      data:
+        field === "action"
+          ? { action: nextValue, actionSnapshot: snapshot }
+          : { why: nextValue, whySnapshot: snapshot },
     });
   }
 
@@ -260,10 +265,15 @@ export async function updateForkItemCommands(
     if (!upstreamItem) {
       return { error: "That item's upstream checklist entry was retired." };
     }
-    const nextValue = commandsOverrideOrNull(map, upstreamItem.commands as Record<string, string>);
+    const upstreamCommands = upstreamItem.commands as Record<string, string>;
+    const nextValue = commandsOverrideOrNull(map, upstreamCommands);
+    const snapshot = snapshotFor(nextValue, upstreamCommands);
     await prisma.teamChecklistItem.update({
       where: { id: itemId },
-      data: { commands: nextValue ?? Prisma.DbNull },
+      data: {
+        commands: nextValue ?? Prisma.DbNull,
+        commandsSnapshot: snapshot ?? Prisma.DbNull,
+      },
     });
   }
 
@@ -308,11 +318,15 @@ export async function revertForkItemField(
   }
 
   if (field === "commands") {
-    await prisma.teamChecklistItem.update({ where: { id: itemId }, data: { commands: Prisma.DbNull } });
+    await prisma.teamChecklistItem.update({
+      where: { id: itemId },
+      data: { commands: Prisma.DbNull, commandsSnapshot: Prisma.DbNull },
+    });
   } else {
     await prisma.teamChecklistItem.update({
       where: { id: itemId },
-      data: field === "action" ? { action: null } : { why: null },
+      data:
+        field === "action" ? { action: null, actionSnapshot: null } : { why: null, whySnapshot: null },
     });
   }
 

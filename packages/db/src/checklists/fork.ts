@@ -4,11 +4,14 @@
 //
 // The data model carries everything this needs (TeamChecklist.sourceVersion,
 // TeamChecklistItem.upstreamItemId / .removed / nullable overrides on
-// action/why/commands), so this pure layer shipped with no migration. A
-// later migration DID make TeamChecklistItem.action nullable to match
-// why/commands, which this file always assumed — see docs/DECISIONS.md.
+// action/why/commands, plus a nullable upstream-at-override-time snapshot
+// per field), so this pure layer shipped with no migration for its own
+// logic. Two later migrations DID touch the schema to keep it honest: one
+// made TeamChecklistItem.action nullable to match why/commands, and one
+// added the actionSnapshot/whySnapshot/commandsSnapshot columns diffFork
+// needs — see docs/DECISIONS.md for both.
 //
-// Two ideas do all the work here:
+// Three ideas do all the work here:
 //
 // 1. A fork stores OVERRIDES, not copies. A forked item whose `action`/`why`/
 //    `commands` are null inherits from upstream forever, so an upstream
@@ -20,6 +23,15 @@
 //    hides an item still has a row for it, so the diff can tell "this team
 //    deliberately dropped it" apart from "upstream never had it" — and the
 //    team can restore it. Deleting would lose that distinction permanently.
+//
+// 3. A conflict is upstream drift, not upstream disagreement. diffFork can't
+//    tell "the team wrote different text on purpose" apart from "upstream
+//    corrected this after the team overrode it" by comparing the override
+//    against current upstream alone — both look identical that way, and the
+//    first is the normal case, not an error state. Each override field
+//    carries a snapshot of what upstream said the moment it was written, and
+//    a conflict is snapshot != current upstream, not override != current
+//    upstream. See diffFork's own doc comment below.
 
 export interface UpstreamItem {
   id: string;
@@ -41,6 +53,20 @@ export interface ForkItemRow {
   why: string | null;
   commands: Record<string, string> | null;
   removed: boolean;
+  /**
+   * What upstream said for this field the moment its override was written.
+   * This is diffFork's only source of truth for "did upstream change since
+   * you overrode this" — comparing the override against CURRENT upstream
+   * can't distinguish a deliberate customization (team wrote different text
+   * on purpose; upstream never moved) from a stale one (upstream corrected
+   * the field after the override was written). Null whenever the field
+   * isn't overridden, or — for a row written before this column existed —
+   * when there's no snapshot to compare: diffFork treats a missing snapshot
+   * as "can't tell", never as a conflict.
+   */
+  actionSnapshot: string | null;
+  whySnapshot: string | null;
+  commandsSnapshot: Record<string, string> | null;
 }
 
 /** Where each field of a resolved row came from, so the UI can show a team
@@ -75,6 +101,9 @@ export function initialForkItems(upstream: UpstreamItem[]): Omit<ForkItemRow, "i
       why: null,
       commands: null,
       removed: false,
+      actionSnapshot: null,
+      whySnapshot: null,
+      commandsSnapshot: null,
     }));
 }
 
@@ -172,12 +201,20 @@ export interface ForkDiff {
  * now versus what am I looking at", and that's answerable from the rows
  * themselves. Comparing versions alone would report a diff for a bumped
  * version with no substantive change.
+ *
+ * A conflict is NOT "override differs from current upstream" — that would
+ * flag every deliberate customization forever, since a team's own wording is
+ * *supposed* to differ from upstream. It is "upstream drifted since the
+ * override was written": `row.actionSnapshot` (etc.) records what upstream
+ * said the moment a field was overridden, and a conflict fires only when
+ * that snapshot no longer matches current upstream. A missing snapshot
+ * (field overridden, snapshot null — either a legacy row from before this
+ * column existed, or nothing was ever recorded) reads as "can't tell", so it
+ * is treated as an ordinary customization, never a false conflict.
  */
 // There is deliberately no "upstream changed but you inherit it" category:
 // an inheriting field has no stored override, so the team is ALREADY seeing
-// the new text — there is nothing to report and nothing to act on. Reporting
-// it would require snapshotting upstream text at fork time, which buys a
-// notification nobody needs at the cost of a second copy of every string.
+// the new text — there is nothing to report and nothing to act on.
 export function diffFork(fork: ForkItemRow[], upstream: UpstreamItem[]): ForkDiff {
   const rowsByUpstreamId = new Map(
     fork.filter((r) => r.upstreamItemId !== null).map((r) => [r.upstreamItemId!, r]),
@@ -200,9 +237,17 @@ export function diffFork(fork: ForkItemRow[], upstream: UpstreamItem[]): ForkDif
     }
 
     const conflicting: ("action" | "why" | "commands")[] = [];
-    if (row.action !== null && row.action !== item.action) conflicting.push("action");
-    if (row.why !== null && row.why !== item.why) conflicting.push("why");
-    if (row.commands !== null && !sameCommands(row.commands, item.commands)) {
+    if (row.action !== null && row.actionSnapshot !== null && row.actionSnapshot !== item.action) {
+      conflicting.push("action");
+    }
+    if (row.why !== null && row.whySnapshot !== null && row.whySnapshot !== item.why) {
+      conflicting.push("why");
+    }
+    if (
+      row.commands !== null &&
+      row.commandsSnapshot !== null &&
+      !sameCommands(row.commandsSnapshot, item.commands)
+    ) {
       conflicting.push("commands");
     }
 

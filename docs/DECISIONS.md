@@ -2121,3 +2121,32 @@ session: a real signed-in walkthrough of the seven spec checks (fork a
 template, edit one field, confirm the diff gate, keyboard-only reorder,
 remove/restore, print-preview, and a `member`-role mutation actually
 refused) — pending `pnpm dev` plus browser automation.
+
+**039a · 2026-08-13 · Fixed a false-positive in `diffFork`'s conflict
+detection, found by inspection before any real fork existed to hit it.**
+`updatedConflicting` was computed as "override != current upstream" — which
+is also true of every deliberate customization a team makes, since a team's
+own wording is *supposed* to differ from upstream. The category would have
+flagged every edited field as "upstream changed, accept the correction"
+forever, whether or not upstream had actually moved. Fixed by giving each
+overridable field a snapshot of what upstream said the moment it was
+overridden (`TeamChecklistItem.actionSnapshot` / `whySnapshot` /
+`commandsSnapshot`, all nullable, migration
+`20260813034525_add_team_checklist_item_upstream_snapshots` — additive,
+same safety profile as 039's, applied directly to the same production Neon
+instance with no deploy in flight). A conflict is now snapshot != current
+upstream, computed in `fork.ts`'s `diffFork`; a missing snapshot (an
+override with no recorded snapshot — there is no such row yet in
+production, but there will be for any row written before this migration)
+is treated as an ordinary customization, never a conflict, per the same
+"can't tell, so don't guess" principle DESIGN.md already applies elsewhere.
+`snapshotFor()` (new, `apps/web/src/lib/checklist-fork.ts`) is the one
+place a snapshot gets written: null override → null snapshot, a real
+override → the current upstream value, called from `updateForkItemText`/
+`updateForkItemCommands` alongside the override itself, and cleared
+alongside it in `revertForkItemField`. `fork.test.ts` gained two regression
+tests (a deliberate customization must not read as a conflict; an override
+with no snapshot must not either) plus an update to the existing
+"upstream change hidden underneath a team override" test, which needed a
+snapshot to actually exercise the code path it was named for — that test
+was passing before this fix for the wrong reason.
