@@ -2116,11 +2116,15 @@ same component is also the print datasheet's pen-checkable box).
 
 Verified: `pnpm lint && pnpm test && pnpm build` green after each of the
 four commits (507 unit tests total across `packages/db` and `apps/web`,
-23 of them new in `checklist-fork.test.ts`). Not yet verified in this
-session: a real signed-in walkthrough of the seven spec checks (fork a
-template, edit one field, confirm the diff gate, keyboard-only reorder,
-remove/restore, print-preview, and a `member`-role mutation actually
-refused) — pending `pnpm dev` plus browser automation.
+23 of them new in `checklist-fork.test.ts`). Also verified via browser
+walkthrough against the running dev server: fork creation (every item
+resolves `origin: upstream`), a per-field edit (only the edited field pins;
+its sibling field keeps inheriting; the revert affordance appears only on
+the pinned field), the diff link's clean/dirty gating, the `/diff` redirect
+when there's no fork, and the print surface (warm-paper identity, ≈14.5:1
+and ≈5.58:1 text contrast, dense 1..n numbering, checkboxes, wrapping mono
+commands, app chrome hidden). Keyboard-only reorder, remove/restore, and the
+`member`-role refusal check are covered separately.
 
 **039a · 2026-08-13 · Fixed a false-positive in `diffFork`'s conflict
 detection, found by inspection before any real fork existed to hit it.**
