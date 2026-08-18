@@ -1,0 +1,104 @@
+---
+slug: forensics-listening-ports
+title: Identifying listening ports
+why: "An open port is both a forensics answer and a vuln. Same command answers both."
+domainId: forensics
+level: standard
+minutes: 7
+sortOrder: 6
+published: true
+skills:
+  - forensics.core.ports
+check:
+  - q: "Which command shows listening ports with the owning process on Linux?"
+    options:
+      - "ping -a"
+      - "sudo ss -tulpn"
+      - "ifconfig -l"
+      - "traceroute -p"
+    answer: 1
+    why: "ss -tulpn gives TCP and UDP listeners, numerically, with the process holding each one. Without sudo you still get the ports but the process column comes back empty."
+  - q: "What is the Windows equivalent?"
+    options:
+      - "netstat -ano | findstr LISTENING"
+      - "ipconfig /all"
+      - "net view"
+      - "tasklist /ports"
+    answer: 0
+    why: "netstat -ano lists connections numerically with owning PIDs; filtering on LISTENING narrows it to services accepting connections. Match the PID against tasklist to name the process."
+  - q: "A service is bound to 0.0.0.0:23. Why does the 0.0.0.0 matter?"
+    options:
+      - "It means the service is disabled"
+      - "It means the service is listening on every network interface, so it is reachable from the network"
+      - "It means the port is filtered by the firewall"
+      - "It means only localhost can connect"
+    answer: 1
+    why: "0.0.0.0 is every interface — reachable from outside. 127.0.0.1 would be local-only, which is a meaningfully smaller problem. Port 23 is telnet, which should not be running at all."
+---
+
+Every listening port is a service accepting connections. Forensics questions
+ask which port something was on, or what was listening on a given port — and
+the same command answers the hardening question of what should be turned off.
+
+## The two commands
+
+Linux:
+
+```
+sudo ss -tulpn
+```
+
+Read the flags as a sentence: **t**cp, **u**dp, **l**istening, **p**rocess,
+**n**umeric. The `sudo` matters — without it you get the ports but not the
+process names, and the process is usually what the question wants.
+
+Windows:
+
+```
+netstat -ano | findstr LISTENING
+```
+
+`-a` all connections, `-n` numeric, `-o` owning process ID. That gives you a
+PID rather than a name; to turn it into a name:
+
+```
+tasklist /FI "PID eq 1234"
+```
+
+## Reading the output
+
+A line from `ss` looks roughly like:
+
+```
+tcp   LISTEN  0  128  0.0.0.0:22   0.0.0.0:*   users:(("sshd",pid=812,fd=3))
+```
+
+The address before the colon is the interface it is bound to. `0.0.0.0` or
+`[::]` means every interface — reachable from the network. `127.0.0.1` means
+local connections only, which is a much smaller exposure.
+
+After the colon is the port. At the end is the process holding it.
+
+## Ports worth knowing on sight
+
+Questions assume you recognise the common ones without looking them up:
+
+- **21** FTP · **22** SSH · **23** telnet · **25** SMTP
+- **53** DNS · **80** HTTP · **443** HTTPS
+- **445** SMB · **3389** RDP · **3306** MySQL
+
+Telnet on 23 and FTP on 21 are plaintext and almost always findings. RDP on
+3389 and SMB on 445 are legitimate but frequently misconfigured.
+
+## Answer format
+
+If the question asks for a port, submit the number alone — `22`, not `tcp/22`
+and not `:22`. If it asks which service is on a port, give the process name as
+the machine reports it.
+
+## The overlap worth planning around
+
+A suspicious listening port is usually both a forensics answer and a scored
+vulnerability. Record the answer before you disable the service — once it is
+stopped, `ss` no longer shows it, and if you did not write the port down you
+have to restart the thing you just turned off to recover the answer.

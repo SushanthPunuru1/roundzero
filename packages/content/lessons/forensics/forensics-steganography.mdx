@@ -1,0 +1,118 @@
+---
+slug: forensics-steganography
+title: Basic steganography
+why: "Data hidden inside an image file. Rare, worth points, and easy once you've seen it."
+domainId: forensics
+level: advanced
+minutes: 8
+sortOrder: 8
+published: true
+skills:
+  - forensics.core.stego
+check:
+  - q: "What is steganography?"
+    options:
+      - "Encrypting a file so it cannot be read"
+      - "Hiding data inside another file so its presence isn't obvious"
+      - "Compressing a file to save space"
+      - "Signing a file to prove who created it"
+    answer: 1
+    why: "Encryption hides the content of a message; steganography hides the fact that there is a message at all. The carrier file still opens normally as an image."
+  - q: "Which command is the fastest first check for readable text hidden in an image?"
+    options:
+      - "cat image.jpg"
+      - "strings image.jpg"
+      - "chmod +r image.jpg"
+      - "md5sum image.jpg"
+    answer: 1
+    why: "strings extracts printable character runs from a binary file. Appended text and embedded messages frequently show up immediately, and it costs one command to check."
+  - q: "An image file is 8 MB when similar images are 200 KB. What does that suggest?"
+    options:
+      - "It is a higher resolution"
+      - "Something may be embedded in it"
+      - "It is corrupted"
+      - "It uses a different colour profile"
+    answer: 1
+    why: "Size that doesn't match the visible content is the classic tell. It isn't proof — resolution genuinely varies — but it is the signal that makes a file worth examining."
+---
+
+Steganography hides data inside an ordinary-looking file. The image still
+opens and still looks like a picture; the payload rides along inside it. It
+appears rarely on competition images, and when it does it is worth points that
+most teams skip.
+
+Note the difference from encryption. Encryption hides *what* a message says.
+Steganography hides *that there is one at all*.
+
+## Start with strings
+
+```
+strings image.jpg
+strings image.jpg | grep -i flag
+strings image.jpg | tail -20
+```
+
+`strings` pulls every run of printable characters out of a binary. The
+simplest hiding technique is appending text to the end of a valid image file —
+the image viewer stops reading at the end of the image data and never shows
+it, but `strings` finds it instantly.
+
+The `tail` variant is worth its own habit: appended data is at the end, so the
+last lines of output are where it will be.
+
+## Check what the file actually is
+
+```
+file image.jpg
+```
+
+`file` reads the header rather than trusting the extension. A file named
+`.jpg` that reports as a ZIP archive is not a photograph, and that mismatch is
+the finding.
+
+If it is an archive wearing an image's name, extract it:
+
+```
+unzip image.jpg
+```
+
+## Look at the size
+
+Compare against other files of the same kind. A 200 KB photo sitting beside an
+8 MB one of the same apparent resolution is worth opening. This is a hint
+rather than proof — resolution and quality genuinely vary — but it is what
+tells you which file to spend a minute on.
+
+## Metadata
+
+```
+exiftool image.jpg
+```
+
+EXIF fields carry camera settings, timestamps, GPS coordinates, and free-text
+comment fields. A message tucked into a Comment or Artist tag is a common
+easy-mode hiding place, and the timestamps are sometimes themselves the answer.
+
+If `exiftool` isn't installed, `strings` usually surfaces the same text.
+
+## Dedicated tools
+
+```
+steghide extract -sf image.jpg
+zsteg image.png
+binwalk image.jpg
+```
+
+`steghide` handles JPEG and may prompt for a passphrase — questions that use
+it normally give you the passphrase somewhere. `zsteg` targets PNG least-
+significant-bit hiding. `binwalk` scans for entire files embedded inside other
+files.
+
+None of these are guaranteed to be installed on a competition image, which is
+why `strings`, `file` and `exiftool` are the ones to reach for first.
+
+## The order that works
+
+Run `strings` and `file` on anything suspicious before reaching for a
+specialist tool. Between them they catch the large majority of what appears on
+a CyberPatriot image, they take seconds, and they need nothing installed.

@@ -1,0 +1,104 @@
+---
+slug: forensics-hashing
+title: Hashing a file
+why: "A hash question is free points if you know the one command per OS."
+domainId: forensics
+level: standard
+minutes: 7
+sortOrder: 3
+published: true
+skills:
+  - forensics.core.hashing
+check:
+  - q: "Which command hashes a file on Linux?"
+    options:
+      - "hash file"
+      - "md5sum file"
+      - "checksum file"
+      - "openssl file"
+    answer: 1
+    why: "md5sum prints the MD5 hash and the filename. sha256sum works identically for SHA-256, which questions ask for just as often."
+  - q: "Which command hashes a file on Windows?"
+    options:
+      - "md5sum file"
+      - "certutil -hashfile file MD5"
+      - "Get-Hash file"
+      - "hashfile /md5 file"
+    answer: 1
+    why: "certutil ships with Windows and needs no install. The algorithm is the last argument, so swap MD5 for SHA256 when the question asks for it."
+  - q: "You hash the same file twice and get different results. What does that mean?"
+    options:
+      - "Hashing is randomised for security"
+      - "The file changed between the two runs"
+      - "You used a different terminal"
+      - "The first hash was cached"
+    answer: 1
+    why: "A hash is deterministic — identical input always produces identical output. A different result means the bytes changed, which is exactly what makes hashing useful for detecting tampering."
+---
+
+A hash is a fixed-length fingerprint of a file's contents. Identical files
+produce identical hashes; changing a single byte produces a completely
+different one. Forensics questions use this to ask "prove you found the exact
+file I meant."
+
+## The two commands
+
+Linux:
+
+```
+md5sum file
+```
+
+Windows:
+
+```
+certutil -hashfile file MD5
+```
+
+That is the whole skill for most questions. Both print the hash as a long
+hexadecimal string.
+
+For SHA-256, which questions ask for about as often:
+
+```
+sha256sum file                    # Linux
+certutil -hashfile file SHA256    # Windows
+```
+
+Read which algorithm the question wants. An MD5 hash submitted where SHA-256
+was asked for is a wrong answer, and the two are easy to tell apart by length
+— MD5 is 32 characters, SHA-256 is 64.
+
+## Submitting the answer
+
+`md5sum` prints the hash followed by the filename:
+
+```
+d41d8cd98f00b204e9800998ecf8427e  emptyfile.txt
+```
+
+Submit the hash only, unless the question says otherwise. `certutil` prints a
+header line and a trailing status line around the hash — take the middle line
+and nothing else.
+
+Copy and paste it. A 64-character hex string retyped by hand will eventually
+contain a mistake, and you will not find it by rereading.
+
+## Why anyone cares
+
+Hashes exist so you can answer "is this the same file?" without comparing the
+whole thing. That has two uses on a competition image.
+
+A hash proves identity: the question names a file, you hash it, and the match
+shows you found the right one rather than a decoy with a similar name.
+
+A hash also proves tampering. If you know what a system binary should hash to
+and it does not, something replaced it. That is how a modified `sudo` or a
+trojaned `ls` gets caught in the real world.
+
+## The trap
+
+Hash the file the question actually names. If it asks about
+`/home/user/report.txt` and there is also a `/tmp/report.txt`, hashing the
+wrong one gives you a valid hash of the wrong file — and a valid-looking
+answer that scores nothing. Use the full path when there is any doubt.

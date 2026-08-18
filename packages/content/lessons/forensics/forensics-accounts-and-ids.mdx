@@ -1,0 +1,116 @@
+---
+slug: forensics-accounts-and-ids
+title: Accounts, UIDs, and GIDs
+why: "Deleting the backdoor account also deletes the answer. Read the question first."
+domainId: forensics
+level: standard
+minutes: 8
+sortOrder: 4
+published: true
+skills:
+  - forensics.core.accounts
+check:
+  - q: "In a passwd entry like `backdoor:x:1007:1007::/home/backdoor:/bin/bash`, which field is the UID?"
+    options:
+      - "The first"
+      - "The second"
+      - "The third"
+      - "The last"
+    answer: 2
+    why: "Fields are name:password:UID:GID:comment:home:shell. The UID is third, and the GID immediately after it — the same position pattern holds in /etc/group."
+  - q: "What is special about an account with UID 0?"
+    options:
+      - "It is a disabled account"
+      - "It has full root privileges regardless of its username"
+      - "It is the first account created on the system"
+      - "It cannot log in over SSH"
+    answer: 1
+    why: "The kernel authorizes by UID, not by name. Any account with UID 0 is root under a different label, which is why a second UID-0 account is a serious planted backdoor."
+  - q: "Which command shows a single user's UID, GID, and group memberships at once?"
+    options:
+      - "id backdoor"
+      - "whoami backdoor"
+      - "passwd backdoor"
+      - "ls -l /home/backdoor"
+    answer: 0
+    why: "id prints uid, gid and all supplementary groups in one line. getent passwd backdoor gives the raw passwd entry if you need the individual fields."
+---
+
+Account questions are the most common forensics archetype, and the one where
+the "read before you fix" rule matters most. The account a question asks about
+is usually the same account your checklist tells you to delete.
+
+## Reading a passwd entry
+
+```
+$ getent passwd backdoor
+backdoor:x:1007:1007::/home/backdoor:/bin/bash
+```
+
+The fields, in order, separated by colons:
+
+```
+name : password : UID : GID : comment : home : shell
+```
+
+The `x` in the password field means the actual hash lives in `/etc/shadow`,
+which is normal. The third field is the UID and the fourth is the GID — that
+position pattern is worth memorising, because questions ask for those numbers
+constantly.
+
+For everything about one user at once:
+
+```
+id backdoor
+```
+
+That prints the UID, the primary GID, and every group the account belongs to.
+
+## Groups
+
+```
+$ getent group contractors
+contractors:x:1010:desmond,priya
+```
+
+Same shape: name, password placeholder, GID, then the member list. The GID is
+the third field, exactly like the UID in passwd.
+
+## UID 0 is the one that matters
+
+Linux decides who is root by number, not by name:
+
+```
+grep ':0:' /etc/passwd
+awk -F: '$3==0 {print $1}' /etc/passwd
+```
+
+Either should print `root` and nothing else. An account named `eviladmin` with
+UID 0 has complete root privileges no matter how ordinary the name looks. This
+is one of the most serious things planted on a competition image, and it is
+frequently both a forensics answer and a scored vulnerability at the same time.
+
+That overlap is exactly why you read the questions first. Remove the account to
+score the vuln, and the forensics answer disappears with it.
+
+## Finding the humans
+
+```
+awk -F: '$3>=1000 && $3<65534 {print $1}' /etc/passwd
+```
+
+System accounts sit below UID 1000 and `nobody` sits at 65534, so this leaves
+the real people. Compare that list against the README's authorized users — the
+account that appears here but not there is usually what a question is about.
+
+## On Windows
+
+```
+Get-LocalUser
+Get-LocalGroupMember Administrators
+wmic useraccount get name,sid
+```
+
+Windows identifies accounts by SID rather than UID. A question asking for a
+SID wants the whole string, including the long numeric portion — copy it, do
+not transcribe it.

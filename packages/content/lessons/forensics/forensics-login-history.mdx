@@ -1,0 +1,107 @@
+---
+slug: forensics-login-history
+title: Login history
+why: "Who logged in, and when — the answer is in one command you'll use every round."
+domainId: forensics
+level: standard
+minutes: 8
+sortOrder: 5
+published: true
+skills:
+  - forensics.core.login-history
+check:
+  - q: "Which command shows login history on Linux?"
+    options:
+      - "history"
+      - "last"
+      - "who"
+      - "logins"
+    answer: 1
+    why: "last reads the wtmp log and prints every recorded login with user, source, and time. `who` shows only who is logged in right now, which is a different question."
+  - q: "Which Windows Event ID records a successful logon?"
+    options:
+      - "4625"
+      - "4624"
+      - "1102"
+      - "4720"
+    answer: 1
+    why: "4624 is a successful logon and 4625 is a failed one. They are one digit apart and questions exploit that, so read which the question asks for."
+  - q: "What is the difference between `last` and `history`?"
+    options:
+      - "They are the same command on different distributions"
+      - "last shows logins; history shows commands typed in your shell"
+      - "last shows commands; history shows logins"
+      - "history requires root and last does not"
+    answer: 1
+    why: "They answer different questions. `last` is sessions — who connected and when. `history` is what a shell user typed, which is its own kind of evidence."
+---
+
+"Who logged in, and when" is a standard forensics question on both platforms.
+Each has one command that answers it.
+
+## Linux
+
+```
+last
+```
+
+That reads `/var/log/wtmp` and prints, most recent first: the username, the
+terminal or source address, the login time, and how long the session lasted.
+
+Useful narrowing:
+
+```
+last username        # one account's sessions
+last -n 20           # the 20 most recent
+lastb                # FAILED login attempts (needs sudo)
+```
+
+`lastb` is worth remembering separately. A long run of failed logins against
+one account is a brute-force attempt, and questions ask about it.
+
+Two related commands that answer adjacent questions:
+
+```
+who        # who is logged in RIGHT NOW
+w          # same, plus what they are running
+```
+
+## Windows
+
+Login events live in the Security log, viewed through Event Viewer or
+PowerShell:
+
+```
+Get-EventLog -LogName Security -InstanceId 4624 -Newest 20
+```
+
+The two IDs that matter:
+
+- **4624** — a successful logon
+- **4625** — a failed logon
+
+They differ by one digit and they mean opposite things. Read the question
+carefully before you go looking.
+
+Each event carries the account name, the logon type, and the source. Logon
+type 2 is an interactive console login, type 3 is over the network, and type
+10 is RDP — a question asking "how did they connect" is usually asking about
+that field.
+
+## Reading the answer correctly
+
+Questions in this family ask for one specific field, and the output contains
+several. If it asks for a username, submit the username. If it asks for a
+time, match the format the question shows — a timestamp reformatted into your
+preferred style is a wrong answer.
+
+If it asks for the source IP of a login, that is the address column in `last`,
+not the hostname of the machine you are working on.
+
+## Why this is evidence
+
+A login record is how you establish that an account was actually used, not
+just created. An unauthorized account with no login history was planted and
+never used. The same account with a session at 3am from an unfamiliar address
+is a different and more urgent story — and the kind of distinction a forensics
+question is built to make you notice.

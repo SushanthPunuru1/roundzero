@@ -1,0 +1,115 @@
+---
+slug: forensics-finding-files
+title: Finding files
+why: "The file you need is on the machine somewhere. Three commands find it every time."
+domainId: forensics
+level: standard
+minutes: 9
+sortOrder: 2
+published: true
+skills:
+  - forensics.core.file-hunting
+check:
+  - q: "Which command finds every file named `secret.txt` anywhere on a Linux system?"
+    options:
+      - "ls -R secret.txt"
+      - "sudo find / -name secret.txt 2>/dev/null"
+      - "grep -r secret.txt /"
+      - "locate secret.txt"
+    answer: 1
+    why: "find searches the whole tree by name. The 2>/dev/null discards permission-denied noise from directories you cannot read, which otherwise buries the result."
+  - q: "A question asks which file contains a given phrase, but not where it is. What finds it?"
+    options:
+      - "find / -name phrase"
+      - "grep -r \"phrase\" /home 2>/dev/null"
+      - "ls -la /home"
+      - "cat /home/*"
+    answer: 1
+    why: "find matches on the file's NAME. grep searches file CONTENTS. Knowing which of the two a question needs is most of this skill."
+  - q: "Why does a hidden file on Linux not show up in a plain `ls`?"
+    options:
+      - "It has no read permission"
+      - "Its name starts with a dot"
+      - "It is owned by root"
+      - "It is stored outside the filesystem"
+    answer: 1
+    why: "A leading dot marks a file as hidden by convention. `ls -a` shows them, and forensics questions plant evidence in dotfiles precisely because a casual look misses them."
+---
+
+Most forensics questions come down to locating something on a machine you have
+never seen before. Three commands cover nearly every case, and the skill is
+knowing which one the question calls for.
+
+## By name
+
+```
+sudo find / -name secret.txt 2>/dev/null
+```
+
+`find` walks the filesystem looking at filenames. Start at `/` to search
+everything. The `2>/dev/null` throws away the permission-denied errors that
+would otherwise scroll the actual answer off your screen.
+
+Useful variations:
+
+```
+sudo find / -name "*.txt" 2>/dev/null          # by extension
+sudo find /home -name "*password*" 2>/dev/null  # partial name, narrower scope
+sudo find / -iname secret.txt 2>/dev/null      # case-insensitive
+```
+
+## By content
+
+When you know what is inside a file but not what it is called:
+
+```
+grep -r "the phrase" /home 2>/dev/null
+```
+
+`grep -r` reads inside files rather than matching names. Give it the narrowest
+directory you reasonably can — searching all of `/` reads every binary on the
+system and takes a long time.
+
+Add `-i` for case-insensitive, and `-l` to print only the filenames rather
+than the matching lines.
+
+## Hidden files
+
+A file whose name begins with a dot does not appear in a normal listing:
+
+```
+ls -la /home/user
+```
+
+`-a` includes hidden entries, `-l` gives you owner, size and timestamp. Look
+for things like `.hidden_flag`, an unexpected `.ssh` directory, or a `.bashrc`
+that is larger than it should be.
+
+## By time
+
+Questions sometimes ask what changed recently, or what was created around the
+time of an incident:
+
+```
+sudo find /home -newermt "2026-01-01" 2>/dev/null   # modified after a date
+ls -lat /home/user                                   # sort by time, newest first
+```
+
+## On Windows
+
+The same three ideas, different commands, in PowerShell:
+
+```
+Get-ChildItem -Path C:\ -Filter secret.txt -Recurse -ErrorAction SilentlyContinue
+Get-ChildItem -Path C:\Users -Recurse -Force | Select-String "the phrase"
+Get-ChildItem -Force
+```
+
+`-Force` is the Windows equivalent of `ls -a` — it reveals hidden and system
+files. `-ErrorAction SilentlyContinue` is the equivalent of `2>/dev/null`.
+
+## The mistake to avoid
+
+Do not go hunting through folders by hand. It is slow, and on an unfamiliar
+machine you will miss the directory that mattered. One `find` covers the whole
+disk in seconds and does not get bored.

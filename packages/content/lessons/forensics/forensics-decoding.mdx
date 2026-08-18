@@ -1,0 +1,114 @@
+---
+slug: forensics-decoding
+title: Decoding base64 and friends
+why: "Base64 looks like gibberish and decodes in one command. Learn to recognize it."
+domainId: forensics
+level: standard
+minutes: 8
+sortOrder: 7
+published: true
+skills:
+  - forensics.core.decoding
+check:
+  - q: "How do you decode a base64 string on Linux?"
+    options:
+      - "echo 'c3RyaW5n' | base64 -d"
+      - "base64 -e 'c3RyaW5n'"
+      - "decode c3RyaW5n"
+      - "cat c3RyaW5n | uudecode"
+    answer: 0
+    why: "base64 -d reads the encoded text on stdin and prints the decoded bytes. Without -d it encodes instead, which is a common way to get a confusing result."
+  - q: "Is base64 encryption?"
+    options:
+      - "Yes, it requires a key to reverse"
+      - "No, it is reversible encoding with no key and no secrecy"
+      - "Yes, but only for text"
+      - "No, it is a hash"
+    answer: 1
+    why: "Anyone can decode base64 with one command. It exists to move binary data safely through text-only channels, not to hide anything — which is why finding it in a script is a red flag rather than a lock."
+  - q: "You find a cron job running `curl ... | base64 -d | bash`. What is happening?"
+    options:
+      - "A routine system update"
+      - "An encoded payload being decoded and executed"
+      - "A log rotation script"
+      - "A backup being compressed"
+    answer: 1
+    why: "The encoding exists to get the command past a casual reader. Decoding is one step, and doing so tells you exactly what the payload does — which is usually what the question asks."
+---
+
+Encoded text shows up on competition images in cron jobs, scripts, and files
+left behind deliberately. Recognising it and reversing it is a single command
+once you know what you are looking at.
+
+## Recognising base64
+
+Base64 uses only A–Z, a–z, 0–9, `+` and `/`, and is often padded with one or
+two `=` at the end. It looks like a long run of random letters and digits with
+no spaces:
+
+```
+VGhlIHF1aWNrIGJyb3duIGZveA==
+```
+
+The trailing `==` is the strongest giveaway. Length divisible by four is
+another.
+
+## Decoding it
+
+```
+echo 'c3RyaW5n' | base64 -d
+```
+
+The `-d` is the whole trick — without it, `base64` encodes what you gave it
+and hands back something even less readable, which is a common source of
+confusion.
+
+From a file:
+
+```
+base64 -d encoded.txt
+```
+
+On Windows:
+
+```
+certutil -decode encoded.txt decoded.txt
+```
+
+## It is encoding, not encryption
+
+Base64 has no key. Anyone who recognises it can reverse it in one command.
+Its actual purpose is moving binary data through channels that only handle
+text — email attachments, config files, HTTP headers.
+
+That matters for how you read it. Base64 in a script is not protection, it is
+an attempt to get past someone skimming. Finding it is a signal that whoever
+put it there did not want it read at a glance, which makes it worth reading
+immediately.
+
+## Other encodings you'll meet
+
+**Hex** — pairs of 0–9 and a–f, sometimes with `\x` prefixes:
+
+```
+echo '48656c6c6f' | xxd -r -p
+```
+
+**ROT13** — letters shifted thirteen places; the text looks like words but
+reads as nonsense:
+
+```
+echo 'Uryyb' | tr 'A-Za-z' 'N-ZA-Mn-za-m'
+```
+
+**URL encoding** — `%20` for a space, `%2F` for a slash. Usually readable
+enough to decode by eye.
+
+## Where it hides
+
+Check cron entries, `.bashrc` and other shell startup files, systemd unit
+files, and any script in `/tmp` or a user's home directory. A line that pipes
+a decode straight into a shell — `base64 -d | bash` — is executing whatever
+was encoded, and decoding it without the pipe tells you exactly what it does.
+
+Read it. Never run it.

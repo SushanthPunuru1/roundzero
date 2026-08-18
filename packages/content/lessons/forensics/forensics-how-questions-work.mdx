@@ -1,0 +1,92 @@
+---
+slug: forensics-how-questions-work
+title: How forensics questions work
+why: "Points are lost to formatting more often than to not knowing the answer. Start here."
+domainId: forensics
+level: foundations
+minutes: 7
+sortOrder: 1
+published: true
+skills:
+  - forensics.core.answer-format
+check:
+  - q: "Why must you read the forensics questions BEFORE fixing vulnerabilities?"
+    options:
+      - "The questions are worth more points early in the round"
+      - "Fixing a vuln can destroy the evidence a question asks about"
+      - "The questions unlock the scoring engine"
+      - "You cannot open them once you start making changes"
+    answer: 1
+    why: "Deleting a malicious user, removing a file, or disabling a service can erase exactly what a question asks you to identify. Once it's gone, those points are gone."
+  - q: "You solved a forensics question but got zero points. What is the most likely cause?"
+    options:
+      - "The scoring engine had not run yet"
+      - "Wrong answer format"
+      - "You needed to reboot first"
+      - "Someone else on your team already answered it"
+    answer: 1
+    why: "Forensics answers are graded as exact strings. A right answer in the wrong shape — extra spaces, a path when a filename was asked for, the wrong case — scores nothing."
+  - q: "A question asks for a username and you find `eviladmin` in /etc/passwd. What do you submit?"
+    options:
+      - "eviladmin"
+      - "/home/eviladmin"
+      - "eviladmin:x:0:0::/home/eviladmin:/bin/bash"
+      - "The UID instead, since it is more precise"
+    answer: 0
+    why: "Answer the question that was asked. It asked for the username, so submit only the username — not the full passwd line, not the home directory, not a more precise field you prefer."
+---
+
+Forensics questions are the fastest points on a CyberPatriot image. They need
+no configuration changes, they can't break the machine, and each one is worth
+real points. They are also the easiest points to throw away, in two specific
+ways this lesson exists to prevent.
+
+## Read them first. Before anything.
+
+The forensics questions sit on the desktop. Open every one of them before you
+touch a single setting.
+
+The reason is not organisation, it is evidence. A forensics question might ask
+for the UID of an unauthorized user — the same user your checklist tells you
+to delete. Delete first, and the answer is gone. It might ask which port a
+suspicious service was listening on, and your hardening pass disables that
+service. It might ask for the hash of a file you are about to remove.
+
+Fixing a vulnerability destroys the evidence. Read, answer, then fix.
+
+## Answer exactly what was asked
+
+Every forensics answer is graded by comparing your text against a stored
+string. There is no partial credit and no interpretation. If the question
+asks for a username, submit `eviladmin`, not `/home/eviladmin` and not the
+whole `/etc/passwd` line.
+
+The question states its format, and it states it for a reason. Common shapes:
+
+- **A username** — the name only.
+- **A UID or GID** — the number only, no name, no colons.
+- **A filename** — sometimes the name alone, sometimes the full path. Read
+  which one it asked for.
+- **A hash** — the full hex string, nothing else.
+- **A port number** — the number, not `tcp/22` and not `:22`.
+
+## The habits that keep the points
+
+Copy and paste rather than retyping. A hash you transcribe by hand will
+eventually have a wrong character in it, and you will not spot it.
+
+Trim whitespace. A trailing space or a newline can be the difference between
+scoring and not.
+
+Watch the case. Some answers are case-insensitive and some are not; matching
+what you actually saw on the machine is always safe.
+
+Answer from the machine, not from memory. If a question asks what is listening
+on a port, run the command and read the output. A plausible guess that happens
+to be wrong scores exactly the same as no answer at all.
+
+## One more thing worth knowing
+
+You can answer forensics questions at any point in the round, and they don't
+expire. But the evidence does. Do them first, while the machine is still in
+the state the questions were written against.
