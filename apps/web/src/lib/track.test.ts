@@ -85,7 +85,7 @@ describe("aggregatePillars", () => {
     expect(forensics).toMatchObject({ lessonsTotal: 0, detail: null });
   });
 
-  it("always returns the five pillars in canonical order", () => {
+  it("always returns all seven pillars, including scripting and meta, in canonical order", () => {
     const pillars = aggregatePillars({
       lessons: [],
       completedSlugs: new Set(),
@@ -93,7 +93,15 @@ describe("aggregatePillars", () => {
       subnettingBest: null,
       forensicsScores: [90],
     });
-    expect(pillars.map((p) => p.domain)).toEqual(["foundations", "linux", "windows", "networking", "forensics"]);
+    expect(pillars.map((p) => p.domain)).toEqual([
+      "foundations",
+      "linux",
+      "windows",
+      "networking",
+      "forensics",
+      "scripting",
+      "meta",
+    ]);
     expect(pillars.find((p) => p.domain === "forensics")!.detail).toBe("90% quiz avg");
   });
 
@@ -135,5 +143,24 @@ describe("totalProgress", () => {
 
   it("is zero/zero rather than NaN for an empty content set", () => {
     expect(totalProgress([])).toEqual({ done: 0, total: 0 });
+  });
+
+  // The bug this guards against: PILLAR_ORDER used to omit scripting/meta, so
+  // their lessons were counted into totalByDomain by aggregatePillars but then
+  // never surfaced (PILLAR_ORDER.map only walked the five it knew about) —
+  // "Where you stand" undercounted the total ("of 44" instead of "of 53").
+  it("counts scripting and meta lessons into the total, not just the five original pillars", () => {
+    const pillars = aggregatePillars({
+      lessons: [
+        { domainId: "scripting", slug: "s1" },
+        { domainId: "scripting", slug: "s2" },
+        { domainId: "meta", slug: "m1" },
+      ],
+      completedSlugs: new Set(["s1"]),
+      networkingQuizScores: [],
+      subnettingBest: null,
+      forensicsScores: [],
+    });
+    expect(totalProgress(pillars)).toEqual({ done: 1, total: 3 });
   });
 });

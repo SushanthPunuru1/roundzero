@@ -115,6 +115,33 @@ const FOCUS_TO_DOMAIN: Record<Exclude<FocusMachine, "unsure">, TrackDomain> = {
  * primary target), then Windows, then Networking/Cisco. */
 const ALL_MACHINE_DOMAINS: TrackDomain[] = ["linux", "windows", "networking"];
 
+/**
+ * Preferred order for Rule 5's expansion — deterministic traversal only,
+ * NEVER a whitelist. Placement doesn't test forensics/scripting/meta, so
+ * they (rightly) never enter the spine via Rule 1/2, but they still have to
+ * surface once a student clears their focus track — see resolveExpansionDomains.
+ * A domain missing from this list still gets swept in (alphabetically, after
+ * these), so a new taxonomy domain reaches its readers the moment it has a
+ * published lesson, with no edit here required.
+ */
+const DOMAIN_EXPANSION_ORDER: string[] = ["linux", "windows", "networking", "forensics", "scripting", "meta"];
+
+/**
+ * Every domain that actually has a published lesson, minus what's already
+ * covered by Rule 1 (foundations) and Rule 2 (the focus machines) — ordered
+ * by DOMAIN_EXPANSION_ORDER where known, alphabetically for anything new.
+ * Driven entirely by `lessons`, the real published set, rather than a
+ * hardcoded domain list: that's what used to leave forensics/scripting/meta
+ * lessons unreachable once TRACK_DOMAINS/ALL_MACHINE_DOMAINS didn't mention
+ * them.
+ */
+function resolveExpansionDomains(lessons: TrackLesson[], coveredDomains: Set<string>): string[] {
+  const present = Array.from(new Set(lessons.map((l) => l.domainId)));
+  const known = DOMAIN_EXPANSION_ORDER.filter((d) => present.includes(d));
+  const rest = present.filter((d) => !DOMAIN_EXPANSION_ORDER.includes(d)).sort();
+  return [...known, ...rest].filter((d) => !coveredDomains.has(d));
+}
+
 const DOMAIN_LABEL: Record<TrackDomain, string> = {
   foundations: "Foundations",
   linux: "Linux",
@@ -334,12 +361,13 @@ export function generateTrack(input: TrackInput): TrackStep[] {
 
   // Rule 5 — never end. If the lesson spine was empty (everything at/above the
   // user's level is complete), expand to any remaining incomplete lessons in
-  // other domains, then fall to a keep-sharp floor. The result is provably
-  // non-empty for any valid input.
+  // EVERY other domain that has published content — not just the other
+  // machine domains, so forensics/scripting/meta surface here too rather than
+  // the queue falling straight to the keep-sharp floor. The result is
+  // provably non-empty for any valid input.
   if (spine.length === 0) {
-    const coveredDomains = new Set<TrackDomain>(["foundations", ...focusDomains]);
-    const allDomains: TrackDomain[] = ["foundations", ...ALL_MACHINE_DOMAINS];
-    const expansionDomains = allDomains.filter((d) => !coveredDomains.has(d));
+    const coveredDomains = new Set<string>(["foundations", ...focusDomains]);
+    const expansionDomains = resolveExpansionDomains(lessons, coveredDomains);
     for (const domain of expansionDomains) {
       for (const lesson of incompleteInDomain(domain)) {
         pushStep(lessonStep(lesson, reasonForLesson(lesson, onMissingWhy)));

@@ -52,6 +52,36 @@ const NETWORKING_LESSONS: TrackLesson[] = [
 ];
 const ALL_LESSONS = [...FOUNDATIONS_LESSONS, ...WINDOWS_LESSONS, ...NETWORKING_LESSONS];
 
+// A second fixture set, kept separate from ALL_LESSONS above (which is
+// deliberately Linux-empty — see linuxLabReady's proxy tests), covering every
+// domain the taxonomy actually has content for today, including the three
+// that placement never tests: forensics, scripting, meta.
+const LINUX_LESSONS: TrackLesson[] = [
+  L("lx-users", "linux", "FOUNDATIONS", 1),
+  L("lx-ssh", "linux", "STANDARD", 2),
+];
+const FORENSICS_LESSONS: TrackLesson[] = [
+  L("fx-intro", "forensics", "FOUNDATIONS", 1),
+  L("fx-tools", "forensics", "STANDARD", 2),
+];
+const SCRIPTING_LESSONS: TrackLesson[] = [
+  L("sc-bash", "scripting", "STANDARD", 1),
+  L("sc-audit", "scripting", "ADVANCED", 2),
+];
+const META_LESSONS: TrackLesson[] = [
+  L("mt-readme", "meta", "STANDARD", 1),
+  L("mt-time", "meta", "STANDARD", 2),
+];
+const SEVEN_DOMAIN_LESSONS: TrackLesson[] = [
+  ...FOUNDATIONS_LESSONS,
+  ...WINDOWS_LESSONS,
+  ...NETWORKING_LESSONS,
+  ...LINUX_LESSONS,
+  ...FORENSICS_LESSONS,
+  ...SCRIPTING_LESSONS,
+  ...META_LESSONS,
+];
+
 const BEGINNER_LEVELS: Record<TrackDomain, TrackLevel> = {
   foundations: "FOUNDATIONS",
   linux: "FOUNDATIONS",
@@ -434,5 +464,72 @@ describe("Rule 5 — never returns an empty track for any valid state", () => {
     const lessonSlugs = slugs(steps);
     expect(lessonSlugs).toContain("w-accounts");
     expect(lessonSlugs).toContain("n-osi");
+  });
+});
+
+// --- Rule 5's expansion covers every domain with lessons, not a hardcoded list --
+
+describe("Rule 5 — expansion reaches every domain with published lessons", () => {
+  it("surfaces forensics, scripting, and meta lessons once the focus track is exhausted", () => {
+    // Placement never tests forensics/scripting/meta, so they can't enter via
+    // Rule 1/2 — this is the regression for TRACK_DOMAINS/ALL_MACHINE_DOMAINS
+    // not mentioning them: expert + focus linux, linux itself fully done, so
+    // the spine goes empty and expansion has to sweep in every other domain
+    // that actually has content, forensics/scripting/meta included.
+    const completed = new Set([...FOUNDATIONS_LESSONS, ...LINUX_LESSONS].map((l) => l.slug));
+    const steps = generateTrack(
+      input({ levels: EXPERT_LEVELS, focus: ["linux"], lessons: SEVEN_DOMAIN_LESSONS, completed }),
+    );
+    const lessonSlugs = slugs(steps);
+    for (const lesson of [...FORENSICS_LESSONS, ...SCRIPTING_LESSONS, ...META_LESSONS]) {
+      expect(lessonSlugs).toContain(lesson.slug);
+    }
+  });
+
+  it("still queues no forensics/scripting/meta lessons via placement — Rule 1/2 stay scoped to the four machine domains", () => {
+    // A beginner with an unexhausted focus track (foundations + linux still
+    // incomplete) should see ONLY foundations/linux lessons — expansion must
+    // not fire while the spine is non-empty.
+    const steps = generateTrack(
+      input({ levels: BEGINNER_LEVELS, focus: ["linux"], lessons: SEVEN_DOMAIN_LESSONS, completed: new Set() }),
+    );
+    const domains = new Set(
+      steps.filter((s) => s.kind === "lesson").map((s) => SEVEN_DOMAIN_LESSONS.find((l) => l.slug === s.ref)!.domainId),
+    );
+    expect(domains).toEqual(new Set(["foundations", "linux"]));
+  });
+});
+
+// --- no published lesson is unreachable ----------------------------------
+
+describe("no published lesson is unreachable from generateTrack", () => {
+  it("every lesson, in every domain (including ones outside the machine set), is reachable for some valid input", () => {
+    const focuses: FocusMachine[][] = [["unsure"], ["linux"], ["windows"], ["cisco"]];
+    const levelSets = [null, BEGINNER_LEVELS, EXPERT_LEVELS];
+    // Completing every machine-domain lesson is what empties the spine and
+    // triggers Rule 5's expansion — without a completed scenario like this,
+    // forensics/scripting/meta would never get a chance to surface, since
+    // they only ever enter through that fallback.
+    const machineDomainsDone = new Set(
+      [...FOUNDATIONS_LESSONS, ...WINDOWS_LESSONS, ...NETWORKING_LESSONS, ...LINUX_LESSONS].map((l) => l.slug),
+    );
+    const completions = [new Set<string>(), machineDomainsDone];
+
+    const reachable = new Set<string>();
+    for (const focus of focuses) {
+      for (const levels of levelSets) {
+        for (const completed of completions) {
+          const steps = generateTrack(
+            input({ focus, levels, lessons: SEVEN_DOMAIN_LESSONS, completed, dueCardCount: 0 }),
+          );
+          for (const step of steps) {
+            if (step.kind === "lesson") reachable.add(step.ref);
+          }
+        }
+      }
+    }
+
+    const unreachable = SEVEN_DOMAIN_LESSONS.map((l) => l.slug).filter((slug) => !reachable.has(slug));
+    expect(unreachable).toEqual([]);
   });
 });

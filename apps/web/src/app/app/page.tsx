@@ -24,6 +24,8 @@ const PILLAR_HREF: Record<string, string> = {
   windows: "/app/lessons",
   networking: "/app/networking",
   forensics: "/app/forensics",
+  scripting: "/app/lessons",
+  meta: "/app/lessons",
 };
 
 // One shared interaction treatment for every clickable row on this screen, so

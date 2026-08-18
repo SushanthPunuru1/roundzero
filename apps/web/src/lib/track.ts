@@ -173,8 +173,10 @@ const PILLAR_LABELS: Record<string, string> = {
   windows: "Windows",
   networking: "Networking",
   forensics: "Forensics",
+  scripting: "Scripting",
+  meta: "Meta",
 };
-const PILLAR_ORDER = ["foundations", "linux", "windows", "networking", "forensics"];
+const PILLAR_ORDER = ["foundations", "linux", "windows", "networking", "forensics", "scripting", "meta"];
 
 /** Mean, rounded. Returns null for an empty set rather than NaN — callers
  * guard today, but `Math.round(0/0)` is a landmine one refactor away. */
