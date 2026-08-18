@@ -1,0 +1,149 @@
+---
+slug: scripting-bash-audit-script
+title: Building a Bash audit script
+why: "Turn your audit one-liners into a script that runs the whole pass in seconds."
+domainId: scripting
+level: advanced
+minutes: 10
+sortOrder: 2
+published: true
+skills:
+  - scripting.bash.audit-script
+check:
+  - q: "Why should an audit script be strictly read-only?"
+    options:
+      - "Read-only scripts run faster"
+      - "So it can be run at any time without risk of breaking a service or destroying evidence"
+      - "Because bash cannot modify files"
+      - "So it does not need sudo"
+    answer: 1
+    why: "A script that only reports is safe to run repeatedly, including before you have read the README. The moment it changes things, running it becomes a decision instead of a reflex."
+  - q: "What does `#!/bin/bash` on the first line do?"
+    options:
+      - "Marks the file as a comment"
+      - "Tells the system which interpreter should run the file"
+      - "Enables error checking"
+      - "Imports the bash standard library"
+    answer: 1
+    why: "The shebang names the interpreter. Without it the file may run under a different shell than you wrote it for, and constructs that work in bash can fail."
+  - q: "You want your script's output saved for later comparison. What is the simplest approach?"
+    options:
+      - "Add print statements"
+      - "Redirect output to a timestamped file: ./audit.sh > audit-$(date +%H%M).txt"
+      - "Run it twice"
+      - "Copy the terminal text by hand"
+    answer: 1
+    why: "A saved run is a snapshot. Two snapshots taken an hour apart diff cleanly, which is how you see what changed on the machine while you were working."
+---
+
+Once you have run the same fifteen commands on three images, the next step is
+putting them in a file. A script turns a ten-minute manual pass into a few
+seconds, and it never forgets a step at hour five when you are tired.
+
+## The one rule
+
+**Audit scripts read. They never write.**
+
+That keeps the script safe to run at any moment, including before you have
+read the README, and it means running it can never be the thing that broke a
+service. Fixing stays manual and deliberate. This is worth holding to even
+when automating a fix would be easy — a script that changes things is a script
+you have to think before running, which defeats the purpose.
+
+## The skeleton
+
+```bash
+#!/bin/bash
+# audit.sh — read-only survey of a Linux box
+
+echo "=== HOSTNAME AND TIME ==="
+hostname
+date
+
+echo
+echo "=== HUMAN USERS (UID >= 1000) ==="
+awk -F: '$3>=1000 && $3<65534 {print $1}' /etc/passwd
+
+echo
+echo "=== UID 0 ACCOUNTS (should be root only) ==="
+awk -F: '$3==0 {print $1}' /etc/passwd
+
+echo
+echo "=== SUDO GROUP ==="
+getent group sudo
+
+echo
+echo "=== BLANK PASSWORDS ==="
+sudo awk -F: '($2==""){print $1}' /etc/shadow
+
+echo
+echo "=== LISTENING PORTS ==="
+sudo ss -tulpn
+
+echo
+echo "=== SUID BINARIES ==="
+sudo find / -perm -4000 -type f 2>/dev/null
+
+echo
+echo "=== SENSITIVE FILE MODES ==="
+ls -l /etc/shadow /etc/passwd /etc/sudoers
+
+echo
+echo "=== AUTHORIZED KEYS ==="
+sudo find /home /root -name authorized_keys 2>/dev/null
+
+echo
+echo "=== CRON ==="
+sudo ls -la /etc/cron.d /etc/cron.daily 2>/dev/null
+cat /etc/crontab
+```
+
+## Running it
+
+```
+chmod +x audit.sh
+sudo ./audit.sh
+```
+
+`chmod +x` makes it executable; without it bash refuses to run the file.
+
+Save the output rather than watching it scroll:
+
+```
+sudo ./audit.sh > audit-$(date +%H%M).txt
+```
+
+## The reason to save every run
+
+Run it at the start of the round, then again an hour later:
+
+```
+diff audit-0900.txt audit-1000.txt
+```
+
+That shows exactly what changed on the machine — including anything you did
+not do yourself. On a machine with a live persistence mechanism, a service
+reappearing between two runs is the clearest signal you will get.
+
+## Sections worth adding as you go
+
+```bash
+echo "=== FIREWALL ==="
+sudo ufw status verbose
+
+echo "=== SYSCTL ==="
+sysctl net.ipv4.ip_forward net.ipv4.tcp_syncookies
+
+echo "=== SSH EFFECTIVE CONFIG ==="
+sudo sshd -T | grep -Ei 'permitrootlogin|passwordauth|maxauthtries'
+```
+
+Note the SSH section uses `sshd -T` rather than reading the config file — the
+merged effective configuration, which is the only version that tells the
+truth once drop-in files are involved.
+
+## Keep it in your repo
+
+An audit script is a team asset, not a one-off. Keep it somewhere everyone can
+get to, add a section every time a round teaches you something new, and it
+gets better every competition instead of being rewritten each time.

@@ -1,0 +1,102 @@
+---
+slug: meta-time-management
+title: Managing a six-hour round
+why: "Six hours sounds like plenty until hour five. Here's where it actually goes."
+domainId: meta
+level: standard
+minutes: 8
+sortOrder: 4
+published: true
+skills:
+  - meta.strategy.time-management
+check:
+  - q: "What should be started in the first fifteen minutes and left running?"
+    options:
+      - "The firewall"
+      - "The package update"
+      - "The password policy"
+      - "A full antivirus scan"
+    answer: 1
+    why: "It is the one task whose duration you do not control. Starting it early means it finishes while you work; starting it late means watching a progress bar with points left undone."
+  - q: "Why is the last hour a bad time to attempt an unfamiliar complex fix?"
+    options:
+      - "The scoring engine stops updating"
+      - "A broken change late in the round may not leave time to diagnose and revert"
+      - "Points are worth less at the end"
+      - "The image locks after five hours"
+    answer: 1
+    why: "Early on, a mistake costs you time you still have. In the last hour it can cost you points you already earned, with no runway to recover them."
+  - q: "You have spent 40 minutes on one stubborn item. What is usually right?"
+    options:
+      - "Keep going — sunk time makes finishing more valuable"
+      - "Note it, move to unattempted items, and come back if time allows"
+      - "Restart the machine and try again"
+      - "Ask a teammate to try the same approach"
+    answer: 1
+    why: "Each remaining unattempted item is worth the same as the stubborn one and costs far less. Time already spent is gone either way — that is the trap in wanting to finish it."
+---
+
+A round is six hours. That sounds generous, and it is until you notice at hour
+five that you have not touched the firewall. Where the time goes is
+predictable, which means it can be planned.
+
+## A shape that works
+
+**0:00–0:20 — Survey, don't fix.**
+Read the README twice and extract your four lists. Open every forensics
+question. Start the package update. Run your audit script if you have one.
+Change nothing yet.
+
+**0:20–0:45 — Forensics.**
+Answer everything you can while the machine is still in its original state.
+
+**0:45–2:30 — The main pass.**
+Accounts, policy, services, permissions. This is where most points live. Work
+your checklist top to bottom rather than jumping around.
+
+**2:30–4:30 — The careful items.**
+SSH, firewall, sysctl, anything touching a running service. Test before
+restarting.
+
+**4:30–5:30 — Sweep.**
+Re-read the checklist for anything skipped. Re-read the README against what
+you actually did.
+
+**5:30–6:00 — Verify and stop.**
+Confirm required services are running. Review the change log. Do not start
+anything new.
+
+## Start the slow thing first
+
+The package update is the only task whose duration you do not control. Start
+it in the first fifteen minutes and it finishes while you work on accounts.
+Start it at hour four and you spend hour five watching a progress bar with
+work still undone.
+
+## The forty-minute trap
+
+Some item will refuse to score. You will be certain you have done it right,
+and you will keep going because you have already spent so long.
+
+That reasoning is backwards. The time is spent either way — the only question
+is what the *next* thirty minutes are worth. An unattempted item is worth the
+same points and usually costs five minutes.
+
+Set yourself a limit. Fifteen minutes on one item, then write it in the log,
+move on, and come back if there is time. There usually is, and you will see it
+differently.
+
+## Score checks are punctuation, not a loop
+
+The engine polls on an interval, so watching the report after every change
+wastes minutes and tells you nothing. Check it every twenty or thirty minutes.
+
+A drop means something broke. That is worth stopping for immediately — and the
+change log tells you where to look.
+
+## Stop before the clock does
+
+The last thirty minutes are for confirming, not building. Everything you have
+earned is still yours only if the machine is still in the state that earned
+it. A required service you stopped by accident at 5:45 costs more than
+anything you could have added in that time.

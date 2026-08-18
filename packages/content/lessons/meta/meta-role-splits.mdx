@@ -1,0 +1,103 @@
+---
+slug: meta-role-splits
+title: Splitting work across a team
+why: "Two people on one machine duplicate work. Here's how strong teams split it."
+domainId: meta
+level: standard
+minutes: 7
+sortOrder: 5
+published: true
+skills:
+  - meta.strategy.role-splits
+check:
+  - q: "What is the primary risk of two people working the same machine without coordination?"
+    options:
+      - "The machine runs out of memory"
+      - "Duplicated work and silently undoing each other's changes"
+      - "The scoring engine rejects concurrent changes"
+      - "Only one person can be logged in at a time"
+    answer: 1
+    why: "Both people do the same item while a whole category goes untouched, or one reverts the other's edit without either noticing. It is invisible without a shared log."
+  - q: "Your team has three people and three images. What is the usual split?"
+    options:
+      - "Everyone works every image together"
+      - "One person per image, with the strongest on the hardest image"
+      - "Everyone does forensics first, then splits randomly"
+      - "Two on the easiest image, one on the rest"
+    answer: 1
+    why: "Machine ownership is the cleanest boundary — no overlap by construction. Matching strength to difficulty is what turns a split into an advantage rather than just parallelism."
+  - q: "Why should the person owning a machine also own its change log?"
+    options:
+      - "It is required by competition rules"
+      - "So there is one authoritative record per machine rather than several partial ones"
+      - "So other team members cannot see it"
+      - "Because logs cannot be shared"
+    answer: 1
+    why: "One machine, one log, one owner. Split records are how a team ends up unable to reconstruct what happened when a score drops."
+---
+
+CyberPatriot is a team event with multiple images. How you divide the work is
+a real decision, and the wrong split wastes more time than any individual
+technique saves.
+
+## Divide by machine, not by task
+
+The cleanest boundary is one person per image. It removes overlap by
+construction — nobody is editing a file someone else is editing, and each
+machine has exactly one person who knows its state.
+
+Dividing by task instead ("you do accounts everywhere, I do services
+everywhere") sounds efficient and works badly. Everyone needs context on
+every machine, everyone reads every README, and two people end up in the same
+config file.
+
+Put your strongest person on the hardest image, not on the one they like most.
+
+## When you have more people than images
+
+Pair up, but give each pair a clear split *within* the machine:
+
+- One drives — hands on the keyboard, makes every change.
+- One navigates — reads the checklist aloud, keeps the change log, watches the
+  score report.
+
+This is genuinely faster than two people typing on one box, and it makes the
+log something that actually gets written rather than something everyone
+intends to write.
+
+Swap roles occasionally. The navigator learns less by watching, and a team
+where only one person can drive is fragile.
+
+## One machine, one log, one owner
+
+Whoever owns a machine owns its change log. Not a shared document across all
+machines — one per machine, kept by the person making the changes.
+
+When a score drops on that image, there is one record and one person who knows
+what is in it. Split records are how a team ends up unable to reconstruct
+what happened.
+
+## What to share across the team
+
+Some things are worth doing once and distributing:
+
+- The **README extraction** — authorized users, admins, required services.
+  Different per machine, but the *habit* of extracting is a team standard.
+- The **audit script** — written once, used on every image, improved each
+  round.
+- **Findings that generalise.** "This image has a rogue authorized_keys" is
+  worth saying out loud; the others should check theirs.
+
+## Check in, briefly
+
+Every hour, thirty seconds each: what have you finished, what is stuck, where
+is your score. It costs almost nothing and it catches the two failures that
+actually hurt — one person silently stuck on the same item for an hour, and a
+whole category nobody has touched because each of you assumed the other had.
+
+## After the round
+
+Debrief while it is fresh. What scored, what did not, what surprised you, what
+you would put in the checklist for next time. The teams that improve fastest
+are the ones that treat the checklist and the audit script as things that grow
+after every round rather than starting over each time.

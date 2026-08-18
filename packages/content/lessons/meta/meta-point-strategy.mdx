@@ -1,0 +1,105 @@
+---
+slug: meta-point-strategy
+title: Point strategy
+why: "Which points to take first, and which risks are never worth taking."
+domainId: meta
+level: standard
+minutes: 8
+sortOrder: 3
+published: true
+skills:
+  - meta.strategy.point-strategy
+check:
+  - q: "Why do forensics questions come first in almost every good round plan?"
+    options:
+      - "They are worth the most points"
+      - "They cannot break the machine, and fixing vulns destroys the evidence they ask about"
+      - "They expire after the first hour"
+      - "The scoring engine checks them first"
+    answer: 1
+    why: "Two reasons at once: zero risk, and a hard ordering constraint. Once you delete the malicious user, the question asking for its UID is unanswerable."
+  - q: "You are unsure whether a service is required by the README. What is the correct move?"
+    options:
+      - "Disable it — most insecure services should go"
+      - "Re-read the README rather than guessing"
+      - "Disable it and re-enable it if the score drops"
+      - "Leave it and move on permanently"
+    answer: 1
+    why: "The penalty for stopping a required service is larger than the point for stopping an unnecessary one. When the two are asymmetric, the cheap check beats the guess."
+  - q: "Which is the better use of your last thirty minutes?"
+    options:
+      - "Attempting a complex change you have never tested"
+      - "Re-verifying required services are still running and reviewing your change log"
+      - "Disabling every remaining service"
+      - "Restarting the machine to apply everything"
+    answer: 1
+    why: "Late in a round your downside is larger than your upside. Confirming you have not broken anything protects points already earned, which is worth more than one speculative gain."
+---
+
+Every item on an image is worth points, but they are not worth the same
+points, they do not cost the same time, and they do not carry the same risk.
+Ordering them well is worth more than knowing any individual fix.
+
+## Forensics first, always
+
+Forensics questions cannot break the machine and they cannot be undone by a
+mistake. They are also the only category with a hard ordering constraint:
+fixing a vulnerability destroys the evidence. Delete the malicious user and
+the question asking for its UID becomes unanswerable.
+
+Zero risk plus a one-way door means they go first. Every time.
+
+## Then the cheap, certain, reversible ones
+
+After forensics, work in rough order of certainty:
+
+1. **Start the package update.** It takes the longest and runs unattended.
+   Kick it off and let it work while you do everything else.
+2. **Account items.** Unauthorized users, unauthorized admins, blank
+   passwords. Well-defined, directly scored, low risk once you have the
+   README's list.
+3. **Password and lockout policy.** A handful of settings, all scored, none
+   of which can break a service.
+4. **The obvious service removals.** Telnet and friends, once you have
+   confirmed the README does not require them.
+
+## Then the ones that need care
+
+SSH configuration, firewall rules, and anything touching a running service.
+These are scored, but each has a way to lock you out or break something. Test
+before restarting — `sshd -t`, `apache2ctl configtest` — and allow before you
+enable with `ufw`.
+
+## The risks that are never worth it
+
+**Never stop a service the README requires.** The penalty exceeds what you
+would gain, and it is the single most common way teams lose points they
+already had.
+
+**Never delete an authorized account**, however suspicious the name.
+
+**Never make a change you cannot undo** with your change log and backups.
+
+The asymmetry is the point. A missed vulnerability costs you one item. A
+broken required service costs you a penalty *and* everything downstream of
+that service. When the downside is bigger than the upside, the cheap check
+always wins.
+
+## Scoring feedback is delayed
+
+The engine polls on an interval. A change might take a minute or two to
+register, which has two consequences.
+
+Do not sit and watch the report after every change — batch your work and let
+the score catch up. And when the score drops, the cause is not necessarily the
+thing you did most recently. That is exactly what the change log is for.
+
+## The last thirty minutes
+
+Stop starting new things. Confirm required services are still running, skim
+your change log for anything half-finished, and re-read the README against
+what you actually did.
+
+Late in a round your downside is larger than your upside. A speculative fix
+you have never tested can cost more than it earns; verifying you have not
+broken anything protects points you have already banked.

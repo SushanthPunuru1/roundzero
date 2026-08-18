@@ -1,0 +1,102 @@
+---
+slug: meta-readme-traps
+title: Reading the README for traps
+why: "The README hides authorized users in prose and requires services that look insecure."
+domainId: meta
+level: standard
+minutes: 9
+sortOrder: 2
+published: true
+skills:
+  - meta.strategy.readme-traps
+check:
+  - q: "The README says the FTP server is required for the company's workflow. FTP is insecure. What do you do?"
+    options:
+      - "Remove it — insecure services should always go"
+      - "Leave it running and harden its configuration instead"
+      - "Disable it and note the reason"
+      - "Move it to a different port"
+    answer: 1
+    why: "Stopping a README-required service is a penalty, not a missed point. Required services get hardened in place — the README defines the scenario you are securing."
+  - q: "You find a user named `hackerman`. The README's authorized list includes `hackerman`. What now?"
+    options:
+      - "Remove it — the name is clearly suspicious"
+      - "Leave it; it is authorized, and removing it costs points"
+      - "Disable it but keep the account"
+      - "Rename it to something normal"
+    answer: 1
+    why: "Suspicious-looking is not evidence. Authorized is authorized. Deliberately alarming names for legitimate accounts are a standard trap, and deleting one is a direct loss."
+  - q: "Where are authorized users most often listed in a README?"
+    options:
+      - "Always in a clearly labelled bulleted list"
+      - "Sometimes in a list, sometimes buried in prose sentences you have to read carefully"
+      - "In a separate file on the desktop"
+      - "In the scoring report"
+    answer: 1
+    why: "Some READMEs bury a name in a sentence like 'Priya from accounting also needs access.' Skimming for a list misses it, and that account then looks unauthorized."
+---
+
+The README defines what counts as correct on this machine. It is not
+background reading — it is the answer key for a meaningful share of the
+points, and it is written to be misread if you skim.
+
+## Read it twice, extract as you go
+
+First pass: read the whole thing without doing anything. Second pass: extract
+into a list you keep beside you.
+
+Four things to pull out:
+
+- **Authorized users** — every name allowed on the machine
+- **Authorized administrators** — a *different*, usually shorter list
+- **Required services** — anything that must stay running
+- **Explicit instructions** — "do not change X", specific settings requested
+
+Everything else in the README is flavour.
+
+## Trap one: names hidden in prose
+
+Authorized users are not always in a tidy list. A README might have a clean
+bulleted list of five users and then, three paragraphs later:
+
+> Priya from accounting also needs access to the file server.
+
+Priya is authorized. Skim past that sentence and you delete a legitimate
+account and lose points for it. Read every paragraph, not just the lists.
+
+## Trap two: services that look wrong but must stay
+
+The instinct that serves you everywhere else — see FTP, remove FTP — is
+exactly wrong when the README requires it. Stopping a required service is a
+**penalty**, not just a missed point, and it is usually a large one because
+the engine treats it as breaking the machine's purpose.
+
+A required service is not exempt from hardening. It is exempt from being
+turned off. Harden the configuration, remove anonymous access, restrict it to
+the interfaces it needs — the work changes shape, it does not disappear.
+
+## Trap three: alarming names on legitimate accounts
+
+An account called `hackerman` that appears in the authorized list is
+authorized. An account called `svc-backup` that does not appear is not,
+however plausible it sounds.
+
+The README is the authority, every single time. Your instinct about what a
+name sounds like is not evidence, and both directions of this trap are
+deliberately planted.
+
+## Trap four: an account that should be enabled
+
+Most account findings are "this should not exist" or "this should not be an
+admin." Occasionally the README says a specific user must be able to log in,
+and the image ships that account disabled. The fix is the opposite of your
+reflex — enable it rather than lock it down.
+
+## Keep the extraction visible
+
+Write your four lists somewhere the whole team can see. Every time someone is
+about to remove an account or stop a service, the check is one glance rather
+than a re-read of the whole document.
+
+Most README-related point losses are not misunderstandings. They are someone
+acting without checking.

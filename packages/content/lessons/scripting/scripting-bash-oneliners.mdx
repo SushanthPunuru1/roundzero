@@ -1,0 +1,131 @@
+---
+slug: scripting-bash-oneliners
+title: Bash one-liners for auditing
+why: "One line of bash answers a question that takes ten minutes of clicking."
+domainId: scripting
+level: standard
+minutes: 9
+sortOrder: 1
+published: true
+skills:
+  - scripting.bash.oneliners
+check:
+  - q: "What does `awk -F: '$3>=1000 {print $1}' /etc/passwd` do?"
+    options:
+      - "Prints every account on the system"
+      - "Prints the usernames of accounts with UID 1000 or higher"
+      - "Sets the UID of every account to 1000"
+      - "Deletes accounts below UID 1000"
+    answer: 1
+    why: "-F: splits on colons, $3 is the UID field, $1 is the username. It reads and prints only — awk never modifies the file it is reading."
+  - q: "Why prefer read-only auditing commands before making any changes?"
+    options:
+      - "They run faster"
+      - "They establish what the machine looks like before you alter it, and cannot break anything"
+      - "The scoring engine requires it"
+      - "They do not need sudo"
+    answer: 1
+    why: "An audit pass costs nothing and can't break a service. It also gives you a before picture, which is what lets you tell your own changes apart from what was already there."
+  - q: "What does the `2>/dev/null` in `sudo find / -perm -4000 2>/dev/null` accomplish?"
+    options:
+      - "Runs the command in the background"
+      - "Discards permission-denied errors so the real results are readable"
+      - "Limits the search to /dev"
+      - "Suppresses the results"
+    answer: 1
+    why: "2 is stderr. Redirecting it to /dev/null throws away the noise from directories you cannot read, leaving only the matches on stdout."
+---
+
+Everything you check by hand on a Linux box can be checked faster with one
+line. These are the lines worth knowing by heart, because you will run them on
+every image you ever touch.
+
+The rule underneath all of them: **audit before you change.** Every command
+here only reads. None can break a service, so there is no reason not to run
+them first.
+
+## Accounts
+
+```
+awk -F: '$3>=1000 && $3<65534 {print $1}' /etc/passwd
+```
+
+Human users only. `-F:` sets the field separator, `$3` is the UID, `$1` is the
+name.
+
+```
+awk -F: '$3==0 {print $1}' /etc/passwd
+```
+
+Every UID-0 account. Should print `root` alone.
+
+```
+sudo awk -F: '($2==""){print $1}' /etc/shadow
+```
+
+Accounts with no password at all.
+
+```
+getent group sudo
+```
+
+Who currently holds admin rights.
+
+## Services and network
+
+```
+sudo ss -tulpn
+systemctl list-units --type=service --state=running
+```
+
+What is listening, and what is running.
+
+## Files and permissions
+
+```
+sudo find / -perm -4000 -type f 2>/dev/null
+ls -l /etc/shadow /etc/passwd /etc/sudoers
+sudo find /home /root -name authorized_keys
+```
+
+SUID binaries, the modes of the three files that are always scored, and any
+SSH key that would survive a password change.
+
+## Persistence
+
+```
+sudo ls -la /etc/cron.d /etc/cron.daily /var/spool/cron/crontabs
+sudo grep -r NOPASSWD /etc/sudoers /etc/sudoers.d/
+```
+
+## The pieces these are built from
+
+Four tools cover nearly all of it, and knowing which does what lets you write
+your own rather than memorising lines:
+
+- **grep** — find lines matching a pattern. `-r` recursive, `-i`
+  case-insensitive, `-v` invert.
+- **awk** — split lines into fields and print or test them. `-F` sets the
+  separator, `$1`/`$3` are fields, `$0` is the whole line.
+- **cut** — simpler field extraction. `cut -d: -f1 /etc/passwd`.
+- **find** — locate files by name, permission, owner or time.
+
+Chain them with pipes. `cut -d: -f1 /etc/passwd | sort` gives you a sorted
+username list; add `| wc -l` to count instead.
+
+## Comparing against the README
+
+```
+awk -F: '$3>=1000 && $3<65534 {print $1}' /etc/passwd | sort > /tmp/actual.txt
+```
+
+Type the README's authorized list into `/tmp/authorized.txt`, then:
+
+```
+comm -23 /tmp/actual.txt /tmp/authorized.txt   # on the box, not authorized
+comm -13 /tmp/actual.txt /tmp/authorized.txt   # authorized, missing from the box
+```
+
+`comm` compares two sorted files. That two-command pair answers the single
+most common scored question on any Linux image, and it is the direct ancestor
+of the audit script in the next lesson.

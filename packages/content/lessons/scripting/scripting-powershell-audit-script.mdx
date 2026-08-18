@@ -1,0 +1,128 @@
+---
+slug: scripting-powershell-audit-script
+title: Building a PowerShell audit script
+why: "One script that audits a whole Windows box, and never changes anything by accident."
+domainId: scripting
+level: advanced
+minutes: 10
+sortOrder: 4
+published: true
+skills:
+  - scripting.powershell.audit-script
+check:
+  - q: "Why might a .ps1 script refuse to run on a fresh Windows machine?"
+    options:
+      - "PowerShell is not installed"
+      - "The execution policy blocks unsigned scripts by default"
+      - "Scripts must be compiled first"
+      - "The file needs a .exe extension"
+    answer: 1
+    why: "Windows blocks unsigned scripts by default. Bypassing it for one run with -ExecutionPolicy Bypass is the least invasive option, since it changes nothing on the machine."
+  - q: "Which is the safest way to run your audit script for a single pass?"
+    options:
+      - "Set-ExecutionPolicy Unrestricted"
+      - "powershell -ExecutionPolicy Bypass -File .\\audit.ps1"
+      - "Disable Windows Defender first"
+      - "Rename it to audit.bat"
+    answer: 1
+    why: "The -ExecutionPolicy flag applies to that one invocation only. Set-ExecutionPolicy Unrestricted is a persistent machine change, and weakening a security setting on a machine you're supposed to be hardening may itself cost points."
+  - q: "Your audit script should be run at the start of the round and again later. Why?"
+    options:
+      - "To confirm the script still works"
+      - "So you can diff the two and see what changed on the machine, including things you did not do"
+      - "Because output expires"
+      - "To reset the scoring engine"
+    answer: 1
+    why: "Two snapshots diff cleanly. A service that reappears between runs is a live persistence mechanism announcing itself — which you would otherwise only find by accident."
+---
+
+The Windows counterpart to the bash audit script, with the same rule: it reads
+and reports, and never changes anything.
+
+## The skeleton
+
+```powershell
+# audit.ps1 — read-only survey of a Windows box
+
+Write-Output "=== HOSTNAME AND TIME ==="
+hostname
+Get-Date
+
+Write-Output "`n=== LOCAL USERS ==="
+Get-LocalUser | Format-Table Name, Enabled, LastLogon, PasswordLastSet
+
+Write-Output "`n=== ADMINISTRATORS ==="
+Get-LocalGroupMember Administrators
+
+Write-Output "`n=== PASSWORD POLICY ==="
+net accounts
+
+Write-Output "`n=== RUNNING SERVICES ==="
+Get-Service | Where-Object {$_.Status -eq "Running"} | Sort-Object Name | Format-Table Name, DisplayName
+
+Write-Output "`n=== LISTENING PORTS ==="
+netstat -ano | findstr LISTENING
+
+Write-Output "`n=== SCHEDULED TASKS ==="
+Get-ScheduledTask | Where-Object {$_.State -ne "Disabled"} | Format-Table TaskName, TaskPath, State
+
+Write-Output "`n=== RUN KEYS (persistence) ==="
+Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run"
+Get-ItemProperty "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run"
+
+Write-Output "`n=== FIREWALL ==="
+Get-NetFirewallProfile | Format-Table Name, Enabled
+
+Write-Output "`n=== DEFENDER ==="
+Get-MpComputerStatus | Format-List AntivirusEnabled, RealTimeProtectionEnabled
+
+Write-Output "`n=== SHARES ==="
+Get-SmbShare
+```
+
+The backtick-n in `"`n=== ... ==="` is PowerShell's newline escape — it puts a
+blank line before each heading so the output is readable.
+
+## Getting it to run
+
+Windows blocks unsigned scripts by default, so a fresh `.ps1` will refuse to
+start. Bypass it for one invocation:
+
+```
+powershell -ExecutionPolicy Bypass -File .\audit.ps1
+```
+
+Do **not** reach for `Set-ExecutionPolicy Unrestricted`. That is a persistent
+change that weakens a security setting on a machine you are being scored on
+hardening, and it may cost you points directly. The per-invocation flag
+changes nothing about the machine.
+
+Run it from an elevated prompt — several of these queries return incomplete
+results without administrator rights.
+
+## Saving and comparing
+
+```
+powershell -ExecutionPolicy Bypass -File .\audit.ps1 > audit-0900.txt
+```
+
+Later in the round:
+
+```
+powershell -ExecutionPolicy Bypass -File .\audit.ps1 > audit-1000.txt
+Compare-Object (Get-Content audit-0900.txt) (Get-Content audit-1000.txt)
+```
+
+`Compare-Object` is PowerShell's `diff`. Anything it reports that you did not
+do yourself is worth investigating immediately — a service back in Running, a
+new entry under a Run key, an account that reappeared.
+
+## Read-only, still
+
+Same discipline as the bash version. Every command above starts with `Get-`,
+`net accounts`, or `netstat` — all reads. The moment you add a `Set-` or a
+`Stop-`, running the script stops being free and starts being a decision.
+
+Keep fixing manual and deliberate. The script's job is to tell you the truth
+about the machine quickly, over and over, without ever being the reason
+something broke.

@@ -1,0 +1,134 @@
+---
+slug: scripting-powershell-queries
+title: PowerShell queries for auditing
+why: "PowerShell reads Windows the way bash reads Linux. Same instincts, different verbs."
+domainId: scripting
+level: standard
+minutes: 9
+sortOrder: 3
+published: true
+skills:
+  - scripting.powershell.queries
+check:
+  - q: "Which command lists local user accounts on Windows?"
+    options:
+      - "Get-Users"
+      - "Get-LocalUser"
+      - "List-Accounts"
+      - "Show-Users"
+    answer: 1
+    why: "PowerShell uses Verb-Noun naming consistently. Get-LocalUser, Get-LocalGroupMember and Get-Service all follow the same shape, which makes them guessable once you know the pattern."
+  - q: "What does the pipeline in `Get-Service | Where-Object {$_.Status -eq 'Running'}` do?"
+    options:
+      - "Starts every stopped service"
+      - "Passes service objects to a filter that keeps only the running ones"
+      - "Restarts running services"
+      - "Sorts services by status"
+    answer: 1
+    why: "PowerShell pipes objects rather than text. $_ is the current object, so you filter on real properties instead of matching strings — which is why it doesn't break when output formatting changes."
+  - q: "Which accounts should you look at first in Get-LocalGroupMember Administrators?"
+    options:
+      - "Any account not on the README's authorized-administrator list"
+      - "The account with the longest name"
+      - "Only disabled accounts"
+      - "Only the built-in Administrator"
+    answer: 0
+    why: "The README defines who is authorized. Anyone in the group but not on that list is a scored finding, however ordinary the name looks."
+---
+
+PowerShell is to Windows what bash is to Linux, and the same discipline
+applies: read everything before you change anything. These queries only
+report, so run them the moment you sit down.
+
+## The naming pattern
+
+PowerShell commands are `Verb-Noun`. Once you know that, most of them are
+guessable:
+
+```
+Get-LocalUser
+Get-Service
+Get-Process
+Get-LocalGroupMember
+```
+
+`Get-` reads. `Set-`, `Stop-`, `Remove-` and `Disable-` change things — which
+is a useful safety rule: if the command doesn't start with `Get-`, think
+before you press enter.
+
+## Accounts
+
+```
+Get-LocalUser
+Get-LocalUser | Where-Object {$_.Enabled -eq $true}
+Get-LocalGroupMember Administrators
+```
+
+The first lists every local account with its enabled state. The second narrows
+to accounts that can actually log in. The third is the one that matters most —
+compare it against the README's authorized administrators, and anyone extra is
+a finding.
+
+```
+net user
+net localgroup administrators
+```
+
+The older `net` commands do the same job and are worth knowing, because they
+work in `cmd` when PowerShell is restricted.
+
+## Services
+
+```
+Get-Service | Where-Object {$_.Status -eq "Running"} | Sort-Object Name
+Get-Service -Name Telnet, FTPSVC, SNMP
+```
+
+The pipeline here is the thing to understand. `Get-Service` emits service
+*objects*, `Where-Object` filters them on a real property, and `$_` refers to
+whichever object is passing through. Because it filters on properties rather
+than text, it doesn't break when output formatting changes — a genuine
+advantage over parsing strings.
+
+## The registry
+
+The registry is browsable like a filesystem:
+
+```
+Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run"
+Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon" -Name AutoAdminLogon
+```
+
+The `Run` key is a classic persistence location — anything listed there
+launches at login, and unfamiliar entries are worth reading closely.
+
+## Network and scheduled tasks
+
+```
+netstat -ano | findstr LISTENING
+Get-ScheduledTask | Where-Object {$_.State -ne "Disabled"}
+```
+
+Scheduled tasks are the Windows equivalent of cron, and the same persistence
+hiding place.
+
+## Policy
+
+```
+net accounts
+secedit /export /cfg C:\policy.txt
+```
+
+`net accounts` shows password age, length and lockout settings. Note that it
+can display complexity but cannot set it — a trap worth remembering, since
+setting complexity requires Local Security Policy or `secedit`.
+
+## Saving output
+
+```
+Get-LocalUser | Out-File C:\audit-users.txt
+Get-Service | Export-Csv C:\audit-services.csv
+```
+
+Same reasoning as on Linux: a saved snapshot lets you diff against a later one
+and see what changed while you worked.

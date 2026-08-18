@@ -1,0 +1,98 @@
+---
+slug: meta-change-log
+title: The change-log habit
+why: "When something breaks at hour five, the log is how you find what you did."
+domainId: meta
+level: foundations
+minutes: 6
+sortOrder: 1
+published: true
+skills:
+  - meta.strategy.change-log
+check:
+  - q: "Your score drops 20 points and nobody knows why. What makes this recoverable?"
+    options:
+      - "Rebooting the machine"
+      - "A change log showing what was changed, when, and by whom"
+      - "Re-running the scoring engine"
+      - "Restoring from a system image"
+    answer: 1
+    why: "A score drop means something you did broke a scored item or stopped a required service. Without a record, you are guessing across everything the team touched. With one, you check the last few entries."
+  - q: "What is the minimum a change-log entry needs?"
+    options:
+      - "A screenshot"
+      - "The time, what was changed, and who changed it"
+      - "The full file contents before and after"
+      - "A description of why it was needed"
+    answer: 1
+    why: "Time, change, person. That is enough to reverse it and enough to tell two teammates' work apart, which is the whole job. Anything more is a bonus."
+  - q: "Two teammates both work on the same machine without logging. What is the most likely failure?"
+    options:
+      - "The machine runs out of memory"
+      - "One undoes the other's work, or both make the same change twice, and nobody can tell"
+      - "The scoring engine stops responding"
+      - "The README becomes unreadable"
+    answer: 1
+    why: "Silent overlap is the standard multi-person failure. The log is what makes parallel work visible, which is why it matters more with two people than with one."
+---
+
+The change log is the least exciting habit in competition and the one that
+most reliably saves a round. It costs a few seconds per change and pays for
+itself the first time your score goes down and nobody knows why.
+
+## Why a score can drop
+
+Points do not just fail to arrive — they get taken away. Stopping a service
+the README requires, breaking a config file, locking out an account that
+should work: all of these show up as a score *decrease*, sometimes twenty
+minutes after the change that caused it.
+
+At that moment you have one question: what did we just do? Without a log, the
+answer is somewhere among everything three people have touched in the last
+hour. With one, it is the last four entries.
+
+## What an entry needs
+
+Three things:
+
+```
+14:32  disabled telnet service              — Sam
+14:35  set PermitRootLogin no, restarted ssh — Sam
+14:41  removed user "backdoor"              — Alex
+14:44  set password policy minlen 14        — Sam
+```
+
+Time, what changed, who did it. That is enough to reverse anything and enough
+to tell two people's work apart. A shared doc, a text file, or paper all work
+— what matters is that everyone writes to the same one.
+
+## Log the change, not the intention
+
+Write what you actually did, in enough detail to undo it. "Fixed SSH" is
+useless three hours later. "Set PermitRootLogin no in sshd_config, restarted
+ssh" can be reversed by anyone on the team without asking you.
+
+If you edited a file, note which file. If you changed a setting, note the old
+value as well when you have it.
+
+## It pairs with backups
+
+The log tells you *what* you changed; a backup lets you put it back:
+
+```
+sudo cp /etc/ssh/sshd_config /etc/ssh/sshd_config.bak
+```
+
+Back up before you edit, log after you change. Together they turn a broken
+service into a thirty-second revert instead of a rebuild.
+
+## With a team, it becomes essential
+
+One person can sometimes hold their changes in their head. Two people on one
+machine cannot. Without a shared log you get silent overlap — one person
+undoing another's work, or both making the same change and neither knowing
+whether it took.
+
+The log is what makes parallel work visible. It is the cheapest coordination
+tool you have, and unlike everything else in a round, it costs nothing to
+maintain.
