@@ -167,9 +167,8 @@ interface PillarInputs {
   forensicsScores: number[]; // ForensicsProgress bestScore across archetypes
 }
 
-// Exported so other cross-pillar aggregations (e.g. lib/season-plan.ts's
-// coach-facing plan) share this one list rather than growing their own copy
-// that can drift from it.
+// Exported so any other cross-pillar aggregation shares this one list rather
+// than growing its own copy that can drift from it.
 export const PILLAR_LABELS: Record<string, string> = {
   foundations: "Foundations",
   linux: "Linux",

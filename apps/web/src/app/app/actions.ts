@@ -31,8 +31,10 @@ const createTeamSchema = z.object({
 // Where createTeam sends the coach after success. An allowlist, not a raw
 // pass-through of a form field, so this stays a redirect target picker and
 // never an open redirect. The setup wizard's step 1 (apps/web/src/app/app/
-// team/setup) is the one caller that isn't the default.
-const REDIRECT_ALLOWLIST = new Set(["/app/team", "/app/team/setup"]);
+// Only one target remains now the setup wizard is cut (DECISIONS 040), but
+// the allowlist stays: it is what makes this a picker rather than an open
+// redirect, and that property should survive the next caller being added.
+const REDIRECT_ALLOWLIST = new Set(["/app/team"]);
 
 export async function createTeam(
   _prevState: TeamActionState,
