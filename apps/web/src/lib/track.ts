@@ -167,7 +167,10 @@ interface PillarInputs {
   forensicsScores: number[]; // ForensicsProgress bestScore across archetypes
 }
 
-const PILLAR_LABELS: Record<string, string> = {
+// Exported so other cross-pillar aggregations (e.g. lib/season-plan.ts's
+// coach-facing plan) share this one list rather than growing their own copy
+// that can drift from it.
+export const PILLAR_LABELS: Record<string, string> = {
   foundations: "Foundations",
   linux: "Linux",
   windows: "Windows",
@@ -176,7 +179,7 @@ const PILLAR_LABELS: Record<string, string> = {
   scripting: "Scripting",
   meta: "Meta",
 };
-const PILLAR_ORDER = ["foundations", "linux", "windows", "networking", "forensics", "scripting", "meta"];
+export const PILLAR_ORDER = ["foundations", "linux", "windows", "networking", "forensics", "scripting", "meta"];
 
 /** Mean, rounded. Returns null for an empty set rather than NaN — callers
  * guard today, but `Math.round(0/0)` is a landmine one refactor away. */

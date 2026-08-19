@@ -1,34 +1,55 @@
 # RoundZero — Claude Code Context
 
-Free, open-source, browser-based training platform for CyberPatriot teams.
-Chromebook-first. The debrief is the product. Independent and unofficial.
+Free, open-source, browser-based CyberPatriot training platform for the
+**individual learner**. Chromebook-first. The debrief is the product.
+Independent and unofficial.
 Full product spec: `docs/spec.md`. Roadmap and gates: `docs/ROADMAP.md`.
+
+## Scope — read before proposing anything
+
+**The unit is one person training and improving.** Not a team, not a class,
+not a club. Every feature optimizes for a single learner: their placement,
+their track, their progress, their practice. `docs/ROADMAP.md`'s "Scope"
+section is the authority; the summary here exists so nobody has to go
+looking.
+
+**Coach tools are cut entirely** — assignments, coach dashboard, scrimmages,
+coverage matrix, readiness reports for a group, coach setup wizard. Removed,
+not deferred. Do not propose them. `docs/spec.md` §8 and the old Phase 3 are
+superseded and should be read as history.
+
+**Teams are dormant, not deleted.** `Organization`, `Member`, `Invitation`,
+join codes, `/app/team` and the roster stay and keep working. Build nothing
+further on them. They aren't removed because `Organization` is Better Auth's
+model (organization plugin, DECISIONS 004) and `TeamChecklist` is scoped by
+`organizationId` — removal means an auth migration plus re-scoping the
+shipped fork/diff/print trio, for no user gain.
+
+**Focus lives on placement, never on membership.** `Placement.focus` is
+user-scoped and is what the track generator reads —
+`normalizeFocus(placement?.focus)`, falling back to all machines when
+placement is absent. `Member.machineRole` is dormant. A learner with no team
+must never be unable to express what they're focusing on, so never
+reintroduce a membership dependency into focus resolution.
 
 ## Current focus
 
 **Sequencing authority: `docs/ROADMAP.md`'s "Locked build order" section.**
-That section supersedes the calendar map and phase gates elsewhere in the
-roadmap — read it before starting work, don't restate it here.
+Read it before starting work; don't restate it here.
 
-Active slice: the checklist trio (step 1.2 of the locked order) — team fork
-(customize, add, reorder), diff against upstream canonical, and print/PDF
-export (load-bearing: teams use printed references during a round). The pure
-fork/diff/reorder logic is already done and unit-tested in
-`packages/db/src/checklists/fork.ts`. The schema carries `sourceVersion`,
-`upstreamItemId`, `removed`, and nullable overrides on `why`/`commands` —
-`action` was the one exception, non-nullable by oversight rather than design,
-fixed by a small additive migration (see `docs/DECISIONS.md`). Still to build: server
-actions, the `/app/checklists/[id]` editing UI, the diff view, and the
-print surface.
-
-Two fork invariants worth not rediscovering: a fork stores OVERRIDES, not
-copies (an untouched item keeps inheriting upstream corrections; only
-edited fields pin), and removal is a soft-hide (`removed: true`) so the
-diff can tell a deliberate team drop from an item upstream never had.
+Active slice: the content-depth pass (step 1.5) — fattening every bank now
+that all 53 lessons across 7 taxonomy domains exist. Steps 1.1–1.3 are done;
+1.4 (coach wizard) was cut with the coach tools.
 
 Infrastructure (orchestrator, gVisor, pooling, cloud deploy) and the full
 design pass both stay explicitly later, per the locked order. If a task
 drifts past the current slice, stop and flag it instead of building it.
+
+Two checklist-fork invariants worth not rediscovering: a fork stores
+OVERRIDES, not copies (an untouched item keeps inheriting upstream
+corrections; only edited fields pin), and removal is a soft-hide
+(`removed: true`) so the diff can tell a deliberate drop from an item
+upstream never had.
 
 ## Golden rules
 

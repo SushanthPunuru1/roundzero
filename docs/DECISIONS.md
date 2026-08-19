@@ -2154,3 +2154,155 @@ with no snapshot must not either) plus an update to the existing
 "upstream change hidden underneath a team override" test, which needed a
 snapshot to actually exercise the code path it was named for — that test
 was passing before this fix for the wrong reason.
+
+**040 · 2026-08-18 · Coach setup wizard (`/app/team/setup`): team → invite →
+cadence → plan. Step 1.4 of the locked build order.** The roadmap line reads
+"season plan generated from `Season` calendar data," which cannot be built as
+written — `seed.ts` only ever creates the `Season` row (`cp-19`); no
+`SeasonEvent` rows exist for a generator to read. Round 1 / Round 2 / State /
+etc. dates are real facts the AFA publishes each season; hardcoding guesses
+would put wrong information in front of coaches and would later drive the
+Phase 6 integrity lockout windows (`SeasonEvent.lockout`) off invented data —
+a correctness bug, not a cosmetic one. **Resolved by inverting the roadmap
+line: dates are coach-entered, not generated**, and stored as ordinary
+`SeasonEvent` rows so the generator (whenever it's built) has real data to
+read. Seed-shipped official rows can land later without any wizard change —
+see the calendar-resolution rule below.
+
+*Team-scoped dates: an additive migration, against the spec's stated default
+of none.* `SeasonEvent` hung off `Season` only, and `Season` is global
+(`cp-19`, shared by every team this season). Writing a coach's guessed Round 1
+date onto that shared row would make one team's typo every team's calendar,
+let two coaches overwrite each other, and would feed Phase 6 lockout logic
+from cross-tenant data. The alternative that needed no migration — a
+per-team private `Season` row with `Organization.seasonId` pointing at it —
+was rejected too: it makes `Season` two different things and muddies
+`Season.active` and the official-catalog meaning for every other reader of
+that table (`/app/checklists` already displays `season.title` as if it's
+always the one official season). Migration
+`20260818214852_add_team_season_events_and_meeting_cadence`, applied directly
+to the production Neon instance (same safety profile as 039/039a — nullable,
+additive, no backfill), adds:
+- `SeasonEvent.organizationId String?` (+ `@@index([seasonId, organizationId])`)
+  — null = official/seed-shipped, visible to every team; set = one team's own
+  row, visible only to them.
+- `Organization.meetingCadence MeetingCadence?` and `.meetingDay Weekday?` —
+  see below.
+
+**Calendar resolution rule, load-bearing:** `resolveTeamCalendar()`
+(`apps/web/src/lib/season-plan.ts`) collapses a season's rows to at most one
+per `EventKind` — a team's own row for a `kind` always wins over the official
+row of that same `kind`, never both shown. Without this, a coach who entered
+Round 1 by hand would see two Round 1 rows the day an official one is seeded.
+Covered by a two-organization test asserting org A's rows never appear in org
+B's resolved calendar (`season-plan.test.ts`) and by `actions.test.ts`
+asserting every write is scoped to the caller's own `organizationId`, never a
+form-supplied one.
+
+*Cadence: typed `Organization` columns, not `metadata`.* Original direction
+(agreed with the user before implementation) was to fold "how often does your
+team meet" into `Organization.metadata` — a JSON string field Better Auth
+itself owns on the org schema. Changed during implementation: `metadata`
+is the org plugin's own field, so writing our data into it means a
+read-modify-write merge on every save and a zod parse that has to tolerate
+the plugin someday writing its own shape there — exactly the fragility the
+user flagged as a reason to prefer a migration instead. `Organization`
+already carries `division`/`joinCode`/`seasonId` as real columns marked APP
+FIELD; `meetingCadence`/`meetingDay` follow that existing convention instead
+of introducing a second, JSON-shaped one. Folded into the same migration as
+`SeasonEvent.organizationId` above, so it cost nothing extra. This is a
+deviation from the metadata approach as originally selected — recorded here
+per the instruction to do so if taken.
+
+*Resumability is derived from DB state, never a stored cursor.*
+`resolveSetupStep()` reads `{ hasTeam, memberCount, hasCadence, hasAnyDate }`
+straight from the DB: no team → 1; team but roster of one → 2; roster but no
+cadence/dates → 3; otherwise → 4. A bare `/app/team/setup` visit (closing and
+reopening the tab) always lands on the right step because the *data* says
+where the coach left off. `?step=N` is a view cursor only, for a coach who
+wants to jump back and revise a finished step — it is never written to the
+DB, and a stale `?step=1` on a team that already exists bounces forward to 2
+rather than trying to re-run team creation.
+
+*Roster progress is aggregate-only.* Step 4's "lessons by pillar" shows a
+count — "1/4 members through" — never which members, and never a
+per-student table. CLAUDE.md rule 8 (data minimization for minors) and
+DESIGN.md's "no points, no rank" apply here exactly as they do to the
+dashboard's own pillar view; a per-student breakdown on a coach's screen is a
+leaderboard regardless of what it's named. **Definition, stated in a code
+comment on `derivePlan()` so a future session doesn't re-derive it
+differently:** a member is "through" a pillar once they have a
+`LessonProgress` row for *every* currently-published lesson in it — not
+"has started," not an average score. A pillar with zero published lessons
+counts nobody as through.
+
+*A client component may not value-import anything that reaches Prisma or
+Node's `fs`, even transitively through a shared "pure logic" module —
+discovered mid-session as a real Turbopack build failure, not a lint nit.*
+`cadence-form.tsx` (`"use client"`) originally imported `EVENT_KIND_LABELS`/
+`EVENT_KIND_ORDER` as values straight from `lib/season-plan.ts`. That module
+itself has no Prisma import, but it value-imports `PILLAR_LABELS`/
+`PILLAR_ORDER` from `lib/track.ts` — which value-imports `prisma` and
+`lib/lesson-content.ts` (`readdirSync` from `node:fs`) — so the whole chain
+got pulled into the browser bundle and `next build` failed with "the
+chunking context (unknown) does not support external modules (request:
+node:fs)". A `"use server"` file's own value imports of `prisma`/`auth`
+(e.g. `checklists/actions.ts`, this wizard's own `actions.ts`) are NOT the
+same hazard — Next compiles a `"use server"` export to a client-side
+reference stub, so its real body and imports never ship to the browser; that
+pattern was already proven safe in production and needed no change here.
+Fixed the same way `next-step-card.tsx`'s `NextStepView` already does
+(DECISIONS 034/036): `cadence-form.tsx` now takes fully-resolved,
+serializable props (`dateFields: { kind, label, initialValue }[]`) from its
+Server Component parent (`page.tsx`, which freely imports the real
+constants — server pages are never bundled for the browser) instead of
+importing anything beyond `import type { EventKind }`, which is erased at
+compile time. `lib/season-plan.ts` was also split from its Prisma loaders
+(`lib/season-plan-loaders.ts`) to keep the pure module itself free of any
+`prisma` import — the same pure-module/thin-Prisma-layer split `lib/track.ts`
+uses, just as two files instead of one section within one file, because
+(unlike `track.ts`) this module's pure exports needed to be safely
+client-importable.
+
+*New `packages/ui` usage, no new primitive.* The six date fields use `Input`
+with `type="date"` as-is — `globals.css` already sets `color-scheme: dark`
+on `:root`, so the native picker (including its calendar icon) renders
+correctly without any extra CSS.
+
+Verified: `pnpm lint && pnpm test && pnpm build` green (305 tests in
+`packages/db`, 250 in `apps/web`, including new coverage in
+`season-plan.test.ts`, `teams.test.ts` (`canRunTeamSetup`), and
+`setup/actions.test.ts` — the last covers the spec's required server-side
+refusal check, invoking the action directly rather than observing a hidden
+button, plus org-scoping against a form-supplied `organizationId`).
+
+**040 · 2026-08-19 · RoundZero is an individual training platform. Coach
+tools cut, teams dormant, focus lives on placement.** The unit is one person
+training and improving — not a team, class or club. Consequences, all
+deliberate: (a) coach tools are REMOVED from the roadmap, not deferred —
+assignments, coach dashboard, scrimmages, coverage matrix, group readiness
+reports, and the coach setup wizard. `docs/spec.md` §8 and the original
+Phase 3 are superseded and should be read as history. (b) The coach setup
+wizard, built and browser-verified in this session, was reverted rather than
+committed. Committing a feature already decided against is how it gets
+"helpfully" extended three sessions later; nothing depended on it. Its
+migration (`SeasonEvent.organizationId`, `Organization.meetingCadence`,
+`Organization.meetingDay`) had already been applied to production and is left
+in place — three nullable columns nobody writes to are cheaper than a
+reverting migration. (c) Teams go DORMANT, not deleted. `Organization` is
+Better Auth's model via the organization plugin (DECISIONS 004), so removal
+is an auth-layer change on working sign-in; and `TeamChecklist` is scoped by
+`organizationId`, so removal means re-scoping and re-migrating the fork/diff/
+print trio shipped hours earlier. A "team checklist fork" and "my customized
+checklist" are one feature with a different owner column — a cheap rename
+later if it ever matters, not a reason to demolish working code now. Dead
+code is cheap; an auth migration plus a fork re-scope is not. (d) Machine
+specialization survives the cut but moves off the team model entirely.
+`Placement.focus` is user-scoped and already carries it; `Member.machineRole`
+goes dormant. Verified during this decision, not assumed: `loadTrack` reads
+`normalizeFocus(placement?.focus)` and neither `apps/web/src/lib/track.ts`
+nor `packages/db/src/track/generate.ts` references `machineRole` or
+`prisma.member` at all, and `normalizeFocus` falls back to all machines when
+placement is absent. So a learner with no team can already express focus, and
+no fix was needed. Never reintroduce a membership dependency into focus
+resolution — that is the one change that would break a solo learner outright.

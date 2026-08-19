@@ -12,7 +12,17 @@ if (process.env.NODE_ENV !== "production") {
 
 // Re-exported so consumers (e.g. apps/web) don't need their own
 // `@prisma/client` dependency just for enum types/values.
-export { Division, MachineRole, TrackLevel, OS, CardType, ForensicsArchetype } from "@prisma/client";
+export {
+  Division,
+  MachineRole,
+  TrackLevel,
+  OS,
+  CardType,
+  ForensicsArchetype,
+  EventKind,
+  MeetingCadence,
+  Weekday,
+} from "@prisma/client";
 
 // `Prisma.DbNull` is the sentinel a nullable Json column needs to actually
 // clear it — a bare JS `null` is ambiguous for Json fields, so the checklist

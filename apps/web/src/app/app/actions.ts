@@ -28,6 +28,12 @@ const createTeamSchema = z.object({
   }),
 });
 
+// Where createTeam sends the coach after success. An allowlist, not a raw
+// pass-through of a form field, so this stays a redirect target picker and
+// never an open redirect. The setup wizard's step 1 (apps/web/src/app/app/
+// team/setup) is the one caller that isn't the default.
+const REDIRECT_ALLOWLIST = new Set(["/app/team", "/app/team/setup"]);
+
 export async function createTeam(
   _prevState: TeamActionState,
   formData: FormData,
@@ -65,7 +71,10 @@ export async function createTeam(
     },
   });
 
-  redirect("/app/team");
+  const redirectToRaw = formData.get("redirectTo");
+  const redirectTo =
+    typeof redirectToRaw === "string" && REDIRECT_ALLOWLIST.has(redirectToRaw) ? redirectToRaw : "/app/team";
+  redirect(redirectTo);
 }
 
 const joinTeamSchema = z.object({

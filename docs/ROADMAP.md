@@ -6,6 +6,38 @@ lands ~early-to-mid November. Phase 1 must be live for our own club by
 late September; Linux labs by early November. August assumes reduced hours
 (SAT retake); September coexists with EA essays.
 
+## Scope: RoundZero is an individual training platform
+
+**The unit is one person training and improving.** Not a team, not a class,
+not a club. Every feature from here optimizes for a single learner: their
+placement, their track, their progress, their practice.
+
+**Coach tools are cut entirely.** Assignments, the coach dashboard,
+scrimmages, the team coverage matrix, readiness reports for a group, and the
+coach setup wizard are removed from this roadmap — not deferred. Do not
+propose them. Phase 3 as originally specced no longer exists.
+
+**Teams are dormant, not deleted.** `Organization`, `Member`, `Invitation`,
+join codes, `/app/team` and the roster stay in the codebase and keep working.
+Build nothing further on them. They are not removed because `Organization` is
+Better Auth's model, created by the `organization` plugin wired into
+`auth.ts` and locked by DECISIONS 004 — removing it is an auth-layer change
+on working sign-in for zero user gain. `TeamChecklist` is also scoped by
+`organizationId`, so removal would mean re-scoping and re-migrating the
+shipped fork/diff/print trio. A "team checklist fork" and "my customized
+checklist" are the same feature with a different owner column; that rename
+can happen cheaply later if it ever matters.
+
+**Machine specialization lives on placement, never on the team model.**
+"I'm focusing on Linux" is core to the track generator, and `Placement.focus`
+already carries it — user-scoped, no membership required. `Member.machineRole`
+goes dormant with the rest of teams. Verified: `loadTrack` reads
+`normalizeFocus(placement?.focus)` and nothing in `lib/track.ts` or
+`track/generate.ts` references `machineRole` or `prisma.member`. A learner
+with no team must never be unable to express focus, and today they can't be
+— `normalizeFocus` falls back to all machines when placement is absent. Do
+not reintroduce a membership dependency into focus resolution.
+
 ## Locked build order
 
 This supersedes the phase-gate sequencing and the calendar map below, both
@@ -16,18 +48,17 @@ re-litigation each session.
 
 In this order:
 
-1. Linux lesson set (current)
-2. Checklist trio — team fork UI, diff view against upstream, print/PDF
-   export. Pure fork/diff/reorder logic already landed in
-   `packages/db/src/checklists/fork.ts`; what remains is server actions and
-   the three surfaces.
-3. Remaining lesson sets — Forensics, Scripting, Meta-skills
-4. Coach setup wizard
-5. Content-depth pass to fatten every bank
+1. ~~Linux lesson set~~ — done
+2. ~~Checklist trio — fork UI, diff view against upstream, print/PDF
+   export~~ — done
+3. ~~Remaining lesson sets — Forensics, Scripting, Meta-skills~~ — done
+   (53 lessons, all 7 taxonomy domains)
+4. ~~Coach setup wizard~~ — **CUT.** Out of scope under individual-first.
+   The implementation was reverted deliberately, not lost.
+5. Content-depth pass to fatten every bank ← current
 
 Functionality sits inside this step rather than after it because the design
-pass cannot run on screens that do not exist, and fork/diff, print export
-and the coach wizard are all user-facing surfaces.
+pass cannot run on screens that do not exist.
 
 ### 2. Infrastructure — the hosting launch
 
@@ -45,9 +76,10 @@ first, then everything else.
 
 Input for the rest of the pass is `docs/DESIGN_GRIPES.md`, not taste.
 
-### 4. Club onboarding
+### 4. Onboarding real learners
 
-Only after 3.
+Only after 3. Individual learners, one at a time — not a club rollout, not a
+class. The unit here is the same as everywhere else: one person.
 
 **Nobody uses this app — including the author's own club — until the design
 pass is done.** Early user testing and soft launches have been considered

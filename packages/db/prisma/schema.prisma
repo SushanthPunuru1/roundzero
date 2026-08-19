@@ -114,9 +114,17 @@ model Organization {
   seasonId String?
   season   Season?  @relation(fields: [seasonId], references: [id])
 
-  members     Member[]
-  invitations Invitation[]
-  checklists  TeamChecklist[]
+  // APP FIELDS — coach setup wizard (self-reported, shapes the plan step's
+  // copy only; never gates anything). Typed columns, not Organization's
+  // `metadata` — that field is Better Auth's own, and namespacing our data
+  // inside it means a read-modify-write merge race between two coaches.
+  meetingCadence MeetingCadence?
+  meetingDay     Weekday?
+
+  members      Member[]
+  invitations  Invitation[]
+  checklists   TeamChecklist[]
+  seasonEvents SeasonEvent[] // coach-entered dates on the shared Season calendar
 }
 
 model Member {
@@ -446,6 +454,17 @@ model SeasonEvent {
   startsAt DateTime
   endsAt   DateTime
   lockout  Boolean   @default(false) // integrity lockout window (used Phase 2+)
+
+  // null = official/seed-shipped row, visible to every team on this Season.
+  // Set = one team's coach-entered date for that Season, visible only to
+  // them. A team row for a given `kind` takes priority over the official row
+  // of the same `kind` when resolving what to display (coach setup wizard) —
+  // never both, or a coach who entered Round 1 would see two Round 1 rows
+  // once an official one is seeded.
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([seasonId, organizationId])
 }
 
 // ---------------------------------------------------------------------------
@@ -515,4 +534,21 @@ enum EventKind {
   SEMIFINALS
   FINALS
   CUSTOM
+}
+
+enum MeetingCadence {
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+  OTHER
+}
+
+enum Weekday {
+  MON
+  TUE
+  WED
+  THU
+  FRI
+  SAT
+  SUN
 }

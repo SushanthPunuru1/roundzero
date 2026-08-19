@@ -297,8 +297,12 @@ function PillarRow({ pillar, href }: { pillar: PillarProgress; href: string }) {
 }
 
 function TeamCard({ teamName }: { teamName: string | null }) {
+  // A team-less user lands in the setup wizard (create-team is its step 1,
+  // with a "join instead" out) rather than straight at /app/team — see
+  // apps/web/src/app/app/team/setup/page.tsx.
+  const href = teamName ? "/app/team" : "/app/team/setup";
   return (
-    <Link href="/app/team" className={`group flex items-center gap-4 rounded-md border border-hairline bg-surface px-4 py-4 ${ROW_INTERACTIVE}`}>
+    <Link href={href} className={`group flex items-center gap-4 rounded-md border border-hairline bg-surface px-4 py-4 ${ROW_INTERACTIVE}`}>
       <span className="flex size-9 shrink-0 items-center justify-center rounded-md border border-hairline bg-surface-2">
         <Users className="size-5 text-text-dim" strokeWidth={1.75} aria-hidden="true" />
       </span>
