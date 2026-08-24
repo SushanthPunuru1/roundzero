@@ -119,3 +119,44 @@ export function validateCardRefs(cards: DesiredCard[], knownNodes: KnownNode[]):
     }
   }
 }
+
+/** The minimum cards a leaf skill node must carry. Below this, finishing the
+ * lesson that teaches the node enqueues a drill session too short to be worth
+ * scheduling — see findCoverageGaps. */
+export const MIN_CARDS_PER_NODE = 3;
+
+export interface CoverageGap {
+  skillNodeId: string;
+  cardCount: number;
+}
+
+/**
+ * Reports leaf skill nodes carrying fewer than `minCards` drill cards, in
+ * taxonomy order. This is a soft invariant, deliberately returned rather than
+ * thrown: a node added to the taxonomy ahead of its cards is a normal state
+ * mid-authoring, and blocking `db:seed` on it would make the spine harder to
+ * extend, not easier. The seed reports gaps; nothing fails on them.
+ *
+ * It matters because `enqueueLessonCards` resolves cards through the lesson's
+ * skill nodes — a node with no cards means completing its lesson silently
+ * enqueues nothing, and the SRS looks broken rather than empty. Pure: takes
+ * the known-node set as a parameter.
+ */
+export function findCoverageGaps(
+  cards: DesiredCard[],
+  knownNodes: KnownNode[],
+  minCards: number = MIN_CARDS_PER_NODE,
+): CoverageGap[] {
+  const counts = new Map<string, number>();
+  for (const card of cards) {
+    counts.set(card.skillNodeId, (counts.get(card.skillNodeId) ?? 0) + 1);
+  }
+
+  const gaps: CoverageGap[] = [];
+  for (const node of knownNodes) {
+    if (node.kind !== "SKILL") continue;
+    const cardCount = counts.get(node.id) ?? 0;
+    if (cardCount < minCards) gaps.push({ skillNodeId: node.id, cardCount });
+  }
+  return gaps;
+}

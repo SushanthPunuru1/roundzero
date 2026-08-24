@@ -19,7 +19,7 @@ import {
   type ExistingChecklistItem,
   type ExistingChecklistTemplate,
 } from "../src/checklists/reconcile";
-import { parseCards, validateCardRefs } from "../src/cards/parse";
+import { findCoverageGaps, MIN_CARDS_PER_NODE, parseCards, validateCardRefs } from "../src/cards/parse";
 import { reconcileCards, type ExistingCard } from "../src/cards/reconcile";
 import { parseForensics, toForensicsRow, validateForensicsRefs } from "../src/forensics/parse";
 import { reconcileForensics, type ExistingForensicsQuestion } from "../src/forensics/reconcile";
@@ -383,6 +383,20 @@ async function syncCards(knownTaxonomyNodes: DesiredNode[]): Promise<void> {
       `deactivated: ${plan.toDeactivate.length}, reactivated: ${plan.toReactivate.length}, ` +
       `unchanged: ${plan.unchanged.length}`,
   );
+
+  // Reported, never thrown. A taxonomy node added ahead of its cards is a
+  // normal authoring state; failing the seed on it would make the spine
+  // harder to extend. But a node at zero means completing the lesson that
+  // teaches it enqueues nothing, so the gap has to be visible somewhere.
+  const gaps = findCoverageGaps(desired, knownTaxonomyNodes);
+  if (gaps.length > 0) {
+    console.warn(
+      `card coverage — ${gaps.length} skill node(s) under the ${MIN_CARDS_PER_NODE}-card floor:`,
+    );
+    for (const gap of gaps) {
+      console.warn(`  ${gap.skillNodeId}: ${gap.cardCount}`);
+    }
+  }
 }
 
 async function syncForensics(knownTaxonomyNodes: DesiredNode[]): Promise<void> {

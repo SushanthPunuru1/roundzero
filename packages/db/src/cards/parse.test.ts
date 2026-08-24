@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CardError, parseCards, validateCardRefs } from "./parse";
+import { CardError, findCoverageGaps, parseCards, validateCardRefs } from "./parse";
 import type { KnownNode } from "../lessons/parse";
 
 const VALID_YAML = `
@@ -125,5 +125,93 @@ describe("validateCardRefs", () => {
     expect(() => validateCardRefs(cards, knownNodes)).toThrow(
       /is not a taxonomy skill \(leaf\) node/,
     );
+  });
+});
+
+describe("findCoverageGaps", () => {
+  const knownNodes: KnownNode[] = [
+    { id: "linux", kind: "DOMAIN" },
+    { id: "linux.accounts", kind: "CATEGORY" },
+    { id: "linux.accounts.uid0", kind: "SKILL" },
+    { id: "linux.accounts.sudoers", kind: "SKILL" },
+    { id: "linux.ssh.limits", kind: "SKILL" },
+  ];
+
+  function cardsFor(counts: Record<string, number>) {
+    return Object.entries(counts).flatMap(([skillNodeId, n]) =>
+      Array.from({ length: n }, (_, i) => ({
+        id: `card.${skillNodeId}.${i}`,
+        skillNodeId,
+        type: "CONCEPT" as const,
+        front: `front ${i}`,
+        back: `back ${i}`,
+      })),
+    );
+  }
+
+  it("reports nothing when every leaf node meets the floor", () => {
+    const cards = cardsFor({
+      "linux.accounts.uid0": 3,
+      "linux.accounts.sudoers": 5,
+      "linux.ssh.limits": 3,
+    });
+    expect(findCoverageGaps(cards, knownNodes)).toEqual([]);
+  });
+
+  // The case this exists for: enqueueLessonCards resolves cards through the
+  // lesson's skill nodes, so a node at zero means finishing its lesson
+  // enqueues nothing at all and the drill looks broken rather than empty.
+  it("reports a leaf node with no cards at all", () => {
+    const cards = cardsFor({ "linux.accounts.uid0": 3, "linux.accounts.sudoers": 3 });
+    expect(findCoverageGaps(cards, knownNodes)).toEqual([
+      { skillNodeId: "linux.ssh.limits", cardCount: 0 },
+    ]);
+  });
+
+  it("reports a node that is present but under the floor, with its count", () => {
+    const cards = cardsFor({
+      "linux.accounts.uid0": 1,
+      "linux.accounts.sudoers": 3,
+      "linux.ssh.limits": 2,
+    });
+    expect(findCoverageGaps(cards, knownNodes)).toEqual([
+      { skillNodeId: "linux.accounts.uid0", cardCount: 1 },
+      { skillNodeId: "linux.ssh.limits", cardCount: 2 },
+    ]);
+  });
+
+  // Domains and categories are not teachable units — only leaves carry cards,
+  // so counting them as gaps would report every parent node forever.
+  it("ignores domain and category nodes", () => {
+    const cards = cardsFor({
+      "linux.accounts.uid0": 3,
+      "linux.accounts.sudoers": 3,
+      "linux.ssh.limits": 3,
+    });
+    expect(findCoverageGaps(cards, knownNodes)).toEqual([]);
+  });
+
+  it("honours a caller-supplied floor", () => {
+    const cards = cardsFor({
+      "linux.accounts.uid0": 3,
+      "linux.accounts.sudoers": 3,
+      "linux.ssh.limits": 3,
+    });
+    expect(findCoverageGaps(cards, knownNodes, 5).map((g) => g.skillNodeId)).toEqual([
+      "linux.accounts.uid0",
+      "linux.accounts.sudoers",
+      "linux.ssh.limits",
+    ]);
+  });
+
+  it("counts cards for a node the taxonomy does not list without crashing", () => {
+    // validateCardRefs is what rejects these; coverage must not double-report.
+    const cards = cardsFor({
+      "linux.accounts.uid0": 3,
+      "linux.accounts.sudoers": 3,
+      "linux.ssh.limits": 3,
+      "linux.gone.away": 4,
+    });
+    expect(findCoverageGaps(cards, knownNodes)).toEqual([]);
   });
 });

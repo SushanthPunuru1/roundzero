@@ -2306,3 +2306,38 @@ nor `packages/db/src/track/generate.ts` references `machineRole` or
 placement is absent. So a learner with no team can already express focus, and
 no fix was needed. Never reintroduce a membership dependency into focus
 resolution — that is the one change that would break a solo learner outright.
+
+**041 · 2026-08-23 · The drill deck gets a floor of 3 cards per skill node,
+enforced by a reported (not thrown) coverage check in the seed.** Auditing
+the banks before starting the content-depth pass turned up a functional hole,
+not just thin content: 23 of 85 leaf skill nodes carried zero drill cards,
+and because `enqueueLessonCards` resolves cards through the lesson's skill
+nodes, **12 of 53 published lessons enqueued nothing at all on completion**.
+Finishing a Scripting lesson looked identical to the SRS being broken. A
+further 21 lessons enqueued one or two cards — a "review session" too short
+to schedule. So the pass started here rather than with question banks. The
+deck went 110 → 265 cards, bringing every leaf node to at least 3.
+Three decisions worth recording. (a) **The floor is 3, and it is per node,
+not per lesson.** Cards are enqueued by skill node, so a per-lesson average
+would let a multi-node lesson hide a dead node inside a healthy total —
+which is exactly how `windows-server-basics` (three nodes, zero cards) passed
+unnoticed. (b) **`findCoverageGaps` returns gaps; it never throws.** It sits
+next to `validateCardRefs` in `cards/parse.ts` and is pure, but the two
+invariants are different in kind: a bad `skillNodeId` is always a mistake and
+must fail the seed, whereas a taxonomy node added ahead of its cards is a
+normal authoring state. Blocking `db:seed` on coverage would make the spine
+harder to extend, which is the opposite of what the taxonomy rule wants. The
+seed prints the gaps after the card-sync line and continues. (c) **Two
+orphaned nodes got lessons rather than being left as unreachable cards.**
+`networking.devices.dhcp-nat` and `networking.wireless.security` had cards
+but no lesson, so nothing could ever enqueue them — a new lesson,
+`dhcp-nat-and-wireless` (networking, sortOrder 10), now covers both.
+`windows.persistence.wmi` had neither; it gained three cards and a WMI
+event-subscription section appended to `persistence-and-malware`, whose
+frontmatter now lists the node. Every leaf node in the taxonomy now has both
+a lesson and at least three cards, verified by running the real
+`parseTaxonomy` / `parseCards` / `parseLessons` over the actual content
+files. Note what this does NOT close: the forensics bank (24 questions), the
+networking quiz (35), the placement pool (28), and the two checklists (22 and
+25 items) are all still thin. Step 1.5 stays open; the drill slice of it is
+done.

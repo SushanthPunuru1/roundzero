@@ -1,0 +1,163 @@
+---
+slug: dhcp-nat-and-wireless
+title: DHCP, NAT, and wireless security
+why: "The three edge services every network quiz asks about and no build works without."
+domainId: networking
+level: standard
+minutes: 8
+sortOrder: 10
+published: true
+skills:
+  - networking.devices.dhcp-nat
+  - networking.wireless.security
+check:
+  - q: "A host boots and has no IP address. What are the four DHCP messages, in order, that give it one?"
+    options:
+      - "Request, Offer, Discover, Acknowledge"
+      - "Discover, Offer, Request, Acknowledge"
+      - "Discover, Request, Offer, Acknowledge"
+      - "Offer, Discover, Acknowledge, Request"
+    answer: 1
+    why: "Discover, Offer, Request, Acknowledge — DORA. The client broadcasts a Discover because it has no address yet; the server Offers one; the client formally Requests that specific offer; the server Acknowledges. Getting the order right matters because the quiz asks for it directly."
+  - q: "Two hosts behind the same NAT router both browse the web at once. How does the router know which reply belongs to which host?"
+    options:
+      - "Each host is given its own public IP address"
+      - "The router tracks the source port it assigned to each connection"
+      - "The reply contains the host's private IP address"
+      - "It broadcasts every reply and lets hosts ignore what isn't theirs"
+    answer: 1
+    why: "PAT (NAT overload) rewrites the source port as well as the source address, and keeps a translation table mapping each public-address-and-port pair back to a private one. That table is the only reason many hosts can share one public address."
+  - q: "An access point uses a 20-character WPA2 passphrase but has WPS enabled. Is that secure?"
+    options:
+      - "Yes — the passphrase length makes it infeasible to crack"
+      - "No — the WPS PIN can be brute-forced, bypassing the passphrase entirely"
+      - "Yes, as long as the SSID is hidden as well"
+      - "No, because WPA2 is deprecated and only WPA3 is acceptable"
+    answer: 1
+    why: "The WPS PIN is only eight digits and is validated in two halves, so it is brute-forceable in hours regardless of how strong the passphrase is. Recovering the PIN hands over the passphrase. Passphrase strength does not help you if there is a second door."
+---
+
+Three things sit at the edge of almost every network: something hands out
+addresses, something translates them on the way out, and something lets
+devices on without a cable. DHCP, NAT, and wireless are that edge — and
+they're the part of the networking pillar where the quiz questions are most
+predictable, because the mechanisms barely change.
+
+## DHCP: how a host gets an address
+
+A host that just booted has no IP address, so it can't send a normal
+packet — it can only broadcast. DHCP is built around that limitation, and
+the four-step exchange is worth knowing by name:
+
+| Step | Who sends it | What it means |
+|---|---|---|
+| **D**iscover | Client (broadcast) | "Is there a DHCP server out there?" |
+| **O**ffer | Server | "Here's an address you can have." |
+| **R**equest | Client (broadcast) | "I'll take that one." |
+| **A**cknowledge | Server | "It's yours, for this long." |
+
+DORA. The Request is broadcast rather than unicast on purpose: if two
+servers made offers, the broadcast tells the one that lost that its address
+is free again.
+
+What the client ends up with is more than an address. A DHCP lease normally
+carries four things:
+
+- **IP address and subnet mask** — who you are, and how big your local
+  network is
+- **Default gateway** — where to send anything that isn't local
+- **DNS servers** — how to turn names into addresses
+- **Lease time** — how long before you have to renew
+
+That list is the reason "DHCP is broken" and "DNS is broken" look identical
+to a user. If the DHCP server hands out the wrong DNS address, name lookups
+fail even though addressing worked perfectly.
+
+### Where it goes wrong
+
+A host with a **169.254.x.x** address didn't get a lease at all. That's
+APIPA — the self-assigned range a machine falls back to when no DHCP server
+answered. It's the fastest diagnostic on the list: 169.254 means the
+Discover went unanswered, so look at the server, the relay, or the VLAN the
+port is in.
+
+Because Discover is a broadcast, it doesn't cross a router. A DHCP server on
+a different subnet needs a **relay** — on Cisco gear, an `ip helper-address`
+on the client-side interface pointing at the server.
+
+## NAT: how many hosts share one address
+
+There aren't enough IPv4 addresses, so private ranges get reused everywhere:
+
+- `10.0.0.0/8`
+- `172.16.0.0/12`
+- `192.168.0.0/16`
+
+None of those are routable on the internet. NAT is what makes them usable
+anyway: the router rewrites the private source address to its own public one
+on the way out, and reverses the translation on the way back.
+
+The version you actually meet is **PAT**, also called NAT overload, which
+rewrites the source *port* as well:
+
+```
+192.168.1.10:51000  ->  203.0.113.5:40001
+192.168.1.11:51000  ->  203.0.113.5:40002
+```
+
+Two hosts, two identical private ports, one public address — and the router
+keeps a translation table so each reply finds its way home. That table is
+the whole mechanism.
+
+The consequence worth remembering: **nothing outside can start a connection
+inward.** There's no table entry until an inside host creates one. That's
+why hosting a service behind NAT requires an explicit port-forward rule, and
+why NAT gets mistaken for a firewall. It isn't one — it blocks unsolicited
+inbound traffic as a side effect of how it works, and it inspects nothing.
+
+## Wireless: which settings actually matter
+
+Wireless security is a short list, and the exam asks about it in the same
+few ways.
+
+**The encryption mode**, strongest to weakest:
+
+| Mode | Verdict |
+|---|---|
+| WPA3 (SAE) | Best. A captured handshake can't be cracked offline. |
+| WPA2-AES (CCMP) | Acceptable. The realistic answer on most gear. |
+| WPA/TKIP | Deprecated. Don't select it. |
+| WEP | Broken. Recoverable in minutes. Never correct. |
+| Open | No encryption at all. |
+
+WPA3's improvement over WPA2 is worth stating precisely, because that's the
+question: WPA2-PSK lets an attacker capture the four-way handshake and then
+guess the passphrase offline, at whatever speed their hardware allows. WPA3
+replaces that handshake with **SAE**, where each guess has to be made
+against the live access point — so a weak passphrase is still weak, but it
+can no longer be attacked at a million tries per second in someone's
+basement.
+
+**The settings that undo a good passphrase:**
+
+- **WPS enabled.** An eight-digit PIN, validated in two halves, brute-forced
+  in hours. It hands over the passphrase, so passphrase strength is
+  irrelevant. Turn it off.
+- **Default admin credentials on the access point.** Whoever reaches the
+  management page reconfigures everything else.
+- **WPA2-Enterprise vs PSK.** Enterprise authenticates each user against
+  RADIUS instead of sharing one secret. Where it's an option, it's the
+  stronger answer.
+
+**And the one that isn't security:** hiding the SSID. The name is still in
+every association frame any client sends, so it's trivially recovered. MAC
+filtering is the same story — addresses are visible and spoofable. Both are
+speed bumps, and neither is ever the right answer to "how do you secure this
+network."
+
+## The short version
+
+DHCP is DORA and a lease containing address, mask, gateway, and DNS —
+169.254 means it failed. NAT is a translation table, PAT adds the port, and
+inbound needs an explicit rule. Wireless is WPA2-AES at minimum, WPA3 where
+you can get it, WPS off, and hidden SSIDs are not a security control.

@@ -685,3 +685,948 @@ cards:
     type: COMMAND
     front: "Show the router's current routing table."
     back: "show ip route"
+
+  # === SCRIPTING — Bash ==================================================
+  - id: card.scripting.bash.oneliners.uid0
+    skillNodeId: scripting.bash.oneliners
+    type: COMMAND
+    front: "One-liner: print every account with UID 0."
+    back: "awk -F: '$3==0 {print $1}' /etc/passwd"
+
+  - id: card.scripting.bash.oneliners.compare-readme
+    skillNodeId: scripting.bash.oneliners
+    type: COMMAND
+    front: "You have the authorized users in users.txt. Print the accounts on the box that are NOT in it."
+    back: "comm -23 <(awk -F: '$3>=1000 && $3<65534 {print $1}' /etc/passwd | sort) <(sort users.txt)"
+
+  - id: card.scripting.bash.oneliners.listening
+    skillNodeId: scripting.bash.oneliners
+    type: COMMAND
+    front: "One-liner: list listening sockets with the process behind each one."
+    back: "sudo ss -tulpn"
+
+  - id: card.scripting.bash.audit-script.read-only
+    skillNodeId: scripting.bash.audit-script
+    type: CONCEPT
+    front: "What is the one rule an audit script must never break?"
+    back: "It reads, it never writes. An audit script that fixes things removes your ability to tell what the box looked like — and a bug in it changes the box instead of just misreporting it."
+
+  - id: card.scripting.bash.audit-script.shebang-strict
+    skillNodeId: scripting.bash.audit-script
+    type: COMMAND
+    front: "What two lines start a Bash audit script, and what does the second one do?"
+    back: "#!/usr/bin/env bash then set -euo pipefail — exit on error, on unset variable, and on any failure inside a pipeline, so the script stops instead of reporting a half-truth."
+
+  - id: card.scripting.bash.audit-script.save-runs
+    skillNodeId: scripting.bash.audit-script
+    type: CONCEPT
+    front: "Why save every audit run to its own timestamped file instead of just reading the output?"
+    back: "So you can diff two runs. The second run tells you what changed since the first — which is how you catch something re-appearing after you removed it."
+
+  # === SCRIPTING — PowerShell ============================================
+  - id: card.scripting.powershell.queries.verb-noun
+    skillNodeId: scripting.powershell.queries
+    type: CONCEPT
+    front: "What is the PowerShell naming pattern, and why does it help you guess commands?"
+    back: "Verb-Noun, with a small fixed verb set (Get, Set, New, Remove, Start, Stop). If you know the noun you can usually guess the cmdlet: Get-LocalUser, Get-Service, Get-ScheduledTask."
+
+  - id: card.scripting.powershell.queries.enabled-users
+    skillNodeId: scripting.powershell.queries
+    type: COMMAND
+    front: "PowerShell: list local accounts that are enabled."
+    back: "Get-LocalUser | Where-Object Enabled -eq $true"
+
+  - id: card.scripting.powershell.queries.admins
+    skillNodeId: scripting.powershell.queries
+    type: COMMAND
+    front: "PowerShell: list the members of the local Administrators group."
+    back: "Get-LocalGroupMember -Group Administrators"
+
+  - id: card.scripting.powershell.audit-script.execution-policy
+    skillNodeId: scripting.powershell.audit-script
+    type: COMMAND
+    front: "Your .ps1 won't run — PowerShell refuses the file. How do you run it without weakening the machine's policy?"
+    back: "powershell -ExecutionPolicy Bypass -File .\\audit.ps1 — scoped to that one invocation. Do not Set-ExecutionPolicy Unrestricted on the box; that is a hardening item you would be undoing."
+
+  - id: card.scripting.powershell.audit-script.out-file
+    skillNodeId: scripting.powershell.audit-script
+    type: COMMAND
+    front: "PowerShell: write audit output to a timestamped file."
+    back: "$stamp = Get-Date -Format yyyyMMdd-HHmmss; ... | Out-File \"audit-$stamp.txt\""
+
+  - id: card.scripting.powershell.audit-script.read-only
+    skillNodeId: scripting.powershell.audit-script
+    type: CONCEPT
+    front: "Which PowerShell verbs belong in an audit script, and which do not?"
+    back: "Get- only. Set-, New-, Remove-, Start-, and Stop- change the box — put those in your notes as things to do by hand, never in the script that surveys it."
+
+  # === META — strategy ===================================================
+  - id: card.meta.strategy.readme-traps.read-twice
+    skillNodeId: meta.strategy.readme-traps
+    type: CONCEPT
+    front: "Why read the README twice before touching anything?"
+    back: "Names and requirements are buried in prose, not listed. The first read tells you what the box is; the second is where you extract authorized users, required services, and anything you are forbidden to change."
+
+  - id: card.meta.strategy.readme-traps.required-service
+    skillNodeId: meta.strategy.readme-traps
+    type: CONCEPT
+    front: "The README says the machine is a web server. You find Apache running. What is the trap?"
+    back: "Disabling it. A service the README requires is scored as a penalty if you stop it — usually a large one. 'Looks like an unnecessary service' is not a judgement you get to make against the README."
+
+  - id: card.meta.strategy.readme-traps.alarming-name
+    skillNodeId: meta.strategy.readme-traps
+    type: CONCEPT
+    front: "An account is named 'hacker' but the README lists it as an authorized user. What do you do?"
+    back: "Leave it. The name is bait; the README is the authority. Deleting an authorized user is a penalty no matter what it is called."
+
+  - id: card.meta.strategy.role-splits.by-machine
+    skillNodeId: meta.strategy.role-splits
+    type: CONCEPT
+    front: "Do you split a round by machine or by task?"
+    back: "By machine. One person owns one image start to finish. Splitting by task means two people editing the same box, undoing each other, with no one able to say what changed."
+
+  - id: card.meta.strategy.role-splits.one-log
+    skillNodeId: meta.strategy.role-splits
+    type: CONCEPT
+    front: "Why does each machine get exactly one change log and one owner?"
+    back: "So a lost point can be traced to a specific change. Two people writing to one box produce a log that explains nothing when the score drops."
+
+  - id: card.meta.strategy.role-splits.share-what
+    skillNodeId: meta.strategy.role-splits
+    type: CONCEPT
+    front: "If people don't share machines, what SHOULD be shared across the team during a round?"
+    back: "Findings, not hands: README extractions, forensics answers, and 'this trick worked on my box' — plus brief check-ins. Knowledge crosses machines; keystrokes don't."
+
+  - id: card.meta.strategy.time-management.survey-first
+    skillNodeId: meta.strategy.time-management
+    type: CONCEPT
+    front: "What is the only thing you do in the first twenty minutes of a round?"
+    back: "Survey. Read the README, list users, services, and listening ports, start the change log. Fixing before you have the picture is how you break a required service."
+
+  - id: card.meta.strategy.time-management.slow-first
+    skillNodeId: meta.strategy.time-management
+    type: CONCEPT
+    front: "Why start the system update early even though it scores late?"
+    back: "It is the longest-running item and it runs unattended. Start it first and it finishes while you work; start it last and the clock, not the box, decides whether you get the points."
+
+  - id: card.meta.strategy.time-management.stuck-rule
+    skillNodeId: meta.strategy.time-management
+    type: CONCEPT
+    front: "You've spent forty minutes on one item and the score hasn't moved. What now?"
+    back: "Write it down and leave it. One stubborn point costs the same as an easy one, and the easy ones you haven't reached are worth more than the one you're attached to."
+
+  - id: card.meta.strategy.point-strategy.cheap-first
+    skillNodeId: meta.strategy.point-strategy
+    type: CONCEPT
+    front: "Two items are worth the same points — one takes 2 minutes, one takes 30. Which order?"
+    back: "Cheap first, always. Points are points regardless of effort, and banking the fast ones means a round that ends early still ends with them scored."
+
+  - id: card.meta.strategy.point-strategy.penalties
+    skillNodeId: meta.strategy.point-strategy
+    type: CONCEPT
+    front: "Why is avoiding one penalty worth more than scoring one vulnerability?"
+    back: "A penalty subtracts and the vulnerability it replaced is still unscored — so it costs you twice. Careful beats fast when a change could break something the README requires."
+
+  - id: card.meta.strategy.change-log.why-revert
+    skillNodeId: meta.strategy.change-log
+    type: CONCEPT
+    front: "The score drops five points. What makes the change log the fastest way back?"
+    back: "It is an ordered list of what you changed. You revert the last entries one at a time until the points return — without it you are guessing across a whole machine."
+
+  - id: card.meta.strategy.change-log.when-to-write
+    skillNodeId: meta.strategy.change-log
+    type: CONCEPT
+    front: "When do you write a change-log line — before or after making the change?"
+    back: "Before. A log written afterward is a log missing exactly the entries you made in a hurry, which are the ones most likely to have broken something."
+
+  # === FORENSICS — depth pass ============================================
+  - id: card.forensics.core.file-hunting.by-name
+    skillNodeId: forensics.core.file-hunting
+    type: COMMAND
+    front: "Linux: find every file on the box whose name ends in .txt, without the permission-denied noise."
+    back: "sudo find / -name '*.txt' 2>/dev/null"
+
+  - id: card.forensics.core.file-hunting.by-content
+    skillNodeId: forensics.core.file-hunting
+    type: COMMAND
+    front: "Linux: search inside files under /home for the word 'password', case-insensitively."
+    back: "grep -ri password /home 2>/dev/null"
+
+  - id: card.forensics.core.file-hunting.hidden
+    skillNodeId: forensics.core.file-hunting
+    type: CONCEPT
+    front: "What makes a file hidden on Linux, and what does plain `ls` do with it?"
+    back: "A leading dot in the name. `ls` skips it entirely — you need `ls -a`. Forensics answers hide in dotfiles precisely because a casual listing misses them."
+
+  - id: card.forensics.core.hashing.what-changes
+    skillNodeId: forensics.core.hashing
+    type: CONCEPT
+    front: "You hash a file, add one space, and hash it again. How much of the hash changes?"
+    back: "Effectively all of it. Any edit — one byte, one newline — produces a completely different digest. That is what makes a hash usable as a fingerprint."
+
+  - id: card.forensics.core.hashing.trap
+    skillNodeId: forensics.core.hashing
+    type: CONCEPT
+    front: "Your hash doesn't match the expected answer. What is the usual cause before you suspect the file?"
+    back: "The wrong algorithm or the wrong file. Check that the question asked for the algorithm you ran (MD5 vs SHA1 vs SHA256) and that you hashed the exact path it named, not a copy you edited."
+
+  - id: card.forensics.core.login-history.failed
+    skillNodeId: forensics.core.login-history
+    type: COMMAND
+    front: "Linux: show failed login attempts rather than successful ones."
+    back: "sudo lastb    # reads /var/log/btmp; `last` reads /var/log/wtmp and shows successes"
+
+  - id: card.forensics.core.login-history.evidence
+    skillNodeId: forensics.core.login-history
+    type: CONCEPT
+    front: "Why is login history evidence rather than trivia?"
+    back: "It tells you which account was used, from where, and when — so a question about 'who logged in last' has one checkable answer, and an unexpected source address tells you which account to distrust."
+
+  - id: card.forensics.core.decoding.not-encryption
+    skillNodeId: forensics.core.decoding
+    type: CONCEPT
+    front: "Why is base64 encoding, not encryption?"
+    back: "There is no key. Anyone can reverse it with a standard command, so it hides data from a glance and from nothing else. Finding base64 in a script is a sign someone wanted the content non-obvious, not protected."
+
+  - id: card.forensics.core.decoding.recognise
+    skillNodeId: forensics.core.decoding
+    type: CONCEPT
+    front: "How do you recognise base64 on sight?"
+    back: "A long run of A–Z, a–z, 0–9, + and /, length a multiple of 4, often ending in one or two = signs as padding. No spaces."
+
+  - id: card.forensics.core.stego.strings
+    skillNodeId: forensics.core.stego
+    type: COMMAND
+    front: "An image is suspected of hiding text. What is the first command you run?"
+    back: "strings suspect.png | less    # add -n 8 to cut short noise; readable text inside a binary is the cheapest hit there is"
+
+  - id: card.forensics.core.stego.file-type
+    skillNodeId: forensics.core.stego
+    type: COMMAND
+    front: "Linux: check what a file actually is, rather than what its extension claims."
+    back: "file suspect.png    # a .png that reports 'Zip archive data' is the whole answer"
+
+  - id: card.forensics.core.stego.size-clue
+    skillNodeId: forensics.core.stego
+    type: CONCEPT
+    front: "Why is an unusually large image file a stego clue?"
+    back: "Appended data increases the size without changing what the image looks like. A 12 MB photo of a small icon is carrying something the renderer never reads."
+
+  - id: card.forensics.core.ports.reading-output
+    skillNodeId: forensics.core.ports
+    type: CONCEPT
+    front: "In `ss -tulpn` output, what does 0.0.0.0:22 mean versus 127.0.0.1:22?"
+    back: "0.0.0.0 means listening on every interface — reachable from the network. 127.0.0.1 means loopback only, reachable from the machine itself. The first is exposure; the second usually isn't."
+
+  - id: card.forensics.core.ports.on-sight
+    skillNodeId: forensics.core.ports
+    type: CONCEPT
+    front: "Name the service on each of 22, 80, 443, 3389, and 445."
+    back: "22 SSH · 80 HTTP · 443 HTTPS · 3389 RDP · 445 SMB. A forensics question naming a port number expects the service, and vice versa."
+
+  - id: card.forensics.core.answer-format.exact
+    skillNodeId: forensics.core.answer-format
+    type: CONCEPT
+    front: "The question asks for a username and you answer 'the user bob was added'. Scored?"
+    back: "No. Answer exactly what was asked and nothing else — 'bob'. The grader compares strings; extra words are a wrong answer, not a fuller one."
+
+  - id: card.forensics.core.accounts.passwd-fields
+    skillNodeId: forensics.core.accounts
+    type: CONCEPT
+    front: "Read this /etc/passwd line: bob:x:1001:1001:Bob:/home/bob:/bin/bash. What are the seven fields?"
+    back: "username : password placeholder : UID : GID : comment/GECOS : home directory : login shell."
+
+  - id: card.forensics.core.accounts.uid0
+    skillNodeId: forensics.core.accounts
+    type: CONCEPT
+    front: "Why does UID 0 matter more than group membership when reading /etc/passwd?"
+    back: "UID 0 IS root — the kernel checks the number, not the name. A second account with UID 0 has full root privilege regardless of what it is called or which groups it belongs to."
+
+  - id: card.forensics.core.accounts.humans
+    skillNodeId: forensics.core.accounts
+    type: CONCEPT
+    front: "How do you tell human accounts from service accounts in /etc/passwd?"
+    back: "UID >= 1000 and a real login shell. Service accounts sit below 1000 and usually carry /usr/sbin/nologin or /bin/false, so they cannot be logged into."
+
+  # === LINUX — depth pass (accounts, PAM, SSH) ===========================
+  - id: card.linux.accounts.passwd-shadow.split
+    skillNodeId: linux.accounts.passwd-shadow
+    type: CONCEPT
+    front: "Why are hashes in /etc/shadow instead of /etc/passwd?"
+    back: "/etc/passwd must be world-readable so any program can map UIDs to names. /etc/shadow is root-only, so the hashes are not readable by every user on the box. The x in the password field is the placeholder pointing at it."
+
+  - id: card.linux.accounts.uid0.why-name-irrelevant
+    skillNodeId: linux.accounts.uid0
+    type: CONCEPT
+    front: "An account named 'backup' has UID 0. Is it root?"
+    back: "Yes. The kernel authorises on the numeric UID, not the name. Any account with UID 0 has full root privilege, which is why a second UID-0 account is a vulnerability regardless of what it is called."
+
+  - id: card.linux.accounts.uid0.fix
+    skillNodeId: linux.accounts.uid0
+    type: COMMAND
+    front: "You find a non-root account with UID 0 and the README does not authorise it. How do you fix it?"
+    back: "sudo usermod -u 1005 baduser    # give it a normal UID; delete the account only if the README does not list it at all"
+
+  - id: card.linux.accounts.chage.audit
+    skillNodeId: linux.accounts.chage
+    type: COMMAND
+    front: "Linux: show the current aging settings for one account."
+    back: "sudo chage -l bob"
+
+  - id: card.linux.accounts.chage.vs-logindefs
+    skillNodeId: linux.accounts.chage
+    type: CONCEPT
+    front: "You set PASS_MAX_DAYS in /etc/login.defs but existing users still show 99999. Why?"
+    back: "login.defs applies to accounts created afterwards. Existing accounts keep the aging values already stored in /etc/shadow — you have to set those per user with chage."
+
+  - id: card.linux.pam.pwquality.minlen
+    skillNodeId: linux.pam.pwquality
+    type: COMMAND
+    front: "In /etc/security/pwquality.conf, set a 12-character minimum and require at least one of each character class."
+    back: "minlen = 12, then dcredit = -1, ucredit = -1, lcredit = -1, ocredit = -1"
+
+  - id: card.linux.pam.pwhistory.what
+    skillNodeId: linux.pam.pwhistory
+    type: CONCEPT
+    front: "What does pam_pwhistory do that pwquality does not?"
+    back: "It remembers previous passwords and refuses reuse. pwquality only judges the new password on its own merits — without pwhistory a user can cycle straight back to the password you just made them change."
+
+  - id: card.linux.pam.pwhistory.remember
+    skillNodeId: linux.pam.pwhistory
+    type: COMMAND
+    front: "Linux: which file and directive make the system remember the last 5 passwords?"
+    back: "/etc/pam.d/common-password — add `remember=5` to the pam_pwhistory.so line (or to pam_unix.so if pwhistory is not present)."
+
+  - id: card.linux.pam.pwhistory.opasswd
+    skillNodeId: linux.pam.pwhistory
+    type: CONCEPT
+    front: "Where does Linux store the old password hashes that pwhistory compares against?"
+    back: "/etc/security/opasswd. It should be root-only (600) — it is a file of password hashes, so a readable one is its own vulnerability."
+
+  - id: card.linux.pam.faillock.settings
+    skillNodeId: linux.pam.faillock
+    type: COMMAND
+    front: "In /etc/security/faillock.conf, lock an account for 15 minutes after 5 failed attempts."
+    back: "deny = 5 and unlock_time = 900    # unlock_time is in seconds"
+
+  - id: card.linux.pam.faillock.inspect
+    skillNodeId: linux.pam.faillock
+    type: COMMAND
+    front: "Linux: check whether an account is currently locked out, and clear it."
+    back: "faillock --user bob   then   sudo faillock --user bob --reset"
+
+  - id: card.linux.ssh.permitrootlogin.restart
+    skillNodeId: linux.ssh.permitrootlogin
+    type: COMMAND
+    front: "Linux: apply an sshd_config change without dropping your current session."
+    back: "sudo systemctl reload ssh    # reload re-reads the config and leaves established sessions alone; test with `sudo sshd -t` first"
+
+  - id: card.linux.ssh.passwordauth.tradeoff
+    skillNodeId: linux.ssh.passwordauth
+    type: CONCEPT
+    front: "What must be true before you set PasswordAuthentication no?"
+    back: "A working key-based login for an account that can reach root. Turn passwords off without a key in place and you have locked everyone, including yourself, out of the box."
+
+  - id: card.linux.ssh.limits.allowusers
+    skillNodeId: linux.ssh.limits
+    type: COMMAND
+    front: "Restrict SSH to two named accounts."
+    back: "AllowUsers bob alice    in /etc/ssh/sshd_config — an allowlist; anyone not named is refused, so never add it without checking the README's authorized users first."
+
+  - id: card.linux.ssh.limits.protocol-port
+    skillNodeId: linux.ssh.limits
+    type: CONCEPT
+    front: "Which SSH settings limit an attacker's attempts rather than their identity?"
+    back: "MaxAuthTries (guesses per connection), LoginGraceTime (seconds to authenticate), and MaxSessions. They cap brute force without changing who is allowed in."
+
+  - id: card.linux.ssh.limits.empty-passwords
+    skillNodeId: linux.ssh.limits
+    type: COMMAND
+    front: "Which sshd_config directive must be `no` to stop blank-password logins, and what is the default?"
+    back: "PermitEmptyPasswords no. The default is already no, but scored images frequently ship it flipped to yes — check the file rather than assuming."
+
+  # === LINUX — depth pass (services, persistence, files) =================
+  - id: card.linux.services-persistence.systemd-audit.enabled
+    skillNodeId: linux.services-persistence.systemd-audit
+    type: COMMAND
+    front: "Linux: list every service set to start at boot."
+    back: "systemctl list-unit-files --type=service --state=enabled"
+
+  - id: card.linux.services-persistence.cron.user-crontab
+    skillNodeId: linux.services-persistence.cron
+    type: COMMAND
+    front: "Linux: read another user's crontab without editing it."
+    back: "sudo crontab -l -u bob    # -l lists; -e would open the editor and risks changing it"
+
+  - id: card.linux.services-persistence.cron.at-timers
+    skillNodeId: linux.services-persistence.cron
+    type: CONCEPT
+    front: "Besides cron, what two other mechanisms schedule work on a modern Linux box?"
+    back: "systemd timers (`systemctl list-timers`) and at jobs (`atq`). A persistence check that only looks at cron misses both."
+
+  - id: card.linux.services-persistence.rc-bashrc.where
+    skillNodeId: linux.services-persistence.rc-bashrc
+    type: CONCEPT
+    front: "Which shell startup files can silently run a command every time a user logs in?"
+    back: "~/.bashrc and ~/.profile per user, and /etc/profile, /etc/bash.bashrc, and /etc/profile.d/*.sh system-wide. Also /etc/rc.local on boot where it still exists."
+
+  - id: card.linux.services-persistence.rc-bashrc.spot
+    skillNodeId: linux.services-persistence.rc-bashrc
+    type: CONCEPT
+    front: "What does a persistence line in a .bashrc usually look like?"
+    back: "A single command far below the normal content — often a curl or wget piped to a shell, a netcat listener, or a base64 blob decoded and executed. Legitimate .bashrc content is aliases, PATH edits, and prompt settings."
+
+  - id: card.linux.services-persistence.rc-bashrc.check-all
+    skillNodeId: linux.services-persistence.rc-bashrc
+    type: COMMAND
+    front: "Linux: check every user's .bashrc at once for a suspicious command."
+    back: "sudo grep -E 'curl|wget|nc |bash -i|base64' /home/*/.bashrc /root/.bashrc /etc/profile.d/*.sh 2>/dev/null"
+
+  - id: card.linux.services-persistence.authorized-keys.why
+    skillNodeId: linux.services-persistence.authorized-keys
+    type: CONCEPT
+    front: "Why is an unexpected line in ~/.ssh/authorized_keys as bad as an unknown account?"
+    back: "It is a password-free way in that survives every password change you make. Whoever holds the matching private key logs in as that user, and rotating the password does nothing about it."
+
+  - id: card.linux.services-persistence.authorized-keys.modes
+    skillNodeId: linux.services-persistence.authorized-keys
+    type: COMMAND
+    front: "What permissions must ~/.ssh and ~/.ssh/authorized_keys have?"
+    back: "700 on ~/.ssh and 600 on authorized_keys, both owned by the user. sshd refuses to use them if they are group- or world-writable."
+
+  - id: card.linux.services-persistence.malware.suspicious-procs
+    skillNodeId: linux.services-persistence.malware
+    type: COMMAND
+    front: "Linux: find a process that is listening on the network but has no business doing so."
+    back: "sudo ss -tulpn    then look up anything unfamiliar with `ps -fp <pid>` and `ls -l /proc/<pid>/exe` to see the real binary path."
+
+  - id: card.linux.services-persistence.malware.games
+    skillNodeId: linux.services-persistence.malware
+    type: COMMAND
+    front: "Linux: find and remove prohibited software such as games or hacking tools."
+    back: "dpkg -l | grep -Ei 'nmap|john|hydra|aircrack|wireshark|minetest'   then   sudo apt purge <package>    # confirm against the README first"
+
+  - id: card.linux.services-persistence.malware.hidden-in-tmp
+    skillNodeId: linux.services-persistence.malware
+    type: CONCEPT
+    front: "Why are /tmp, /var/tmp, and /dev/shm the first places to look for a dropped binary?"
+    back: "They are world-writable, so any account can put a file there, and they are noisy enough that an extra file is easy to miss. An executable in /tmp is worth explaining."
+
+  - id: card.linux.services-persistence.critical.dont-stop
+    skillNodeId: linux.services-persistence.critical
+    type: CONCEPT
+    front: "The README says the box is a web server. Which running services are you NOT allowed to disable?"
+    back: "The ones the README requires — here Apache or nginx, plus anything they depend on. Disabling a required service is a penalty, and it usually outweighs the unnecessary-service point you were chasing."
+
+  - id: card.linux.services-persistence.critical.ssh-self
+    skillNodeId: linux.services-persistence.critical
+    type: CONCEPT
+    front: "Which service can you never safely stop on a remote Linux image, even if it looks like exposure?"
+    back: "sshd, when it is your only way in. Harden it — root login off, keys, limits — but stopping or firewalling it off ends your session and the round for that box."
+
+  - id: card.linux.services-persistence.critical.verify
+    skillNodeId: linux.services-persistence.critical
+    type: COMMAND
+    front: "Linux: confirm a service you were required to keep is still running and enabled after your changes."
+    back: "systemctl is-active apache2 && systemctl is-enabled apache2    # both should print active / enabled"
+
+  - id: card.linux.files-perms.sensitive-modes.why-600
+    skillNodeId: linux.files-perms.sensitive-modes
+    type: CONCEPT
+    front: "Why must /etc/shadow not be world-readable when the hashes inside it are already hashed?"
+    back: "A hash is offline-crackable. Readable shadow means any local user can copy every hash and grind them at leisure, so the file's permissions are the actual protection."
+
+  - id: card.linux.files-perms.sensitive-modes.fix
+    skillNodeId: linux.files-perms.sensitive-modes
+    type: COMMAND
+    front: "Linux: restore correct ownership and mode on /etc/shadow."
+    back: "sudo chown root:shadow /etc/shadow && sudo chmod 640 /etc/shadow"
+
+  - id: card.linux.files-perms.suid.remove
+    skillNodeId: linux.files-perms.suid
+    type: COMMAND
+    front: "Linux: strip the SUID bit from a binary that should not have it."
+    back: "sudo chmod u-s /path/to/binary    # verify against a clean system first — removing it from a binary that needs it, such as sudo or passwd, breaks the box"
+
+  - id: card.linux.files-perms.world-writable.find
+    skillNodeId: linux.files-perms.world-writable
+    type: COMMAND
+    front: "Linux: find world-writable files, excluding the ones that are supposed to be."
+    back: "sudo find / -xdev -type f -perm -0002 ! -path '/proc/*' -ls 2>/dev/null"
+
+  - id: card.linux.files-perms.world-writable.why
+    skillNodeId: linux.files-perms.world-writable
+    type: CONCEPT
+    front: "Why is a world-writable script more dangerous than a world-writable text file?"
+    back: "Anyone can rewrite its contents, and it runs later as whoever executes it — often root via cron. That is privilege escalation with no exploit required."
+
+  - id: card.linux.files-perms.world-writable.sticky
+    skillNodeId: linux.files-perms.world-writable
+    type: CONCEPT
+    front: "/tmp is world-writable by design. What stops one user deleting another's files there?"
+    back: "The sticky bit — mode 1777. With it, only the file's owner (or root) can delete a file in the directory. `ls -ld /tmp` should show drwxrwxrwt; a missing t is the vulnerability."
+
+  # === LINUX — depth pass (updates, network, web variant) ================
+  - id: card.linux.updates-network.apt.update-upgrade
+    skillNodeId: linux.updates-network.apt
+    type: COMMAND
+    front: "Linux: fully update the system from the command line."
+    back: "sudo apt update && sudo apt upgrade -y    # update refreshes the package lists, upgrade installs — running upgrade alone does almost nothing"
+
+  - id: card.linux.updates-network.apt.unattended
+    skillNodeId: linux.updates-network.apt
+    type: COMMAND
+    front: "Linux: which package and file turn on automatic security updates?"
+    back: "unattended-upgrades, configured in /etc/apt/apt.conf.d/20auto-upgrades — set APT::Periodic::Update-Package-Lists and Unattended-Upgrade to \"1\"."
+
+  - id: card.linux.updates-network.apt.start-early
+    skillNodeId: linux.updates-network.apt
+    type: CONCEPT
+    front: "Why start the update in the first minutes of a round rather than at the end?"
+    back: "It is the longest unattended job on the box. Started early it finishes while you work elsewhere; started late the clock decides whether those points land."
+
+  - id: card.linux.updates-network.ufw.enable
+    skillNodeId: linux.updates-network.ufw
+    type: COMMAND
+    front: "Linux: allow SSH, then enable the firewall and confirm the rules."
+    back: "sudo ufw allow 22/tcp && sudo ufw enable && sudo ufw status verbose"
+
+  - id: card.linux.updates-network.ufw.default-deny
+    skillNodeId: linux.updates-network.ufw
+    type: COMMAND
+    front: "Set the firewall to deny everything inbound and allow everything outbound."
+    back: "sudo ufw default deny incoming && sudo ufw default allow outgoing"
+
+  - id: card.linux.updates-network.sysctl.ip-forward
+    skillNodeId: linux.updates-network.sysctl
+    type: COMMAND
+    front: "Which sysctl disables IP forwarding, and where do you set it so it survives reboot?"
+    back: "net.ipv4.ip_forward = 0 in /etc/sysctl.conf (or a file in /etc/sysctl.d/), applied with `sudo sysctl -p`. A workstation should not route traffic."
+
+  - id: card.linux.updates-network.sysctl.spoof-redirects
+    skillNodeId: linux.updates-network.sysctl
+    type: COMMAND
+    front: "Name the sysctl settings that turn on source-address verification and turn off ICMP redirects."
+    back: "net.ipv4.conf.all.rp_filter = 1, net.ipv4.conf.all.accept_redirects = 0, net.ipv4.conf.all.send_redirects = 0, net.ipv4.conf.all.accept_source_route = 0"
+
+  - id: card.linux.updates-network.sysctl.persist
+    skillNodeId: linux.updates-network.sysctl
+    type: CONCEPT
+    front: "You ran `sysctl -w net.ipv4.ip_forward=0` and it worked. Why might you still not get the point?"
+    back: "-w changes the running kernel only. It is gone at reboot — the value has to be written into /etc/sysctl.conf or /etc/sysctl.d/ to persist, and the scoring engine may check the file."
+
+  - id: card.linux.web-variant.apache-php.dir-listing
+    skillNodeId: linux.web-variant.apache-php
+    type: COMMAND
+    front: "Apache: which directive turns off directory listing, and where does it go?"
+    back: "Options -Indexes inside the <Directory> block in /etc/apache2/apache2.conf or the site's conf. With Indexes on, a folder with no index file shows every file in it."
+
+  - id: card.linux.web-variant.apache-php.php-config
+    skillNodeId: linux.web-variant.apache-php
+    type: CONCEPT
+    front: "Name three php.ini settings that are scored on a web-server image."
+    back: "display_errors = Off (errors leak paths and config), expose_php = Off (stops the version banner), and disable_functions listing exec, shell_exec, system, and passthru."
+
+  - id: card.linux.web-variant.apache-php.docroot-perms
+    skillNodeId: linux.web-variant.apache-php
+    type: CONCEPT
+    front: "Who should own /var/www/html, and why is world-writable there especially bad?"
+    back: "root owns it, www-data reads it — typically 755. World-writable means any local user can drop a PHP file that the web server will then execute for anyone who requests it."
+
+  # === WINDOWS — depth pass (accounts, policy) ===========================
+  - id: card.windows.account-policy.length-age-history.audit
+    skillNodeId: windows.account-policy.length-age-history
+    type: COMMAND
+    front: "Windows: show the current password policy without opening a GUI."
+    back: "net accounts"
+
+  - id: card.windows.account-policy.length-age-history.min-age-why
+    skillNodeId: windows.account-policy.length-age-history
+    type: CONCEPT
+    front: "Why does password history need a minimum age to work?"
+    back: "With min age 0 a user can change their password five times in a minute and land back on the original. Min age 1 forces the history to actually cost them time."
+
+  - id: card.windows.account-policy.complexity.gui-path
+    skillNodeId: windows.account-policy.complexity
+    type: COMMAND
+    front: "Windows: where do you enable password complexity, given net accounts can't?"
+    back: "secpol.msc → Account Policies → Password Policy → \"Password must meet complexity requirements\" → Enabled. (gpedit.msc reaches the same node.)"
+
+  - id: card.windows.account-policy.lockout.why-not-zero
+    skillNodeId: windows.account-policy.lockout
+    type: CONCEPT
+    front: "What does a lockout threshold of 0 mean, and why is it scored?"
+    back: "Never lock out — unlimited password guesses. It is the default on many images and it is what makes an online brute force worth attempting at all."
+
+  - id: card.windows.account-policy.lockout.duration-rule
+    skillNodeId: windows.account-policy.lockout
+    type: CONCEPT
+    front: "What is the rule relating lockout duration to the reset counter?"
+    back: "Duration must be greater than or equal to the reset-counter window. Windows enforces it — set duration below reset and it refuses or silently raises the reset value."
+
+  # === WINDOWS — depth pass (users and groups) ===========================
+  - id: card.windows.users-groups.unauthorized-users.delete
+    skillNodeId: windows.users-groups.unauthorized-users
+    type: COMMAND
+    front: "Windows: delete a local account the README does not list at all."
+    back: "net user baduser /delete    # only when the README omits it entirely; if it lists the user, demote instead of deleting"
+
+  - id: card.windows.users-groups.weak-passwords.all-users
+    skillNodeId: windows.users-groups.weak-passwords
+    type: CONCEPT
+    front: "The README says every account must have a strong password. Whose password do you change?"
+    back: "Every authorized account's, including your own if the README says so — but never the account you are currently logged in as until you are sure of the new one. Changing one and calling it done leaves the rest scoring against you."
+
+  - id: card.windows.users-groups.weak-passwords.must-change
+    skillNodeId: windows.users-groups.weak-passwords
+    type: COMMAND
+    front: "Windows: force a user to change their password at next logon."
+    back: "net user bob /logonpasswordchg:yes"
+
+  - id: card.windows.users-groups.never-expires.fix
+    skillNodeId: windows.users-groups.never-expires
+    type: COMMAND
+    front: "Windows: turn off \"password never expires\" for a local account."
+    back: "Set-LocalUser -Name bob -PasswordNeverExpires $false"
+
+  - id: card.windows.users-groups.never-expires.why
+    skillNodeId: windows.users-groups.never-expires
+    type: CONCEPT
+    front: "Why does \"password never expires\" defeat a max-age policy you already set?"
+    back: "It is a per-account override. The domain or local policy says 90 days; the flag says this account is exempt, so the account keeps its password forever and the policy point still fails."
+
+  - id: card.windows.users-groups.guest-admin.rename
+    skillNodeId: windows.users-groups.guest-admin
+    type: CONCEPT
+    front: "Why is the built-in Administrator account worth disabling even after you rename it?"
+    back: "Renaming does not change its well-known SID, which ends in -500 — it is still identifiable. Disabling it is what removes the target; renaming only slows a script down."
+
+  - id: card.windows.users-groups.guest-admin.check
+    skillNodeId: windows.users-groups.guest-admin
+    type: COMMAND
+    front: "Windows: check whether Guest is currently enabled."
+    back: "Get-LocalUser -Name Guest | Select-Object Name, Enabled"
+
+  # === WINDOWS — depth pass (local policy, registry) =====================
+  - id: card.windows.policy-registry.audit-policy.view
+    skillNodeId: windows.policy-registry.audit-policy
+    type: COMMAND
+    front: "Windows: show the current audit policy for every category."
+    back: "auditpol /get /category:*"
+
+  - id: card.windows.policy-registry.audit-policy.why-failure
+    skillNodeId: windows.policy-registry.audit-policy
+    type: CONCEPT
+    front: "Why audit failures and not just successes?"
+    back: "A run of logon failures is what a brute force looks like in the log. Success-only auditing records the one attempt that worked and nothing about the thousand that didn't."
+
+  - id: card.windows.policy-registry.uac.levels
+    skillNodeId: windows.policy-registry.uac
+    type: CONCEPT
+    front: "What does UAC actually protect against, given the admin can just click Yes?"
+    back: "Silent elevation. Without it, any process running as an administrator gets full rights with no prompt — so a program the user never consciously elevated can change the system."
+
+  - id: card.windows.policy-registry.uac.consent-prompt
+    skillNodeId: windows.policy-registry.uac
+    type: COMMAND
+    front: "Which two UAC registry values matter besides EnableLUA, and what should they be?"
+    back: "ConsentPromptBehaviorAdmin (2 = prompt on the secure desktop) and PromptOnSecureDesktop (1). All three live in HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System."
+
+  - id: card.windows.policy-registry.registry-classics.remote-registry
+    skillNodeId: windows.policy-registry.registry-classics
+    type: CONCEPT
+    front: "Name three registry-level settings that are scored on almost every Windows image."
+    back: "Autologon credentials stored in Winlogon, AutoPlay/AutoRun left enabled, and anonymous SAM enumeration (RestrictAnonymous / RestrictAnonymousSAM) left open."
+
+  - id: card.windows.policy-registry.smb.signing
+    skillNodeId: windows.policy-registry.smb
+    type: CONCEPT
+    front: "What does SMB signing prevent, and why is 'require' stronger than 'enable'?"
+    back: "It stops a relay or tampering attack by proving each packet came from the negotiated peer. 'Enable' signs only when the other side agrees; 'require' refuses unsigned sessions altogether."
+
+  - id: card.windows.policy-registry.smb.check-v1
+    skillNodeId: windows.policy-registry.smb
+    type: COMMAND
+    front: "Windows: check whether SMBv1 is currently enabled."
+    back: "Get-WindowsOptionalFeature -Online -FeatureName SMB1Protocol"
+
+  - id: card.windows.policy-registry.rdp.nla-why
+    skillNodeId: windows.policy-registry.rdp
+    type: CONCEPT
+    front: "What does Network Level Authentication change about an RDP connection?"
+    back: "The user authenticates before a session is created. Without NLA the server spins up a desktop session for anyone who connects, which is both an exposure and a cheap denial-of-service."
+
+  - id: card.windows.policy-registry.rdp.disable
+    skillNodeId: windows.policy-registry.rdp
+    type: COMMAND
+    front: "Windows: which registry value disables RDP, and what setting means disabled?"
+    back: "fDenyTSConnections = 1 under HKLM\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server. 0 means RDP is allowed — check the README before changing it."
+
+  # === WINDOWS — depth pass (services, persistence) ======================
+  - id: card.windows.services.insecure-services.usual-suspects
+    skillNodeId: windows.services.insecure-services
+    type: CONCEPT
+    front: "Name services commonly scored as unnecessary on a Windows workstation image."
+    back: "Telnet, FTP, TFTP, Remote Registry, SNMP, and Routing and Remote Access. Each is either cleartext or remote-management surface a workstation does not need."
+
+  - id: card.windows.services.critical-services.never-disable
+    skillNodeId: windows.services.critical-services
+    type: CONCEPT
+    front: "Name Windows services that will break the box if you disable them."
+    back: "Windows Update, Windows Defender / Security Center, Windows Event Log, DHCP Client, DNS Client, and RPC. Disabling any of them costs points directly or breaks something else that scores."
+
+  - id: card.windows.services.critical-services.startup-type
+    skillNodeId: windows.services.critical-services
+    type: COMMAND
+    front: "Windows: check a service's startup type before you change it."
+    back: "Get-Service -Name wuauserv | Select-Object Name, Status, StartType"
+
+  - id: card.windows.persistence.scheduled-tasks.inspect
+    skillNodeId: windows.persistence.scheduled-tasks
+    type: COMMAND
+    front: "Windows: show what a specific scheduled task actually runs."
+    back: "Get-ScheduledTask -TaskName 'Updater' | Select-Object -ExpandProperty Actions"
+
+  - id: card.windows.persistence.scheduled-tasks.suspicious
+    skillNodeId: windows.persistence.scheduled-tasks
+    type: CONCEPT
+    front: "What makes a scheduled task suspicious rather than routine?"
+    back: "It runs as SYSTEM, triggers at logon or every few minutes, and points at something in a user-writable path such as AppData or Temp — often powershell.exe with an encoded command."
+
+  - id: card.windows.persistence.artifacts.startup-folders
+    skillNodeId: windows.persistence.artifacts
+    type: COMMAND
+    front: "Windows: where are the per-user and all-users Startup folders?"
+    back: "%AppData%\\Microsoft\\Windows\\Start Menu\\Programs\\Startup and C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\Startup"
+
+  - id: card.windows.persistence.artifacts.recent-files
+    skillNodeId: windows.persistence.artifacts
+    type: COMMAND
+    front: "Windows: list files created or changed in the last day under a directory."
+    back: "Get-ChildItem C:\\Users -Recurse -File -ErrorAction SilentlyContinue | Where-Object LastWriteTime -gt (Get-Date).AddDays(-1)"
+
+  - id: card.windows.persistence.wmi.what
+    skillNodeId: windows.persistence.wmi
+    type: CONCEPT
+    front: "What is a WMI event subscription, and why is it a favourite persistence spot?"
+    back: "A standing rule pairing a trigger (a filter) with an action (a consumer). It lives in the WMI repository rather than in the registry or a folder, so it survives reboots and is missed by anyone only checking Run keys, tasks, and services."
+
+  - id: card.windows.persistence.wmi.enumerate
+    skillNodeId: windows.persistence.wmi
+    type: COMMAND
+    front: "Windows: list WMI event subscriptions."
+    back: "Get-WmiObject -Namespace root\\subscription -Class __EventFilter, then __EventConsumer and __FilterToConsumerBinding in the same namespace."
+
+  - id: card.windows.persistence.wmi.clean
+    skillNodeId: windows.persistence.wmi
+    type: CONCEPT
+    front: "On a clean Windows image, how many WMI event subscriptions should you expect to find?"
+    back: "Effectively none in root\\subscription beyond what a management agent installed. Anything there on a scored image deserves reading before it is removed — and the binding must go too, not just the consumer."
+
+  # === WINDOWS — depth pass (defenses, updates, prohibited) ==============
+  - id: card.windows.defenses-updates.windows-update.check
+    skillNodeId: windows.defenses-updates.windows-update
+    type: COMMAND
+    front: "Windows: confirm the Windows Update service is running and set to start automatically."
+    back: "Get-Service wuauserv | Select-Object Status, StartType    # disabled wuauserv is itself a scored finding"
+
+  - id: card.windows.defenses-updates.defender.reenable
+    skillNodeId: windows.defenses-updates.defender
+    type: COMMAND
+    front: "Windows: turn Defender real-time protection back on."
+    back: "Set-MpPreference -DisableRealtimeMonitoring $false"
+
+  - id: card.windows.defenses-updates.shares-ntfs.remove
+    skillNodeId: windows.defenses-updates.shares-ntfs
+    type: COMMAND
+    front: "Windows: remove a share that the README does not authorize."
+    back: "Remove-SmbShare -Name Public -Force    # never touch ADMIN$, C$, or IPC$"
+
+  - id: card.windows.defenses-updates.prohibited.find
+    skillNodeId: windows.defenses-updates.prohibited
+    type: COMMAND
+    front: "Windows: list installed programs so you can spot prohibited software."
+    back: "Get-ItemProperty HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\* | Select-Object DisplayName, DisplayVersion"
+
+  - id: card.windows.defenses-updates.prohibited.media
+    skillNodeId: windows.defenses-updates.prohibited
+    type: CONCEPT
+    front: "Besides installed programs, what other prohibited content is scored on Windows images?"
+    back: "Media and files left in user profiles — music, video, and images that the README does not permit — plus hacking tools and games. Check every user's Desktop, Documents, Downloads, and Music."
+
+  # === WINDOWS — Server (roles, GPO, AD/DNS) =============================
+  - id: card.windows.server.roles.list
+    skillNodeId: windows.server.roles
+    type: COMMAND
+    front: "Windows Server: list which roles and features are installed."
+    back: "Get-WindowsFeature | Where-Object Installed"
+
+  - id: card.windows.server.roles.readme
+    skillNodeId: windows.server.roles
+    type: CONCEPT
+    front: "A server image has IIS, DNS, and FTP installed. Which do you remove?"
+    back: "Only what the README does not require. A role on a server is usually there on purpose — removing the one the box exists to provide is a penalty, not a hardening point."
+
+  - id: card.windows.server.roles.surface
+    skillNodeId: windows.server.roles
+    type: CONCEPT
+    front: "Why does an installed-but-unused role still matter if nothing is using it?"
+    back: "It ships services, open ports, and default configuration whether you use it or not. Attack surface comes from what is installed and running, not from what is intended."
+
+  - id: card.windows.server.gpo.vs-local
+    skillNodeId: windows.server.gpo
+    type: CONCEPT
+    front: "You set a policy in secpol.msc on a domain-joined machine and it reverts. Why?"
+    back: "Domain Group Policy overrides local policy and reapplies on refresh. On a domain member the setting has to change in the GPO, not locally."
+
+  - id: card.windows.server.gpo.apply
+    skillNodeId: windows.server.gpo
+    type: COMMAND
+    front: "Windows: force a Group Policy refresh instead of waiting for the cycle."
+    back: "gpupdate /force"
+
+  - id: card.windows.server.gpo.inspect
+    skillNodeId: windows.server.gpo
+    type: COMMAND
+    front: "Windows: show which policies are actually applied to this machine and user."
+    back: "gpresult /r    (or gpresult /h report.html for the full readable report)"
+
+  - id: card.windows.server.ad-dns.domain-users
+    skillNodeId: windows.server.ad-dns
+    type: COMMAND
+    front: "Windows Server: list domain accounts and the members of Domain Admins."
+    back: "Get-ADUser -Filter *    and    Get-ADGroupMember -Identity 'Domain Admins'"
+
+  - id: card.windows.server.ad-dns.local-vs-domain
+    skillNodeId: windows.server.ad-dns
+    type: CONCEPT
+    front: "On a domain controller, why does Get-LocalUser not tell you what you need?"
+    back: "A domain controller has no meaningful local accounts — the users live in Active Directory. Auditing accounts there means Get-ADUser, and the group that matters is Domain Admins, not local Administrators."
+
+  - id: card.windows.server.ad-dns.dns-role
+    skillNodeId: windows.server.ad-dns
+    type: CONCEPT
+    front: "Why is DNS almost always a required service on a domain controller?"
+    back: "Active Directory locates domain controllers through DNS SRV records. Stop DNS on a DC and logons, policy, and replication all fail — it is the classic 'unnecessary service' that is anything but."
+
+  - id: card.windows.persistence.run-keys.what-belongs
+    skillNodeId: windows.persistence.run-keys
+    type: CONCEPT
+    front: "You find an entry in a Run key. How do you decide whether it is persistence or normal software?"
+    back: "Read where it points. A vendor path under Program Files with a name matching installed software is routine; anything in AppData, Temp, or a user folder, or any powershell.exe with arguments, is not."
+
+  # === FOUNDATIONS — depth pass ==========================================
+  - id: card.foundations.core.os-basics.filesystem
+    skillNodeId: foundations.core.os-basics
+    type: CONCEPT
+    front: "What does it mean that Linux has one filesystem tree and Windows has drive letters?"
+    back: "On Linux everything hangs off /, and disks are mounted into it as directories. On Windows each volume is its own root (C:\\, D:\\). Same idea, different shape — it changes how you write a path, not what a path is."
+
+  - id: card.foundations.core.users-perms.least-privilege
+    skillNodeId: foundations.core.users-perms
+    type: CONCEPT
+    front: "What is least privilege, in one sentence?"
+    back: "Every account gets the smallest set of rights that still lets it do its job — so a compromised account costs you the least it possibly can."
+
+  - id: card.foundations.core.services.boot
+    skillNodeId: foundations.core.services
+    type: CONCEPT
+    front: "What is the difference between a service that is running and one that is enabled?"
+    back: "Running means it is active right now. Enabled means it starts automatically at boot. Stopping without disabling gets you a service that comes back after the next reboot."
+
+  - id: card.foundations.core.ports.tcp-udp
+    skillNodeId: foundations.core.ports
+    type: CONCEPT
+    front: "What is the difference between TCP and UDP, and why does a port number alone not identify a service?"
+    back: "TCP sets up a connection and guarantees delivery; UDP just sends. Port 53 TCP and 53 UDP are different endpoints — that is why tools list the protocol next to the number."
+
+  - id: card.foundations.core.passwords.policy-vs-password
+    skillNodeId: foundations.core.passwords
+    type: CONCEPT
+    front: "What is the difference between setting a strong password and setting a password policy?"
+    back: "A password protects one account today. A policy — length, age, history, lockout — sets the rule everyone has to meet from now on, including accounts you never touched."
+
+  - id: card.foundations.core.hardening.surface
+    skillNodeId: foundations.core.hardening
+    type: CONCEPT
+    front: "Name the four things hardening reduces."
+    back: "Accounts that shouldn't exist, services that shouldn't run, permissions that are wider than needed, and software that is out of date. Almost every scored item is one of these four."
+
+  - id: card.foundations.competition.safe-change.backup-cmd
+    skillNodeId: foundations.competition.safe-change
+    type: COMMAND
+    front: "Back up a config file before editing it, in a way you can identify later."
+    back: "sudo cp /etc/ssh/sshd_config /etc/ssh/sshd_config.bak    # on Windows: Copy-Item file.conf file.conf.bak"
+
+  # === NETWORKING — depth pass (fundamentals, DHCP/NAT, wireless) ========
+  - id: card.networking.fundamentals.osi.where-things-live
+    skillNodeId: networking.fundamentals.osi
+    type: CONCEPT
+    front: "Which OSI layer does each live at: MAC address, IP address, port number?"
+    back: "MAC = layer 2 (data link), IP = layer 3 (network), port = layer 4 (transport). Switch at 2, router at 3, firewall rule usually at 3–4."
+
+  - id: card.networking.fundamentals.osi.encapsulation
+    skillNodeId: networking.fundamentals.osi
+    type: CONCEPT
+    front: "What is encapsulation, in terms of the OSI layers?"
+    back: "Each layer wraps the one above it in its own header on the way down, and strips it on the way up. Your HTTP request ends up inside TCP, inside IP, inside an Ethernet frame."
+
+  - id: card.networking.fundamentals.tcp-udp.handshake
+    skillNodeId: networking.fundamentals.tcp-udp
+    type: CONCEPT
+    front: "What are the three steps of the TCP handshake?"
+    back: "SYN, SYN-ACK, ACK. UDP has no equivalent — it sends without setting anything up, which is why it is faster and unreliable."
+
+  - id: card.networking.fundamentals.tcp-udp.which-uses-udp
+    skillNodeId: networking.fundamentals.tcp-udp
+    type: CONCEPT
+    front: "Name services that use UDP rather than TCP, and why."
+    back: "DNS queries, DHCP, TFTP, SNMP, NTP, and most streaming. They are short exchanges or tolerate loss, so the handshake would cost more than it is worth."
+
+  - id: card.networking.fundamentals.ports.ranges
+    skillNodeId: networking.fundamentals.ports
+    type: CONCEPT
+    front: "What are the three port ranges, and which one needs privilege to bind on Linux?"
+    back: "0–1023 well-known, 1024–49151 registered, 49152–65535 dynamic/ephemeral. Binding below 1024 on Linux requires root — which is why a service listening on 80 started privileged."
+
+  - id: card.networking.fundamentals.ports.mail-and-dirs
+    skillNodeId: networking.fundamentals.ports
+    type: CONCEPT
+    front: "Which services run on 110, 143, 389, and 636?"
+    back: "110 POP3, 143 IMAP, 389 LDAP, 636 LDAPS. The pattern worth remembering: the secure variant usually gets its own separate port."
+
+  - id: card.networking.fundamentals.subnetting.mask-to-cidr
+    skillNodeId: networking.fundamentals.subnetting
+    type: CONCEPT
+    front: "Convert to CIDR: 255.255.255.192, 255.255.255.240, 255.255.254.0."
+    back: "/26, /28, /23. Count the one-bits: 192 = 11000000 is 2 bits, so 24 + 2 = 26."
+
+  - id: card.networking.fundamentals.subnetting.network-broadcast
+    skillNodeId: networking.fundamentals.subnetting
+    type: CONCEPT
+    front: "For 192.168.1.100/26, what are the network address, broadcast address, and usable range?"
+    back: "Block size 64, so the subnet is 192.168.1.64. Broadcast 192.168.1.127. Usable 192.168.1.65–126."
+
+  - id: card.networking.devices.dhcp-nat.dora
+    skillNodeId: networking.devices.dhcp-nat
+    type: CONCEPT
+    front: "What are the four steps of a DHCP lease, and what does the client have at the end?"
+    back: "Discover, Offer, Request, Acknowledge. The client ends up with an IP address, subnet mask, default gateway, and DNS servers — leased, not owned."
+
+  - id: card.networking.devices.dhcp-nat.why-nat
+    skillNodeId: networking.devices.dhcp-nat
+    type: CONCEPT
+    front: "What problem does NAT solve, and what side effect does it have on inbound connections?"
+    back: "It lets many private addresses share one public address, working around IPv4 exhaustion. The side effect: outside hosts cannot initiate a connection inward without an explicit port-forward rule."
+
+  - id: card.networking.wireless.security.wpa2-vs-wpa3
+    skillNodeId: networking.wireless.security
+    type: CONCEPT
+    front: "What does WPA3 improve over WPA2-PSK?"
+    back: "It replaces the pre-shared-key handshake with SAE, so a captured handshake cannot be brute-forced offline, and each session gets forward secrecy. WPA2-PSK is still acceptable; WEP and open are not."
+
+  - id: card.networking.wireless.security.weak-settings
+    skillNodeId: networking.wireless.security
+    type: CONCEPT
+    front: "Besides the encryption mode, name two wireless settings that are commonly scored."
+    back: "WPS left enabled (its PIN is brute-forceable regardless of how strong the passphrase is) and the default admin password on the access point itself. Hiding the SSID is not security and is rarely the answer."
