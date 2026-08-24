@@ -59,3 +59,82 @@ questions:
     strip_trailing_slash: false
     technique: "find / -type d -iname '*prohibited*' 2>/dev/null"
     why: "Directory names can contain spaces. Copy the path exactly — an extra space, a missing space, or a doubled space all count as wrong against an exact-string answer key."
+
+  - id: forensics.q.format-username-only
+    archetype: answer-format
+    skillNodeId: forensics.core.answer-format
+    prompt: >
+      The question asks for the username of the unauthorized account below.
+      Answer with the username only — no explanation, no extra words.
+    given: |
+      $ getent passwd rtaylor
+      rtaylor:x:1015:1015::/home/rtaylor:/bin/bash
+    answer: "rtaylor"
+    accepts: ["rtaylor"]
+    case_sensitive: false
+    strip_trailing_slash: false
+    technique: "Read the first field of the passwd entry — and type nothing else."
+    why: "The grader compares strings. \"the user rtaylor\" is a wrong answer, not a more complete one — a sentence around a correct value scores zero every time."
+
+  - id: forensics.q.format-no-leading-zeros
+    archetype: answer-format
+    skillNodeId: forensics.core.answer-format
+    prompt: >
+      The question asks for the port number in the output below. Give the
+      number exactly as it appears — no padding, no protocol suffix.
+    given: |
+      $ ss -tulpn | grep ftp
+      tcp    LISTEN  0.0.0.0:21   0.0.0.0:*   users:(("vsftpd",pid=1441,fd=3))
+    answer: "21"
+    accepts: ["21"]
+    case_sensitive: false
+    strip_trailing_slash: false
+    technique: "Read the port after the colon in the Local Address column."
+    why: "\"21/tcp\" and \"0021\" are both recognisable to a human and both wrong to a grader. Give the value in the form the output shows it."
+
+  - id: forensics.q.format-exact-filename
+    archetype: answer-format
+    skillNodeId: forensics.core.answer-format
+    prompt: >
+      Give the exact filename — not the full path — of the file below.
+      Reproduce it character for character.
+    given: |
+      $ ls -l /opt/share
+      -rw-r--r-- 1 root root 4096 Nov  1 22:07 /opt/share/Backup_Config.v2.txt
+    answer: "Backup_Config.v2.txt"
+    accepts: ["Backup_Config.v2.txt"]
+    case_sensitive: true
+    strip_trailing_slash: false
+    technique: "Copy the filename exactly: capitals, underscores, dots, extension."
+    why: "This one is graded case-sensitively on purpose. Underscores, mixed capitals, and a dotted version number are all easy to normalise by accident when you retype from memory instead of reading."
+
+  - id: forensics.q.format-ip-not-hostname
+    archetype: answer-format
+    skillNodeId: forensics.core.answer-format
+    prompt: >
+      The question asks for the source IP address. The log line below gives
+      both a hostname and an address — answer with the address only.
+    given: |
+      Nov  2 02:11:07 web01 sshd[3319]: Accepted password for svc_bak from 203.0.113.77 port 51190 ssh2
+    answer: "203.0.113.77"
+    accepts: ["203.0.113.77"]
+    case_sensitive: false
+    strip_trailing_slash: false
+    technique: "Read what the question asked for — address, not hostname, and without the port."
+    why: "web01 is the host writing the log, not the source. Appending \":51190\" is the other common miss: the port is a separate field and was not asked for."
+
+  - id: forensics.q.format-full-path
+    archetype: answer-format
+    skillNodeId: forensics.core.answer-format
+    prompt: >
+      The question asks for the absolute path to the file below — the full
+      path starting from /, not just the name.
+    given: |
+      $ find /var -name 'shadow.bak' 2>/dev/null
+      /var/backups/shadow.bak
+    answer: "/var/backups/shadow.bak"
+    accepts: ["/var/backups/shadow.bak"]
+    case_sensitive: false
+    strip_trailing_slash: false
+    technique: "Copy the path from the find output, starting at the leading slash."
+    why: "\"Absolute path\" means from the root. Answering \"shadow.bak\" or \"backups/shadow.bak\" is a different string from the one the key holds, and the leading slash is part of the answer."

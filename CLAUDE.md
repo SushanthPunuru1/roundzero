@@ -37,13 +37,27 @@ reintroduce a membership dependency into focus resolution.
 **Sequencing authority: `docs/ROADMAP.md`'s "Locked build order" section.**
 Read it before starting work; don't restate it here.
 
-Active slice: the content-depth pass (step 1.5) — fattening every bank now
-that all 53 lessons across 7 taxonomy domains exist. Steps 1.1–1.3 are done;
-1.4 (coach wizard) was cut with the coach tools.
+Active slice: **step 2, infrastructure** — the orchestrator, gVisor
+isolation, egress lockdown, pooling, and teardown that let a lab run for
+someone other than the author. `lab-broker/` is the local single-lab seed of
+it (DECISIONS 027).
 
-Infrastructure (orchestrator, gVisor, pooling, cloud deploy) and the full
-design pass both stay explicitly later, per the locked order. If a task
-drifts past the current slice, stop and flag it instead of building it.
+Step 1 is complete: 54 lessons across all 7 taxonomy domains, and every bank
+depth-passed — 265 drill cards (every leaf node at a 3-card floor), 64
+forensics questions, 60 networking-quiz questions, 75 checklist items, and a
+placement bank deliberately left at 28 (DECISIONS 041, 042). The coach
+wizard (1.4) was cut with the coach tools.
+
+The full design pass stays explicitly after infrastructure, per the locked
+order. If a task drifts past the current slice, stop and flag it instead of
+building it.
+
+Content invariants worth not rediscovering: every taxonomy leaf node carries
+at least 3 drill cards and at least one lesson, because `enqueueLessonCards`
+resolves cards through the lesson's skill nodes — a node at zero means
+completing its lesson enqueues nothing and the SRS looks broken rather than
+empty. `findCoverageGaps` reports violations from the seed without throwing;
+extending the taxonomy ahead of its content is allowed.
 
 Two checklist-fork invariants worth not rediscovering: a fork stores
 OVERRIDES, not copies (an untouched item keeps inheriting upstream

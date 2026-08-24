@@ -46,3 +46,43 @@ questions:
     answer: "172.16.4.0"
     accepts: ["172.16.4.0"]
     why: "/22 has a block size of 4 in the third octet (256-252=4). 172.16.5.x falls in the 4-7 block, so the network address is 172.16.4.0."
+
+  - id: networking-quiz.q.usable-hosts-29
+    category: subnetting
+    skillNodeId: networking.fundamentals.subnetting
+    prompt: "How many usable host addresses are in a /29 network?"
+    answer: "6"
+    accepts: ["6"]
+    why: "A /29 leaves 3 host bits, so 2^3 = 8 addresses, minus the network and broadcast = 6 usable. /29 and /30 are the two you meet on point-to-point links."
+
+  - id: networking-quiz.q.mask-for-26
+    category: subnetting
+    skillNodeId: networking.fundamentals.subnetting
+    prompt: "What is the dotted-decimal subnet mask for a /26 network?"
+    answer: "255.255.255.192"
+    accepts: ["255.255.255.192"]
+    why: "/26 is 24 + 2 bits, and two bits in the final octet is 128 + 64 = 192. Converting between CIDR and dotted-decimal in both directions is asked constantly."
+
+  - id: networking-quiz.q.network-address-19
+    category: subnetting
+    skillNodeId: networking.fundamentals.subnetting
+    prompt: "A host has IP 10.14.77.99/19. What is the network address of its subnet?"
+    answer: "10.14.64.0"
+    accepts: ["10.14.64.0"]
+    why: "/19 leaves 5 bits in the third octet, so the block size there is 32. The multiples of 32 below 77 run 0, 32, 64 — 77 falls in the block starting at 64, giving 10.14.64.0."
+
+  - id: networking-quiz.q.broadcast-21
+    category: subnetting
+    skillNodeId: networking.fundamentals.subnetting
+    prompt: "What is the broadcast address for 172.20.8.0/21?"
+    answer: "172.20.15.255"
+    accepts: ["172.20.15.255"]
+    why: "/21 gives a block size of 8 in the third octet, so the subnet spans 172.20.8.0 through 172.20.15.255. The broadcast is always the last address in the block."
+
+  - id: networking-quiz.q.smallest-prefix-500
+    category: subnetting
+    skillNodeId: networking.fundamentals.subnetting
+    prompt: "You need a subnet that fits 500 usable hosts. What is the smallest CIDR prefix that works?"
+    answer: "/23"
+    accepts: ["/23", "23"]
+    why: "A /24 gives 254 usable, which is short. A /23 gives 510 — the first size that fits. This is the core VLSM question: find the smallest block that still holds the requirement."

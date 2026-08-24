@@ -53,3 +53,94 @@ questions:
     strip_trailing_slash: false
     technique: "getent group contractors   (or: grep contractors /etc/group)"
     why: "The GID is the third field of a group entry, same position as UID in passwd — useful when a checklist item asks you to remove a group by its numeric id, not just its name."
+
+  - id: forensics.q.account-nologin-shell
+    archetype: accounts
+    skillNodeId: forensics.core.accounts
+    prompt: >
+      Of the accounts below, one is a human user who can log in and the rest
+      are service accounts that cannot. What is the username of the human
+      account?
+    given: |
+      $ tail -4 /etc/passwd
+      syslog:x:104:110::/home/syslog:/usr/sbin/nologin
+      tcpdump:x:108:115::/nonexistent:/bin/false
+      mrossi:x:1004:1004:Marco Rossi:/home/mrossi:/bin/bash
+      lxd:x:105:65534::/var/snap/lxd/common/lxd:/bin/false
+    answer: "mrossi"
+    accepts: ["mrossi"]
+    case_sensitive: false
+    strip_trailing_slash: false
+    technique: "awk -F: '$3>=1000 && $7!~/nologin|false/ {print $1}' /etc/passwd"
+    why: "Two fields separate humans from services: a UID of 1000 or above, and a real login shell. /usr/sbin/nologin and /bin/false both mean the account exists for a daemon to run as and cannot be logged into."
+
+  - id: forensics.q.account-sudo-group-member
+    archetype: accounts
+    skillNodeId: forensics.core.accounts
+    prompt: >
+      The group file entry below shows who has sudo rights. The README
+      authorizes only "admin" and "kpatel" as administrators. What is the
+      username of the unauthorized member?
+    given: |
+      $ getent group sudo
+      sudo:x:27:admin,kpatel,tmp_svc
+    answer: "tmp_svc"
+    accepts: ["tmp_svc"]
+    case_sensitive: false
+    strip_trailing_slash: false
+    technique: "getent group sudo   (or: grep '^sudo:' /etc/group)"
+    why: "Group membership is a comma-separated list in the fourth field. An extra name in the sudo group is a full privilege escalation that no password change fixes."
+
+  - id: forensics.q.account-blank-password
+    archetype: accounts
+    skillNodeId: forensics.core.accounts
+    prompt: >
+      In the shadow snippet below, one account has no password at all — its
+      hash field is empty. What is that username?
+    given: |
+      $ sudo cut -d: -f1,2 /etc/shadow | tail -3
+      jrivera:$6$Qk2p$8Zt1kfP9wOaXcV0y3sLmN
+      guestuser:
+      backup:*
+    answer: "guestuser"
+    accepts: ["guestuser"]
+    case_sensitive: false
+    strip_trailing_slash: false
+    technique: "sudo awk -F: '($2==\"\"){print $1}' /etc/shadow"
+    why: "An empty second field means the account logs in with no password. A * or ! means the opposite — the password is locked and login is disabled — so the two are easy to confuse and mean opposite things."
+
+  - id: forensics.q.account-gid-primary-group
+    archetype: accounts
+    skillNodeId: forensics.core.accounts
+    prompt: >
+      The passwd entry below belongs to an unauthorized account. What is its
+      primary group ID (GID)?
+    given: |
+      $ getent passwd svc_update
+      svc_update:x:1013:1099::/home/svc_update:/bin/bash
+    answer: "1099"
+    accepts: ["1099"]
+    case_sensitive: false
+    strip_trailing_slash: false
+    technique: "id -g svc_update   (or read field 4 of the passwd entry)"
+    why: "Field 3 is the UID and field 4 is the primary GID — adjacent numbers that are easy to swap under time pressure. The question names which one it wants, so read it twice."
+
+  - id: forensics.q.account-last-uid-created
+    archetype: accounts
+    skillNodeId: forensics.core.accounts
+    prompt: >
+      Accounts are normally assigned the next free UID in order. From the
+      snippet below, what is the username of the most recently created
+      human account?
+    given: |
+      $ awk -F: '$3>=1000 && $3<65534 {print $1":"$3}' /etc/passwd
+      dmartin:1000
+      kpatel:1001
+      jrivera:1002
+      helpdesk:1003
+    answer: "helpdesk"
+    accepts: ["helpdesk"]
+    case_sensitive: false
+    strip_trailing_slash: false
+    technique: "awk -F: '$3>=1000 && $3<65534 {print $1\":\"$3}' /etc/passwd | sort -t: -k2 -n"
+    why: "UIDs are handed out in ascending order, so the highest UID is usually the newest account — which is exactly the account an attacker just added, and the one to check against the README first."

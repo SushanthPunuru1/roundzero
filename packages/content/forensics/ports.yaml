@@ -61,3 +61,93 @@ questions:
     strip_trailing_slash: false
     technique: "ss -tulpn"
     why: "A second sshd listening on a different port is a common way an intruder keeps backdoor access even after the 'real' SSH config gets hardened — always check for more than one listener on the same service."
+
+  - id: forensics.q.port-all-interfaces
+    archetype: ports
+    skillNodeId: forensics.core.ports
+    prompt: >
+      In the output below, one service is reachable from the network and one
+      is reachable only from the machine itself. Which port is exposed to
+      the network? Answer with just the port number.
+    given: |
+      $ ss -tulpn
+      Netid  State   Local Address:Port   Peer Address:Port  Process
+      tcp    LISTEN  127.0.0.1:3306       0.0.0.0:*           users:(("mysqld",pid=1104,fd=21))
+      tcp    LISTEN  0.0.0.0:8080         0.0.0.0:*           users:(("java",pid=2277,fd=9))
+    answer: "8080"
+    accepts: ["8080"]
+    case_sensitive: false
+    strip_trailing_slash: false
+    technique: "ss -tulpn   — read the Local Address column, not just the port"
+    why: "0.0.0.0 means every interface; 127.0.0.1 means loopback only. The same port number is exposure in one case and harmless in the other, so the address half of the column is the half that matters."
+
+  - id: forensics.q.port-service-name
+    archetype: ports
+    skillNodeId: forensics.core.ports
+    prompt: >
+      A scan reports the port below as open on a Windows box. Which service
+      normally runs on it? Give the service name.
+    given: "445/tcp open"
+    answer: "smb"
+    accepts: ["smb", "microsoft-ds", "smb/cifs", "cifs"]
+    case_sensitive: false
+    strip_trailing_slash: false
+    technique: "Recall the well-known port list, or check: grep -w 445 /etc/services"
+    why: "445 is SMB file sharing, and it is the port behind a long run of Windows worms. Port-to-service recall is asked directly, in both directions, and it is pure memorisation."
+
+  - id: forensics.q.port-pid-owner
+    archetype: ports
+    skillNodeId: forensics.core.ports
+    prompt: >
+      In the output below, what is the process ID (PID) of the program
+      listening on port 6667?
+    given: |
+      $ sudo ss -tulpn
+      Netid  State   Local Address:Port   Peer Address:Port  Process
+      tcp    LISTEN  0.0.0.0:22           0.0.0.0:*           users:(("sshd",pid=799,fd=3))
+      tcp    LISTEN  0.0.0.0:6667         0.0.0.0:*           users:(("ircd",pid=4512,fd=7))
+    answer: "4512"
+    accepts: ["4512"]
+    case_sensitive: false
+    strip_trailing_slash: false
+    technique: "sudo ss -tulpn   — the Process column carries the name and pid; then ls -l /proc/4512/exe for the real binary"
+    why: "The PID is what turns an open port into a thing you can act on: it gives you the binary path, the parent process, and the user it runs as. Without sudo the Process column is blank, which is why the command needs it."
+
+  - id: forensics.q.port-netstat-windows
+    archetype: ports
+    skillNodeId: forensics.core.ports
+    prompt: >
+      The Windows netstat output below shows one listener that does not
+      belong on a workstation. Which port is it? Answer with just the port
+      number.
+    given: |
+      C:\> netstat -ano | findstr LISTENING
+        TCP    0.0.0.0:135      0.0.0.0:0    LISTENING   924
+        TCP    0.0.0.0:445      0.0.0.0:0    LISTENING   4
+        TCP    0.0.0.0:23       0.0.0.0:0    LISTENING   3308
+        TCP    0.0.0.0:3389     0.0.0.0:0    LISTENING   1180
+    answer: "23"
+    accepts: ["23"]
+    case_sensitive: false
+    strip_trailing_slash: false
+    technique: "netstat -ano | findstr LISTENING   — then tasklist /fi \"pid eq 3308\" to name the process"
+    why: "23 is Telnet, which sends credentials in cleartext and is never required on a modern workstation. 135, 445, and 3389 are all normal Windows services — the skill is knowing which of the four does not belong."
+
+  - id: forensics.q.port-udp-service
+    archetype: ports
+    skillNodeId: forensics.core.ports
+    prompt: >
+      In the output below, one line is UDP rather than TCP. Which port is
+      it? Answer with just the port number.
+    given: |
+      $ ss -tulpn
+      Netid  State   Local Address:Port   Peer Address:Port  Process
+      tcp    LISTEN  0.0.0.0:80           0.0.0.0:*           users:(("nginx",pid=1002,fd=6))
+      udp    UNCONN  0.0.0.0:161          0.0.0.0:*           users:(("snmpd",pid=1330,fd=8))
+      tcp    LISTEN  0.0.0.0:443          0.0.0.0:*           users:(("nginx",pid=1002,fd=8))
+    answer: "161"
+    accepts: ["161"]
+    case_sensitive: false
+    strip_trailing_slash: false
+    technique: "ss -tulpn   — the Netid column names the protocol; UDP listeners show state UNCONN, not LISTEN"
+    why: "UDP services are easy to skim past because they never say LISTEN. 161 is SNMP, which is frequently scored as an unnecessary service — and it would be invisible to anyone grepping the output for LISTEN."

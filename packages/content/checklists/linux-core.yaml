@@ -259,3 +259,139 @@ items:
         sudo ufw allow OpenSSH        # allow required services BEFORE enabling
         sudo ufw enable
         sudo ufw status verbose
+
+  # --- Accounts (depth pass) ---------------------------------------------
+  - id: linux.accounts.aging-per-user
+    skillNodeId: linux.accounts.chage
+    sortOrder: 115
+    action: "Apply password aging to every existing user, not just the login.defs default."
+    why: "/etc/login.defs only governs accounts created afterwards. Existing accounts keep the aging values already stored in /etc/shadow, so the policy point fails until you set them per user."
+    lessonSlug: linux-accounts-and-passwd
+    commands:
+      all: "sudo chage -l bob   # audit, then: sudo chage -M 90 -m 7 -W 14 bob   (repeat for every authorized human account)"
+
+  - id: linux.accounts.lock-unused
+    skillNodeId: linux.accounts.uid0
+    sortOrder: 45
+    action: "Confirm no account other than root has UID 0."
+    why: "The kernel authorizes on the numeric UID, not the name — a second UID-0 account is root under another name, and no password change fixes it."
+    lessonSlug: linux-accounts-and-passwd
+    commands:
+      all: "awk -F: '$3==0 {print $1}' /etc/passwd   # should print only: root. Fix with: sudo usermod -u 1005 <user>"
+    caution: "Change the UID rather than deleting the account if the README lists that user as authorized."
+
+  # --- SSH (depth pass) ---------------------------------------------------
+  - id: linux.ssh.empty-passwords
+    skillNodeId: linux.ssh.limits
+    sortOrder: 145
+    action: "Set PermitEmptyPasswords no and cap authentication attempts."
+    why: "The defaults are already safe, but scored images ship them flipped. MaxAuthTries and LoginGraceTime cap brute force without changing who is allowed in."
+    lessonSlug: linux-ssh-hardening
+    commands:
+      all: "sudo grep -E 'PermitEmptyPasswords|MaxAuthTries|LoginGraceTime' /etc/ssh/sshd_config   # want: no / 3-4 / 30, then sudo sshd -t && sudo systemctl reload ssh"
+
+  # --- Services and persistence (depth pass) ------------------------------
+  - id: linux.services.disable-unnecessary
+    skillNodeId: linux.services-persistence.systemd-audit
+    sortOrder: 155
+    action: "Disable services the README does not require, and confirm they stay off after reboot."
+    why: "Stopping without disabling gets you a service that returns on the next boot — and the scoring engine may check either state."
+    lessonSlug: linux-services-and-ports
+    commands:
+      all: "systemctl list-unit-files --type=service --state=enabled   then   sudo systemctl disable --now telnet.socket"
+    caution: "Check the README's required-services list first. Disabling a required service is a penalty, usually larger than the point you were chasing."
+
+  - id: linux.services.keep-required
+    skillNodeId: linux.services-persistence.critical
+    sortOrder: 165
+    action: "Verify every service the README requires is still active and enabled after your changes."
+    why: "The most expensive mistake in a round is breaking a required service while hardening something next to it. This is the check that catches it before the scoring engine does."
+    lessonSlug: linux-services-and-ports
+    commands:
+      all: "systemctl is-active apache2 && systemctl is-enabled apache2   # repeat for every service named in the README; both should print active / enabled"
+
+  - id: linux.persistence.timers-and-at
+    skillNodeId: linux.services-persistence.cron
+    sortOrder: 172
+    action: "Check systemd timers and at jobs, not just cron."
+    why: "A persistence audit that stops at cron misses two other schedulers that run commands on the same box."
+    lessonSlug: linux-persistence-hunting
+    commands:
+      all: "systemctl list-timers --all   and   atq   and   sudo crontab -l -u <user>   for every user"
+
+  - id: linux.persistence.shell-startup
+    skillNodeId: linux.services-persistence.rc-bashrc
+    sortOrder: 175
+    action: "Read every shell startup file for commands that run at login."
+    why: "A single line in a .bashrc re-launches a payload every time that user logs in, and it survives everything you did to cron, services, and the account's password."
+    lessonSlug: linux-persistence-hunting
+    commands:
+      all: "sudo grep -E 'curl|wget|nc |bash -i|base64' /home/*/.bashrc /root/.bashrc /etc/profile /etc/profile.d/*.sh /etc/rc.local 2>/dev/null"
+
+  # --- Files and permissions (depth pass) ---------------------------------
+  - id: linux.files.home-permissions
+    skillNodeId: linux.files-perms.sensitive-modes
+    sortOrder: 195
+    action: "Tighten home directory permissions so users can't read each other's files."
+    why: "A world-readable home directory exposes SSH keys, saved credentials, and anything else a user left in it."
+    lessonSlug: linux-file-permissions
+    commands:
+      all: "sudo chmod 750 /home/*   # and: sudo chmod 700 /home/*/.ssh; sudo chmod 600 /home/*/.ssh/authorized_keys"
+
+  - id: linux.files.world-writable
+    skillNodeId: linux.files-perms.world-writable
+    sortOrder: 205
+    action: "Find world-writable files and confirm /tmp still has its sticky bit."
+    why: "Any user can rewrite a world-writable script, and it then runs as whoever executes it next — often root from cron. On /tmp, a missing sticky bit lets any user delete another's files."
+    lessonSlug: linux-file-permissions
+    commands:
+      all: "sudo find / -xdev -type f -perm -0002 ! -path '/proc/*' -ls 2>/dev/null   and   ls -ld /tmp   # want drwxrwxrwt (1777)"
+
+  # --- Updates and network (depth pass) -----------------------------------
+  - id: linux.updates.unattended
+    skillNodeId: linux.updates-network.apt
+    sortOrder: 215
+    action: "Turn on automatic security updates."
+    why: "Scored separately from having applied updates once — the engine checks that the machine will keep patching itself."
+    lessonSlug: linux-updates-firewall-sysctl
+    commands:
+      all: "sudo apt install unattended-upgrades -y   then set both values to \"1\" in /etc/apt/apt.conf.d/20auto-upgrades"
+
+  - id: linux.network.ufw-default-deny
+    skillNodeId: linux.updates-network.ufw
+    sortOrder: 222
+    action: "Set the firewall to deny inbound by default, allowing only required services."
+    why: "An enabled firewall with a permissive default policy scores nothing. Default-deny is what makes the allow rules mean something."
+    lessonSlug: linux-updates-firewall-sysctl
+    commands:
+      all: "sudo ufw default deny incoming && sudo ufw default allow outgoing && sudo ufw status verbose"
+    caution: "Allow SSH (sudo ufw allow 22/tcp) BEFORE enabling the firewall on a box you are connected to remotely."
+
+  - id: linux.network.sysctl
+    skillNodeId: linux.updates-network.sysctl
+    sortOrder: 225
+    action: "Apply kernel network hardening and make it survive a reboot."
+    why: "sysctl -w changes the running kernel only. The value has to be written into a config file to persist, and the engine may check the file rather than the live value."
+    lessonSlug: linux-updates-firewall-sysctl
+    commands:
+      all: "Add to /etc/sysctl.conf: net.ipv4.ip_forward=0, net.ipv4.conf.all.rp_filter=1, net.ipv4.conf.all.accept_redirects=0, net.ipv4.conf.all.send_redirects=0, net.ipv4.conf.all.accept_source_route=0   then: sudo sysctl -p"
+
+  # --- Web server variant (only if the README says so) --------------------
+  - id: linux.web.apache-hardening
+    skillNodeId: linux.web-variant.apache-php
+    sortOrder: 230
+    action: "On a web-server image, turn off directory listing and the server version banner."
+    why: "Indexes on means a folder with no index file lists every file in it. The banner hands out the exact version to look up."
+    lessonSlug: linux-web-server-images
+    commands:
+      all: "In the <Directory> block: Options -Indexes. In /etc/apache2/conf-enabled/security.conf: ServerTokens Prod and ServerSignature Off. Then: sudo apache2ctl configtest && sudo systemctl reload apache2"
+    caution: "Only on an image the README describes as a web server. Do not disable Apache itself if it is a required service."
+
+  - id: linux.web.php-hardening
+    skillNodeId: linux.web-variant.apache-php
+    sortOrder: 235
+    action: "Harden php.ini and check the web root's permissions."
+    why: "display_errors leaks paths and configuration to anyone who triggers an error, and a world-writable web root lets any local user drop a PHP file the server will execute."
+    lessonSlug: linux-web-server-images
+    commands:
+      all: "In php.ini: display_errors = Off, expose_php = Off, disable_functions = exec,shell_exec,system,passthru. Then: sudo chown -R root:www-data /var/www/html && sudo chmod -R 755 /var/www/html"

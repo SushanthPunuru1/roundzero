@@ -57,3 +57,99 @@ questions:
     strip_trailing_slash: false
     technique: "find /tmp -mmin -60 -type f"
     why: "-mmin -60 finds files modified in the last 60 minutes — the fastest way to spot something an intruder just planted, even if it's hidden with a leading dot."
+
+  - id: forensics.q.hidden-dotfile-path
+    archetype: file-hunting
+    skillNodeId: forensics.core.file-hunting
+    prompt: >
+      A plain `ls` of this directory showed nothing unusual. The listing
+      below shows what was actually there. What is the absolute path to the
+      hidden file?
+    given: |
+      $ ls -la /home/tnguyen
+      drwxr-xr-x 3 tnguyen tnguyen 4096 Nov  2 09:14 .
+      drwxr-xr-x 6 root    root    4096 Oct 28 11:02 ..
+      -rw-r--r-- 1 tnguyen tnguyen  220 Oct 28 11:02 .bash_logout
+      -rw------- 1 tnguyen tnguyen   64 Nov  2 09:14 .creds_backup
+      -rw-r--r-- 1 tnguyen tnguyen 1120 Oct 28 11:02 notes.txt
+    answer: "/home/tnguyen/.creds_backup"
+    accepts: ["/home/tnguyen/.creds_backup"]
+    case_sensitive: false
+    strip_trailing_slash: false
+    technique: "ls -la /home/tnguyen   — the -a is what reveals dotfiles"
+    why: "A leading dot hides a file from plain ls, and that is the entire mechanism — there is no hidden attribute on Linux. .bash_logout is normal furniture; .creds_backup is not."
+
+  - id: forensics.q.suid-binary-path
+    archetype: file-hunting
+    skillNodeId: forensics.core.file-hunting
+    prompt: >
+      The search below lists SUID binaries. One of them is not a standard
+      system binary. What is its absolute path?
+    given: |
+      $ sudo find / -perm -4000 -type f 2>/dev/null
+      /usr/bin/passwd
+      /usr/bin/sudo
+      /usr/bin/su
+      /opt/tools/netscan
+      /usr/bin/mount
+    answer: "/opt/tools/netscan"
+    accepts: ["/opt/tools/netscan"]
+    case_sensitive: false
+    strip_trailing_slash: false
+    technique: "sudo find / -perm -4000 -type f 2>/dev/null"
+    why: "SUID means the binary runs as its owner, usually root, no matter who launches it. passwd, sudo, su, and mount legitimately need it; something under /opt does not, and it is a direct path to root."
+
+  - id: forensics.q.world-writable-script
+    archetype: file-hunting
+    skillNodeId: forensics.core.file-hunting
+    prompt: >
+      In the listing below, one file can be edited by any user on the
+      system. What is its absolute path?
+    given: |
+      $ ls -l /usr/local/bin
+      -rwxr-xr-x 1 root root 1204 Oct 12 08:31 /usr/local/bin/backup.sh
+      -rwxrwxrwx 1 root root  842 Nov  1 22:07 /usr/local/bin/cleanup.sh
+      -rwxr-xr-x 1 root root  530 Oct 12 08:31 /usr/local/bin/report.sh
+    answer: "/usr/local/bin/cleanup.sh"
+    accepts: ["/usr/local/bin/cleanup.sh"]
+    case_sensitive: false
+    strip_trailing_slash: false
+    technique: "find /usr/local/bin -perm -0002 -type f -ls"
+    why: "The final rwx in -rwxrwxrwx is the world block: any user can rewrite that script, and it will then run as whoever executes it next — often root, from cron. That is privilege escalation with no exploit needed."
+
+  - id: forensics.q.grep-config-secret
+    archetype: file-hunting
+    skillNodeId: forensics.core.file-hunting
+    prompt: >
+      The grep output below searched the web root for stored credentials.
+      What is the absolute path to the file that contains one?
+    given: |
+      $ grep -ri 'password' /var/www 2>/dev/null
+      /var/www/html/docs/setup.md:Change the default password after install.
+      /var/www/html/inc/db.inc.php:$db_password = 'Sup3rS3cret!';
+      /var/www/html/README:See the password policy section below.
+    answer: "/var/www/html/inc/db.inc.php"
+    accepts: ["/var/www/html/inc/db.inc.php"]
+    case_sensitive: false
+    strip_trailing_slash: false
+    technique: "grep -ri 'password' /var/www 2>/dev/null"
+    why: "Two of these matches are documentation mentioning the word; one is an actual credential assigned to a variable. Reading the matched line, not just the filename, is what separates them."
+
+  - id: forensics.q.find-newer-than
+    archetype: file-hunting
+    skillNodeId: forensics.core.file-hunting
+    prompt: >
+      Everything on this box was installed on Oct 28. The listing below is
+      sorted by modification time. What is the absolute path to the file
+      that was changed after the install?
+    given: |
+      $ ls -lt --time-style=+%Y-%m-%d /etc/cron.d
+      -rw-r--r-- 1 root root  102 2026-11-03 /etc/cron.d/sysupdate
+      -rw-r--r-- 1 root root   85 2026-10-28 /etc/cron.d/e2scrub_all
+      -rw-r--r-- 1 root root  201 2026-10-28 /etc/cron.d/anacron
+    answer: "/etc/cron.d/sysupdate"
+    accepts: ["/etc/cron.d/sysupdate"]
+    case_sensitive: false
+    strip_trailing_slash: false
+    technique: "ls -lt /etc/cron.d   (or: find /etc -newermt '2026-10-29' -type f)"
+    why: "Modification time separates what shipped with the image from what someone added afterwards. A cron file dated later than every other file in the directory is worth reading before it is worth deleting."

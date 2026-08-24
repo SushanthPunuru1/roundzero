@@ -69,3 +69,23 @@ questions:
     answer: "network address translation"
     accepts: ["network address translation"]
     why: "NAT rewrites private (internal) IP addresses to a public address as traffic leaves the network — it's how a whole private network shares one public IP."
+
+  - id: networking-quiz.q.dora-steps
+    category: protocols
+    skillNodeId: networking.devices.dhcp-nat
+    prompt: "What are the four DHCP messages, in order? (First letters spell DORA.)"
+    answer: "discover offer request acknowledge"
+    accepts:
+      - "discover offer request acknowledge"
+      - "discover, offer, request, acknowledge"
+      - "dora"
+      - "discover offer request ack"
+    why: "Discover, Offer, Request, Acknowledge. The client broadcasts Discover because it has no address yet, and broadcasts the Request so any server whose offer lost knows its address is free again."
+
+  - id: networking-quiz.q.osi-layer-4
+    category: protocols
+    skillNodeId: networking.fundamentals.osi
+    prompt: "What OSI layer number do TCP and UDP operate at?"
+    answer: "4"
+    accepts: ["4", "layer 4", "transport"]
+    why: "Layer 4, Transport. The three worth having cold: MAC at 2, IP at 3, port numbers at 4."

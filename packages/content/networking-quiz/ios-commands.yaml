@@ -45,3 +45,47 @@ questions:
     answer: "show ip interface brief"
     accepts: ["show ip interface brief", "sh ip int brief"]
     why: "show ip interface brief is the fastest way to sanity-check an entire topology's addressing and interface state at a glance."
+
+  - id: networking-quiz.q.ios-show-vlan
+    category: ios-commands
+    skillNodeId: networking.devices.vlans
+    prompt: "What command shows the VLAN database and which access ports belong to each VLAN?"
+    answer: "show vlan brief"
+    accepts: ["show vlan brief", "show vlan"]
+    why: "show vlan brief is the fastest way to confirm a port landed in the VLAN you intended. Trunk ports do not appear in this list, which is itself a useful signal."
+
+  - id: networking-quiz.q.ios-hostname
+    category: ios-commands
+    skillNodeId: networking.devices.ios-basics
+    prompt: "From global configuration mode, what command sets the device's hostname to SW1?"
+    answer: "hostname SW1"
+    accepts: ["hostname SW1", "hostname sw1"]
+    why: "hostname <name>, from global config. It takes effect immediately — the prompt changes as soon as you press enter, which is the quickest confirmation you are in the right mode."
+
+  - id: networking-quiz.q.ios-interface-mode
+    category: ios-commands
+    skillNodeId: networking.devices.ios-basics
+    prompt: "From global configuration mode, what command enters interface configuration for FastEthernet0/1?"
+    answer: "interface fastethernet0/1"
+    accepts:
+      - "interface fastethernet0/1"
+      - "interface fa0/1"
+      - "int fa0/1"
+      - "int fastethernet0/1"
+    why: "interface <type><slot>/<port>. IOS accepts unambiguous abbreviations, so `int fa0/1` is the same command — worth knowing since the exam and the timer both reward it."
+
+  - id: networking-quiz.q.ios-no-shutdown
+    category: ios-commands
+    skillNodeId: networking.devices.ios-basics
+    prompt: "An interface is administratively down. What command brings it up?"
+    answer: "no shutdown"
+    accepts: ["no shutdown", "no shut"]
+    why: "no shutdown, from interface configuration mode. Router interfaces are shut down by default, so a freshly configured link with a correct IP still passes no traffic until you run it."
+
+  - id: networking-quiz.q.ios-show-startup
+    category: ios-commands
+    skillNodeId: networking.devices.ios-basics
+    prompt: "What command displays the saved configuration that will load at next boot?"
+    answer: "show startup-config"
+    accepts: ["show startup-config"]
+    why: "show startup-config reads NVRAM; show running-config reads RAM. If they differ, your changes are unsaved and a reload discards them."

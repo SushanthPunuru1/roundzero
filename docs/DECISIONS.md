@@ -2341,3 +2341,42 @@ files. Note what this does NOT close: the forensics bank (24 questions), the
 networking quiz (35), the placement pool (28), and the two checklists (22 and
 25 items) are all still thin. Step 1.5 stays open; the drill slice of it is
 done.
+
+**042 · 2026-08-23 · Every replayable bank gets enough depth to be replayed;
+placement deliberately left alone.** Continuing the content-depth pass (step
+1.5) past drill cards. Three banks moved, one was examined and left as it is.
+**Forensics 24 → 64**, from 3 questions per archetype to 8. This is the
+surface most obviously built for repetition — `/app/forensics` is graded,
+replayable, and missed questions enqueue to the SRS — and three questions
+means an archetype is exhausted in one sitting, after which replaying it
+tests memory of the answers rather than the technique. Every new question is
+self-contained: the `given` block carries the evidence and the answer is
+derivable from it, with no reference to a machine the learner does not have.
+**Networking quiz 35 → 60**, ten per category, same argument at lower
+severity. **Checklists 47 → 75 items** (Linux 22 → 36, Windows 25 → 39).
+This one was structural rather than thin: nine Linux/Windows leaf nodes had
+no item at all and thirty-five had exactly one, which makes the artifact an
+index of the taxonomy rather than a round-day procedure. Every Linux and
+Windows leaf node now carries at least one item, and the nodes that were
+empty — shell-startup persistence, required-service verification,
+world-writable files, sysctl, the Apache/PHP web variant, WMI subscriptions,
+and the three Windows Server nodes — are exactly the ones a learner would
+otherwise meet for the first time in a round.
+**Placement was examined and deliberately not changed.** Each domain holds
+3 foundations / 2 standard / 2 advanced against `validatePlacementCoverage`'s
+3/1/1 floor, and the worst-case ladder path through one attempt consumes at
+most 3 foundations, 1 standard, and 1 advanced — so the pool cannot run dry
+and `pickQuestion`'s nearest-tier fallback is unreachable by construction,
+exactly as its comment claims. The repeat-on-retake property is not a gap
+either: `ladder.ts` is deterministic on purpose so "a retake varies only by
+the user's own answers," and a learner who has actually improved walks up
+into standard and advanced questions they have never seen. Adding questions
+here would buy nothing and would dilute a bank that is already correctly
+sized for its algorithm.
+Verified by running the real `parseTaxonomy`, `parseLessons`, `parseCards`,
+`parseForensics`, `parseQuiz`, `parseChecklists`, and `parsePlacement` —
+plus each ref- and coverage-validator — over the actual content files. Every
+hash and every encoded string in the new forensics questions was recomputed
+independently rather than trusted: an unanswerable question is worse than a
+missing one. **Step 1 of the locked build order is complete.** Next is step
+2, infrastructure.

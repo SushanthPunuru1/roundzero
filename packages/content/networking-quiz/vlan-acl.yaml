@@ -61,3 +61,31 @@ questions:
     answer: "vlan 10"
     accepts: ["vlan 10"]
     why: "vlan 10 both creates VLAN 10 if it doesn't exist and drops you into VLAN configuration mode to name it."
+
+  - id: networking-quiz.q.vlan-native
+    category: vlan-acl
+    skillNodeId: networking.devices.vlans
+    prompt: "On a trunk, which VLAN's traffic is sent untagged?"
+    answer: "the native vlan"
+    accepts: ["the native vlan", "native vlan", "native"]
+    why: "Everything else on a trunk carries an 802.1Q tag; the native VLAN does not. It defaults to VLAN 1, and changing it to an unused VLAN is a standard hardening step."
+
+  - id: networking-quiz.q.acl-extended-number
+    category: vlan-acl
+    skillNodeId: networking.devices.acls
+    prompt: "Which fields can an extended ACL filter on that a standard ACL cannot?"
+    answer: "destination ip address and port"
+    accepts:
+      - "destination ip address and port"
+      - "destination and port"
+      - "destination ip, protocol, and port"
+      - "destination address and protocol"
+    why: "A standard ACL sees only the source address. An extended ACL adds destination, protocol, and port — which is why it can be placed close to the source without blocking more than intended."
+
+  - id: networking-quiz.q.acl-standard-placement
+    category: vlan-acl
+    skillNodeId: networking.devices.acls
+    prompt: "Where should a standard ACL be placed — close to the source or close to the destination?"
+    answer: "close to the destination"
+    accepts: ["close to the destination", "destination", "near the destination"]
+    why: "A standard ACL matches on source address only, so placing it near the source would block that traffic to every destination. Placing it near the destination limits the damage to the flow you meant to filter."

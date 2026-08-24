@@ -54,3 +54,89 @@ questions:
     strip_trailing_slash: false
     technique: "xxd <file> | head -1   (magic bytes 89 50 4E 47 = the PNG signature)"
     why: "Renaming a file's extension doesn't change its actual bytes — the first few bytes (the 'magic number') identify the real format regardless of what the filename claims."
+
+  - id: forensics.q.file-type-mismatch
+    archetype: stego
+    skillNodeId: forensics.core.stego
+    prompt: >
+      A file on the Desktop is named holiday.png, but `file` reports
+      something else. What kind of file is it actually? Answer with the
+      archive format named in the output.
+    given: |
+      $ file holiday.png
+      holiday.png: Zip archive data, at least v2.0 to extract
+    answer: "zip"
+    accepts: ["zip", "zip archive", "a zip archive"]
+    case_sensitive: false
+    strip_trailing_slash: false
+    technique: "file holiday.png   — file reads the magic bytes, not the extension"
+    why: "An extension is just part of the name and anyone can change it. `file` reads the first bytes of the content, so it tells you what something is rather than what it claims to be — and a .png that is really a zip is data someone wanted overlooked."
+
+  - id: forensics.q.zip-appended-size
+    archetype: stego
+    skillNodeId: forensics.core.stego
+    prompt: >
+      Two icons render identically at the same dimensions, but one is far
+      larger on disk. What is the filename of the one carrying appended
+      data?
+    given: |
+      $ ls -l *.png
+      -rw-r--r-- 1 user user     8214 Oct 28 11:02 icon_a.png
+      -rw-r--r-- 1 user user 11930472 Nov  1 21:47 icon_b.png
+    answer: "icon_b.png"
+    accepts: ["icon_b.png"]
+    case_sensitive: false
+    strip_trailing_slash: false
+    technique: "ls -l   then   binwalk icon_b.png   or   unzip icon_b.png"
+    why: "Data appended after the end of an image doesn't change how it renders — viewers stop at the image's own end marker. Size is therefore the tell, and a small graphic that weighs megabytes is carrying something."
+
+  - id: forensics.q.exif-metadata-author
+    archetype: stego
+    skillNodeId: forensics.core.stego
+    prompt: >
+      The metadata below was read from a photo found on the box. What value
+      is in the Artist field?
+    given: |
+      $ exiftool suspect.jpg
+      File Name    : suspect.jpg
+      Artist       : m.calder
+      Comment      : nothing to see
+      Image Size   : 1920x1080
+    answer: "m.calder"
+    accepts: ["m.calder"]
+    case_sensitive: false
+    strip_trailing_slash: false
+    technique: "exiftool suspect.jpg   (or: strings suspect.jpg | head -20)"
+    why: "EXIF metadata travels with a photo and records things the picture itself doesn't show — camera, timestamps, sometimes GPS, and named fields like Artist. It is the least hidden hiding place, and questions ask for a specific field by name."
+
+  - id: forensics.q.strings-min-length
+    archetype: stego
+    skillNodeId: forensics.core.stego
+    prompt: >
+      Running strings on a binary produced the output below. What is the
+      URL it contains?
+    given: |
+      $ strings -n 8 updater.bin | grep -i http
+      http://198.51.100.9/payload.sh
+    answer: "http://198.51.100.9/payload.sh"
+    accepts: ["http://198.51.100.9/payload.sh"]
+    case_sensitive: false
+    strip_trailing_slash: false
+    technique: "strings -n 8 updater.bin | grep -i http"
+    why: "strings pulls every readable run of characters out of a binary, and -n sets how long a run has to be before it counts — raising it cuts the noise. A hard-coded URL inside a binary is where it phones home."
+
+  - id: forensics.q.png-header-hex
+    archetype: stego
+    skillNodeId: forensics.core.stego
+    prompt: >
+      The hex dump below is the start of a file. Judging by its magic bytes,
+      what file format is it? Give the three-letter format name.
+    given: |
+      $ xxd photo.dat | head -1
+      00000000: ffd8 ffe0 0010 4a46 4946 0001 0100 0001  ......JFIF......
+    answer: "jpg"
+    accepts: ["jpg", "jpeg"]
+    case_sensitive: false
+    strip_trailing_slash: false
+    technique: "xxd photo.dat | head -1   — FF D8 FF is the JPEG signature; the ASCII column showing JFIF confirms it"
+    why: "Magic bytes identify a format regardless of the filename. FF D8 FF is JPEG, 89 50 4E 47 is PNG, 50 4B 03 04 is ZIP — the same evidence `file` uses, read by hand."

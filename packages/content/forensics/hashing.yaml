@@ -49,3 +49,78 @@ questions:
     strip_trailing_slash: false
     technique: "md5sum README.txt   — then compare the digest character by character against the recorded value"
     why: "A single flipped character means the file was modified. Hashes either match exactly or the file is different — there's no 'close enough' with a hash."
+
+  - id: forensics.q.md5-do-not-modify
+    archetype: hashing
+    skillNodeId: forensics.core.hashing
+    prompt: >
+      A protected file's exact contents (no trailing newline) are shown
+      below. What is its md5sum?
+    given: "do-not-modify"
+    answer: "031ee8546e6f7b8350d15e235e0e50fa"
+    accepts: ["031ee8546e6f7b8350d15e235e0e50fa"]
+    case_sensitive: false
+    strip_trailing_slash: false
+    technique: "printf '%s' 'do-not-modify' | md5sum   (a real file: md5sum <file>)"
+    why: "The same md5sum command answers both forms of the question — hashing a real file on the box, or hashing a string the question hands you. The digest is the file's fingerprint either way."
+
+  - id: forensics.q.sha1-baseline
+    archetype: hashing
+    skillNodeId: forensics.core.hashing
+    prompt: >
+      A config file's exact contents (no trailing newline) are shown below.
+      What is its sha1sum?
+    given: "service-baseline.conf"
+    answer: "668e1582a999d738189916631cf65c11b270b4ba"
+    accepts: ["668e1582a999d738189916631cf65c11b270b4ba"]
+    case_sensitive: false
+    strip_trailing_slash: false
+    technique: "printf '%s' 'service-baseline.conf' | sha1sum"
+    why: "sha1 is the third algorithm answer keys reach for, sitting between md5 and sha256. Reading which one the question asked for is half the point — running the wrong tool produces a perfectly valid digest that scores zero."
+
+  - id: forensics.q.sha256-evidence
+    archetype: hashing
+    skillNodeId: forensics.core.hashing
+    prompt: >
+      An evidence file's exact contents (no trailing newline) are shown
+      below. What is its sha256sum?
+    given: "evidence-2026"
+    answer: "b42f175ec98f16ec62c8dc972aea0104ac27982a2f40d5bba4ae876e8fad540f"
+    accepts: ["b42f175ec98f16ec62c8dc972aea0104ac27982a2f40d5bba4ae876e8fad540f"]
+    case_sensitive: false
+    strip_trailing_slash: false
+    technique: "printf '%s' 'evidence-2026' | sha256sum"
+    why: "sha256 digests are 64 hex characters — the length alone tells you which algorithm produced a digest, which is the shortcut the next question tests."
+
+  - id: forensics.q.hash-identify-algorithm
+    archetype: hashing
+    skillNodeId: forensics.core.hashing
+    prompt: >
+      An answer key lists the digest below with no algorithm named. Which
+      hash algorithm produced it — md5, sha1, or sha256?
+    given: "5fc41fb47e405d519af0d029eea5ee234f8e4a01"
+    answer: "sha1"
+    accepts: ["sha1", "sha-1"]
+    case_sensitive: false
+    strip_trailing_slash: false
+    technique: "Count the hex characters: 32 = md5, 40 = sha1, 64 = sha256. This one is 40."
+    why: "Digest length identifies the algorithm with no tooling at all. It is the fastest way to tell which command to run when a question hands you a hash and doesn't say what made it."
+
+  - id: forensics.q.hash-manifest-which-file
+    archetype: hashing
+    skillNodeId: forensics.core.hashing
+    prompt: >
+      A manifest records the md5 of two files. You re-hash both on the box
+      and get the "computed" values below. Which file was modified? Give the
+      filename only.
+    given: |
+      recorded  hosts.bak          031ee8546e6f7b8350d15e235e0e50fa
+      recorded  services.bak       4ec18ee773dca2e2ba19c3d2293eaf17
+      computed  hosts.bak          031ee8546e6f7b8350d15e235e0e50fa
+      computed  services.bak       4ec18ee773dca2e2ba19c3d2293eaf99
+    answer: "services.bak"
+    accepts: ["services.bak"]
+    case_sensitive: false
+    strip_trailing_slash: false
+    technique: "md5sum -c manifest.txt   — or compare each recorded digest against the computed one character by character"
+    why: "Comparing a manifest against the live box is the real use of hashing in an image: one mismatched digest names the file that changed, and the rest are proven untouched."

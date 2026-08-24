@@ -46,3 +46,73 @@ questions:
     strip_trailing_slash: false
     technique: "echo 'gur synt vf uvqqra' | tr 'A-Za-z' 'N-ZA-Mn-za-m'"
     why: "ROT13 keeps letter frequency and word shape recognizable — that's the tell that it's ROT13 and not base64 or a real cipher."
+
+  - id: forensics.q.base64-disable-telnet
+    archetype: decoding
+    skillNodeId: forensics.core.decoding
+    prompt: >
+      A note left in a user's home directory contains the string below.
+      What does it say in plain text?
+    given: "ZGlzYWJsZSB0ZWxuZXQgbm93"
+    answer: "disable telnet now"
+    accepts: ["disable telnet now"]
+    case_sensitive: false
+    strip_trailing_slash: false
+    technique: "echo 'ZGlzYWJsZSB0ZWxuZXQgbm93' | base64 -d"
+    why: "The A-Z a-z 0-9 + / alphabet with no spaces is base64 on sight. Decoding is one command — the skill is recognising it in the first place."
+
+  - id: forensics.q.base64-cron
+    archetype: decoding
+    skillNodeId: forensics.core.decoding
+    prompt: >
+      A crontab comment contains the string below. What does it say in plain
+      text?
+    given: "Y2hlY2sgdGhlIGNyb24gam9icw=="
+    answer: "check the cron jobs"
+    accepts: ["check the cron jobs"]
+    case_sensitive: false
+    strip_trailing_slash: false
+    technique: "echo 'Y2hlY2sgdGhlIGNyb24gam9icw==' | base64 -d"
+    why: "The trailing = signs are base64 padding, added so the encoded length lands on a multiple of four. Their presence is a strong tell, though plenty of base64 has none."
+
+  - id: forensics.q.hex-backdoor
+    archetype: decoding
+    skillNodeId: forensics.core.decoding
+    prompt: >
+      A script contains the hex string below. What does it say in plain
+      text?
+    given: "6261636b646f6f7220666f756e64"
+    answer: "backdoor found"
+    accepts: ["backdoor found"]
+    case_sensitive: false
+    strip_trailing_slash: false
+    technique: "echo '6261636b646f6f7220666f756e64' | xxd -r -p"
+    why: "Hex uses only 0-9 and a-f and is always an even number of characters — two per byte. That character set is what separates it from base64 at a glance."
+
+  - id: forensics.q.rot13-startup
+    archetype: decoding
+    skillNodeId: forensics.core.decoding
+    prompt: >
+      A README note contains the string below. What does it say in plain
+      text?
+    given: "purpx gur fgneghc sbyqre"
+    answer: "check the startup folder"
+    accepts: ["check the startup folder"]
+    case_sensitive: false
+    strip_trailing_slash: false
+    technique: "echo 'purpx gur fgneghc sbyqre' | tr 'A-Za-z' 'N-ZA-Mn-za-m'"
+    why: "ROT13 keeps the spaces and word shapes of English, so it reads as gibberish with normal-looking word lengths — unlike base64 or hex, which are one unbroken run of characters."
+
+  - id: forensics.q.url-encoded-path
+    archetype: decoding
+    skillNodeId: forensics.core.decoding
+    prompt: >
+      A web server log records the requested path below. What is the path in
+      plain text?
+    given: "/var/log/auth%20log"
+    answer: "/var/log/auth log"
+    accepts: ["/var/log/auth log"]
+    case_sensitive: false
+    strip_trailing_slash: false
+    technique: "%20 is a URL-encoded space; %XX is always a hex byte value. Substitute each one back."
+    why: "Percent-encoding turns up in web logs and in anything that had to travel through a URL. %20 for space is the one worth knowing cold, since a decoded path with a space in it is exactly the kind of answer that then needs careful formatting."

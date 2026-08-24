@@ -57,3 +57,98 @@ questions:
     strip_trailing_slash: false
     technique: "grep 'Failed password' /var/log/auth.log"
     why: "Repeated failed logins for the same invalid username from one IP is the classic signature of an automated brute-force attempt — grep the auth log first when you suspect one."
+
+  - id: forensics.q.last-reboot-time
+    archetype: login-history
+    skillNodeId: forensics.core.login-history
+    prompt: >
+      In the `last` output below, what is the username of the account that
+      logged in from a host outside the local 10.0.2.0/24 network?
+    given: |
+      $ last -i
+      kpatel   pts/1   10.0.2.15    Mon Nov  2 08:41   still logged in
+      dmartin  pts/0   10.0.2.22    Mon Nov  2 08:12 - 09:30  (01:18)
+      svc_bak  pts/2   203.0.113.77 Sun Nov  1 03:04 - 03:09  (00:05)
+      kpatel   pts/0   10.0.2.15    Sun Nov  1 09:00 - 17:22  (08:22)
+    answer: "svc_bak"
+    accepts: ["svc_bak"]
+    case_sensitive: false
+    strip_trailing_slash: false
+    technique: "last -i   — the -i prints numeric addresses instead of hostnames"
+    why: "A login from outside the expected range, at 3am, by a service account, is three separate things wrong at once. The source address is what makes it visible; the account name is what you then go and audit."
+
+  - id: forensics.q.lastb-failed-count
+    archetype: login-history
+    skillNodeId: forensics.core.login-history
+    prompt: >
+      The failed-login output below is truncated. Which username was
+      targeted most often? Give the username.
+    given: |
+      $ sudo lastb | head -8
+      admin    ssh:notty  198.51.100.9  Sun Nov  1 02:14
+      root     ssh:notty  198.51.100.9  Sun Nov  1 02:14
+      admin    ssh:notty  198.51.100.9  Sun Nov  1 02:13
+      admin    ssh:notty  198.51.100.9  Sun Nov  1 02:13
+      oracle   ssh:notty  198.51.100.9  Sun Nov  1 02:12
+      admin    ssh:notty  198.51.100.9  Sun Nov  1 02:12
+      root     ssh:notty  198.51.100.9  Sun Nov  1 02:11
+      admin    ssh:notty  198.51.100.9  Sun Nov  1 02:11
+    answer: "admin"
+    accepts: ["admin"]
+    case_sensitive: false
+    strip_trailing_slash: false
+    technique: "sudo lastb | awk '{print $1}' | sort | uniq -c | sort -rn"
+    why: "lastb reads /var/log/btmp and shows failures; last reads /var/log/wtmp and shows successes. A tight run of failures against one name from one address is a brute force, and the counting is what the question is really testing."
+
+  - id: forensics.q.auth-log-accepted-ip
+    archetype: login-history
+    skillNodeId: forensics.core.login-history
+    prompt: >
+      From the auth log below, what is the source IP address of the
+      successful SSH login?
+    given: |
+      $ sudo grep sshd /var/log/auth.log | tail -3
+      Nov  2 02:10:44 web01 sshd[3312]: Failed password for invalid user test from 198.51.100.9 port 51022 ssh2
+      Nov  2 02:10:51 web01 sshd[3314]: Failed password for root from 198.51.100.9 port 51044 ssh2
+      Nov  2 02:11:07 web01 sshd[3319]: Accepted password for svc_bak from 203.0.113.77 port 51190 ssh2
+    answer: "203.0.113.77"
+    accepts: ["203.0.113.77"]
+    case_sensitive: false
+    strip_trailing_slash: false
+    technique: "sudo grep 'Accepted' /var/log/auth.log"
+    why: "Grepping for Accepted rather than Failed is the whole trick — the failures are noise, and the one line that says Accepted is the login that actually happened."
+
+  - id: forensics.q.who-current-session
+    archetype: login-history
+    skillNodeId: forensics.core.login-history
+    prompt: >
+      The output below shows who is logged in right now. Which username has
+      two simultaneous sessions?
+    given: |
+      $ who
+      dmartin  pts/0  2026-11-02 08:12 (10.0.2.22)
+      kpatel   pts/1  2026-11-02 08:41 (10.0.2.15)
+      kpatel   pts/3  2026-11-02 09:05 (10.0.2.15)
+    answer: "kpatel"
+    accepts: ["kpatel"]
+    case_sensitive: false
+    strip_trailing_slash: false
+    technique: "who   (or: w, which adds what each session is running)"
+    why: "who shows sessions open now; last shows sessions that already happened. Two sessions for one account is normal for a person with two terminals and suspicious for a service account that should never log in at all."
+
+  - id: forensics.q.last-logout-duration
+    archetype: login-history
+    skillNodeId: forensics.core.login-history
+    prompt: >
+      In the `last` output below, how long was jrivera's session, as shown
+      in the duration column?
+    given: |
+      $ last jrivera
+      jrivera  pts/2  10.0.2.31  Sat Oct 31 14:02 - 16:47  (02:45)
+      jrivera  pts/0  10.0.2.31  Fri Oct 30 09:10 - 09:55  (00:45)
+    answer: "02:45"
+    accepts: ["02:45", "2:45"]
+    case_sensitive: false
+    strip_trailing_slash: false
+    technique: "last jrivera   — the parenthesised value is the session length in HH:MM"
+    why: "The bracketed duration is computed from the login and logout times on the same line. Questions ask for it directly, and the format they want is the one already printed — don't convert it to minutes."

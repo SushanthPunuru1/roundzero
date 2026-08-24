@@ -45,3 +45,43 @@ questions:
     answer: "a legal warning"
     accepts: ["a legal warning", "legal warning", "a legal notice", "legal notice"]
     why: "A banner isn't decoration — it's a legal warning notice against unauthorized access, and its absence is a scored hardening finding in CyberPatriot-style scenarios."
+
+  - id: networking-quiz.q.ssh-requires
+    category: security
+    skillNodeId: networking.devices.hardening
+    prompt: "Before SSH can be enabled on a Cisco device, what must be configured besides a hostname?"
+    answer: "a domain name"
+    accepts: ["a domain name", "domain name", "ip domain-name", "domain-name"]
+    why: "The hostname and domain name together form the fully-qualified name the RSA key pair is generated against, so `crypto key generate rsa` fails without both."
+
+  - id: networking-quiz.q.vty-login-local
+    category: security
+    skillNodeId: networking.devices.hardening
+    prompt: "Which line-configuration command makes VTY lines authenticate against the device's own username database?"
+    answer: "login local"
+    accepts: ["login local"]
+    why: "`login local` checks the locally configured usernames; plain `login` only checks a shared line password. Local accounts mean each administrator authenticates as themselves."
+
+  - id: networking-quiz.q.port-security
+    category: security
+    skillNodeId: networking.devices.hardening
+    prompt: "What switch feature limits which MAC addresses may use an access port?"
+    answer: "port security"
+    accepts: ["port security", "switchport port-security"]
+    why: "Port security caps how many MAC addresses a port accepts and can pin it to specific ones, so an unauthorized device plugged into a wall jack is shut out."
+
+  - id: networking-quiz.q.shutdown-unused
+    category: security
+    skillNodeId: networking.devices.hardening
+    prompt: "What should be done with switch ports that are not in use?"
+    answer: "shut them down"
+    accepts: ["shut them down", "shutdown", "disable them", "shut down"]
+    why: "An enabled unused port is a live network jack anyone can plug into. Shutting unused ports down — and placing them in an unused VLAN — is standard hardening and is scored."
+
+  - id: networking-quiz.q.wps-weakness
+    category: security
+    skillNodeId: networking.wireless.security
+    prompt: "Which wireless feature should be disabled because its PIN can be brute-forced regardless of passphrase strength?"
+    answer: "wps"
+    accepts: ["wps", "wi-fi protected setup", "wifi protected setup"]
+    why: "The WPS PIN is eight digits and is validated in two halves, so it falls in hours and hands over the passphrase. A 20-character passphrase does not help if there is a second door."

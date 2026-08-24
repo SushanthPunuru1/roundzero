@@ -45,3 +45,43 @@ questions:
     answer: "67"
     accepts: ["67"]
     why: "67 is the DHCP server port; 68 is the client port. Both UDP, since the client has no IP yet to hold a TCP session."
+
+  - id: networking-quiz.q.port-telnet
+    category: ports
+    skillNodeId: networking.fundamentals.ports
+    prompt: "What port does Telnet use by default?"
+    answer: "23"
+    accepts: ["23"]
+    why: "23/TCP. Telnet sends everything, including credentials, in cleartext — which is why it is scored as a vulnerability wherever it appears."
+
+  - id: networking-quiz.q.port-https
+    category: ports
+    skillNodeId: networking.fundamentals.ports
+    prompt: "What port does HTTPS use by default?"
+    answer: "443"
+    accepts: ["443"]
+    why: "443/TCP. The pattern worth learning is that the secure variant usually gets its own port: 80/443 for HTTP, 21/990 for FTP, 389/636 for LDAP."
+
+  - id: networking-quiz.q.port-ftp-control
+    category: ports
+    skillNodeId: networking.fundamentals.ports
+    prompt: "What port does FTP use for its control connection?"
+    answer: "21"
+    accepts: ["21"]
+    why: "21/TCP carries the commands; 20/TCP carries the data in active mode. FTP is cleartext, so its presence on a hardened box is a finding."
+
+  - id: networking-quiz.q.service-on-161
+    category: ports
+    skillNodeId: networking.fundamentals.ports
+    prompt: "Which service commonly runs on UDP port 161?"
+    answer: "snmp"
+    accepts: ["snmp", "simple network management protocol"]
+    why: "161/UDP is SNMP. It is easy to miss in a port scan because UDP listeners never show the LISTEN state — and it is frequently scored as an unnecessary service."
+
+  - id: networking-quiz.q.well-known-range
+    category: ports
+    skillNodeId: networking.fundamentals.ports
+    prompt: "What is the highest port number in the well-known range?"
+    answer: "1023"
+    accepts: ["1023"]
+    why: "0-1023 are the well-known ports, and binding to one on Linux requires root. Above that: 1024-49151 registered, 49152-65535 dynamic."

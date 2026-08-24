@@ -300,3 +300,141 @@ items:
         Get-ChildItem C:\Users -Include *.mp3,*.mp4,*.avi,*.wav -Recurse -ErrorAction SilentlyContinue
         type C:\Windows\System32\drivers\etc\hosts
         :: a clean hosts file has only comment lines and possibly 127.0.0.1 localhost
+
+  # --- Accounts (depth pass) ---------------------------------------------
+  - id: windows.users.must-change-password
+    skillNodeId: windows.users-groups.weak-passwords
+    sortOrder: 85
+    action: "Set a strong password on every authorized account, and require a change at next logon."
+    why: "Changing one account's password and moving on leaves the rest scoring against you. The README usually requires all of them."
+    lessonSlug: users-and-groups
+    commands:
+      all: "net user <username> <NewStrongPassw0rd!>   then   net user <username> /logonpasswordchg:yes"
+    caution: "Do not change the password of the account you are currently logged in as until you are certain of the new one."
+
+  - id: windows.users.reversible-encryption
+    skillNodeId: windows.account-policy.complexity
+    sortOrder: 45
+    action: "Confirm \"store passwords using reversible encryption\" is disabled."
+    why: "Reversible encryption means the system keeps a recoverable form of every password. It is effectively plaintext storage and is always a critical finding."
+    lessonSlug: account-and-password-policy
+    commands:
+      all: "secpol.msc -> Account Policies -> Password Policy -> \"Store passwords using reversible encryption\" -> Disabled"
+
+  # --- Local policy and registry (depth pass) -----------------------------
+  - id: windows.policy.anonymous-enumeration
+    skillNodeId: windows.policy-registry.registry-classics
+    sortOrder: 135
+    action: "Block anonymous enumeration of accounts and shares."
+    why: "With it left open, an unauthenticated host can list every local account name — the first step of a targeted password attack."
+    lessonSlug: local-policy-uac-registry
+    commands:
+      all: "In HKLM\\SYSTEM\\CurrentControlSet\\Control\\Lsa set RestrictAnonymous = 1 and RestrictAnonymousSAM = 1 (secpol.msc -> Local Policies -> Security Options -> \"Network access: Do not allow anonymous enumeration...\")"
+
+  - id: windows.policy.smb-signing
+    skillNodeId: windows.policy-registry.smb
+    sortOrder: 145
+    action: "Require SMB signing, not merely enable it."
+    why: "\"Enable\" signs only when the other side agrees, which an attacker simply won't. \"Require\" refuses unsigned sessions and is what stops a relay."
+    lessonSlug: smb-rdp-hardening
+    commands:
+      all: "Set-SmbServerConfiguration -RequireSecuritySignature $true   and   Set-SmbClientConfiguration -RequireSecuritySignature $true"
+
+  - id: windows.policy.rdp-nla
+    skillNodeId: windows.policy-registry.rdp
+    sortOrder: 155
+    action: "If the README requires RDP, require Network Level Authentication on it."
+    why: "Without NLA the server creates a desktop session for anyone who connects, before any authentication happens."
+    lessonSlug: smb-rdp-hardening
+    commands:
+      all: "Set UserAuthentication = 1 under HKLM\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server\\WinStations\\RDP-Tcp   # to disable RDP entirely instead: fDenyTSConnections = 1"
+    caution: "Do not disable RDP if the README requires it, and do not disable it on a box you are connected to over RDP."
+
+  # --- Services and persistence (depth pass) ------------------------------
+  - id: windows.services.startup-type
+    skillNodeId: windows.services.critical-services
+    sortOrder: 175
+    action: "Check a service's startup type before changing it, and confirm required services survived the pass."
+    why: "Windows Update, Event Log, Defender, DHCP Client, DNS Client, and RPC all cost points directly or break something else that scores."
+    lessonSlug: windows-services
+    commands:
+      all: "Get-Service -Name wuauserv, EventLog, WinDefend, Dhcp, Dnscache, RpcSs | Select-Object Name, Status, StartType"
+
+  - id: windows.persistence.startup-folders
+    skillNodeId: windows.persistence.artifacts
+    sortOrder: 205
+    action: "Check both Startup folders and recently-modified files under user profiles."
+    why: "A shortcut in a Startup folder is persistence that needs no registry key and no scheduled task."
+    lessonSlug: persistence-and-malware
+    commands:
+      all: "dir \"%AppData%\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\"   and   dir \"C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\""
+
+  - id: windows.persistence.wmi-subscriptions
+    skillNodeId: windows.persistence.wmi
+    sortOrder: 208
+    action: "Check WMI event subscriptions if the box keeps re-infecting after a clean pass."
+    why: "A WMI subscription lives in the WMI repository rather than the registry or a folder, so it survives a reboot and is missed by anyone checking only Run keys, tasks, and services."
+    lessonSlug: persistence-and-malware
+    commands:
+      all: "Get-WmiObject -Namespace root\\subscription -Class __EventFilter; Get-WmiObject -Namespace root\\subscription -Class __EventConsumer; Get-WmiObject -Namespace root\\subscription -Class __FilterToConsumerBinding"
+    caution: "Advanced and not present on every image. Remove the binding as well as the consumer, or it can be recreated."
+
+  # --- Defenses, updates, prohibited (depth pass) -------------------------
+  - id: windows.updates.service-running
+    skillNodeId: windows.defenses-updates.windows-update
+    sortOrder: 215
+    action: "Start Windows Update early and confirm the service itself is running and automatic."
+    why: "It is the longest unattended job on the box, and a disabled wuauserv is its own scored finding regardless of how patched the machine is."
+    lessonSlug: defender-firewall-updates
+    commands:
+      all: "Get-Service wuauserv | Select-Object Status, StartType   then set updates to auto-download and install, and start the scan"
+
+  - id: windows.defenses.remove-shares
+    skillNodeId: windows.defenses-updates.shares-ntfs
+    sortOrder: 245
+    action: "Remove shares the README does not authorize — but never the administrative ones."
+    why: "An unauthorized share is an open door; removing ADMIN$, C$, or IPC$ breaks Windows management and costs points."
+    lessonSlug: shares-files-hosts
+    commands:
+      all: "Get-SmbShare   then   Remove-SmbShare -Name <ShareName> -Force"
+    caution: "Never remove ADMIN$, C$, or IPC$. They are default administrative shares and are expected to be present."
+
+  - id: windows.defenses.prohibited-software
+    skillNodeId: windows.defenses-updates.prohibited
+    sortOrder: 255
+    action: "Inventory installed programs and user profiles for prohibited software and media."
+    why: "Games, hacking tools, and unauthorized media are each scored, and they hide in user folders as often as in the installed-programs list."
+    lessonSlug: shares-files-hosts
+    commands:
+      all: "Get-ItemProperty HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\* | Select-Object DisplayName   then check each user's Desktop, Documents, Downloads, and Music"
+    caution: "Check the README's allowed-software list before uninstalling anything."
+
+  # --- Server images only (if the README describes a server) --------------
+  - id: windows.server.roles
+    skillNodeId: windows.server.roles
+    sortOrder: 260
+    action: "On a server image, list installed roles and remove only those the README does not require."
+    why: "A role ships services, open ports, and defaults whether you use it or not — but the role the box exists to provide is required, and removing it is a penalty."
+    lessonSlug: windows-server-basics
+    commands:
+      all: "Get-WindowsFeature | Where-Object Installed   then   Uninstall-WindowsFeature -Name <FeatureName>"
+    caution: "Server images usually have their roles on purpose. Remove nothing the README names."
+
+  - id: windows.server.gpo
+    skillNodeId: windows.server.gpo
+    sortOrder: 265
+    action: "On a domain-joined machine, make policy changes in Group Policy rather than local policy."
+    why: "Domain GPO overrides local policy and reapplies on refresh, so a local change silently reverts and the point never lands."
+    lessonSlug: windows-server-basics
+    commands:
+      all: "gpresult /r   to see what is actually applied, then edit the GPO and run   gpupdate /force"
+
+  - id: windows.server.ad-accounts
+    skillNodeId: windows.server.ad-dns
+    sortOrder: 270
+    action: "On a domain controller, audit domain accounts and Domain Admins — not local accounts."
+    why: "A DC has no meaningful local accounts; the users live in Active Directory, and the group that matters is Domain Admins."
+    lessonSlug: windows-server-basics
+    commands:
+      all: "Get-ADUser -Filter * | Select-Object SamAccountName, Enabled   and   Get-ADGroupMember -Identity 'Domain Admins'"
+    caution: "DNS is a required service on a domain controller — AD locates DCs through DNS SRV records. Do not disable it as an unnecessary service."

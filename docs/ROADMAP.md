@@ -55,15 +55,21 @@ In this order:
    (53 lessons, all 7 taxonomy domains)
 4. ~~Coach setup wizard~~ — **CUT.** Out of scope under individual-first.
    The implementation was reverted deliberately, not lost.
-5. Content-depth pass to fatten every bank ← current
+5. ~~Content-depth pass to fatten every bank~~ — done. Drill cards
+   110 → 265 (every leaf node at a 3-card floor), forensics 24 → 64,
+   networking quiz 35 → 60, checklist items 47 → 75. Placement was
+   examined and deliberately left at 28 — see DECISIONS 041 and 042.
 
 Functionality sits inside this step rather than after it because the design
 pass cannot run on screens that do not exist.
 
-### 2. Infrastructure — the hosting launch
+**Step 1 is complete.** Next is step 2.
+
+### 2. Infrastructure — the hosting launch ← current
 
 Server, orchestrator, gVisor isolation, egress lockdown, pooling, teardown
-— so the lab runs for someone other than the author.
+— so the lab runs for someone other than the author. `lab-broker/` is the
+local, single-lab seed of this; see DECISIONS 027.
 
 ### 3. Full design pass — the whole app at once
 
