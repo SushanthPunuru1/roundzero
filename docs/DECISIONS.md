@@ -2426,3 +2426,52 @@ team" → "Customize this checklist", "Your team's fork" → owner-dependent via
 the reader. Fifteen new pure tests cover the ownership matrix; the action
 test proves the guard is wired to that decision and that a personal fork
 never triggers a membership lookup at all.
+
+**044 · 2026-08-25 · Phase 2 infrastructure spec, and the container security
+profile becomes a pure, tested function.** Two things, one of which is a
+correction.
+*The spec.* `docs/PHASE2_INFRA_SPEC.md` sequences step 2 and — more usefully
+— writes down the threat model, which is different in kind from anything in
+Phase 1: we are handing an untrusted stranger a root shell on hardware we
+own and pay for, and the population being handed it is teenagers being
+actively trained to break into Linux boxes. Loopback binding is currently
+the entire security model; the broker has no authentication on any route, no
+owner recorded against a lab, and no memory, CPU, or PID limit at all.
+The one genuinely useful finding from the audit: **the gVisor risk is narrow
+and nameable.** Of the 33 checks, 32 are file, content, account, or service
+inspection and are indifferent to the runtime. Exactly one is not —
+`ufw-active` runs `ufw status`, which is why `docker.ts` grants NET_ADMIN
+and NET_RAW, and gVisor's userspace netstack has only partial iptables
+support. Worth noting that the three `sysctl-*` checks already grade the
+FILE rather than live `sysctl`, a workaround Docker's namespacing forced
+earlier and which pays off a second time here; it is the pattern to reach
+for if `ufw-active` has to be rewritten.
+*The correction.* The spec's first draft made "prove gVisor" step 2.0,
+blocking and first, on the grounds that it was the riskiest unknown. That
+was wrong and was caught within the hour by trying to run it: gVisor needs a
+Linux kernel and `runsc` does not run under Docker Desktop on Windows. The
+work had been sequenced by which unknown was riskiest without asking where
+that unknown could be *measured*. Corrected order: 2.1 (local,
+runtime-independent) → 2.2 (provision) → 2.0 (prove, on the box). The
+mistake is recorded in the spec itself, not just here, because the failure
+mode generalizes.
+*The profile.* `lab-broker/src/sandbox.ts` is new and pure:
+`buildHostConfig(limits)` plus `loadSandboxLimits(env)`. It is split out of
+`docker.ts` — which is I/O against a live daemon and deliberately untested —
+because a resource limit that silently stops being applied is invisible
+until the box falls over. Three decisions inside it. (a) **`MemorySwap` is
+pinned equal to `Memory`**, never left unset: unset means "twice Memory", so
+a container that looks capped at 512M can still take 1G of swap and kill the
+host slowly rather than quickly. Asserted as a pair. (b) **The runtime is
+config, not a constant.** Hardcoding `"runsc"` would break every local dev
+machine, and an empty value omits the field entirely so Docker's default
+applies — while a typo'd `RZ_RUNTIME` fails loudly at create time rather
+than silently falling back to runc, which would mean believing the box is
+gVisor-isolated when it is not. (c) **`Binds: []` and `RestartPolicy: no`
+are stated explicitly rather than omitted**, so adding a host mount or a
+restart policy is a visible edit rather than an absent-field oversight; a
+restarting lab is one the registry has lost track of, since the idle timer
+and the owner record live in the broker, not in Docker.
+Thirteen tests. Note that `lab-broker` is outside the pnpm workspace, so
+root `pnpm test` does not cover it — it has its own CI job, and a local gate
+run needs `npm test` inside `lab-broker/` as a separate step.

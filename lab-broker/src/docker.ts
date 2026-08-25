@@ -21,6 +21,7 @@ import type { Duplex } from "node:stream";
 import { PassThrough } from "node:stream";
 
 import type { ContainerDriver } from "./registry";
+import { buildHostConfig, loadSandboxLimits, type SandboxLimits } from "./sandbox";
 
 const execFileAsync = promisify(execFile);
 
@@ -48,6 +49,9 @@ export interface DockerClientOptions {
   rzagentBin: string;
   checksPath: string;
   docker?: Docker;
+  /** Defaults to the environment-derived profile. Injectable so a caller —
+   * or a test — can pin the sandbox without touching process.env. */
+  limits?: SandboxLimits;
 }
 
 export class DockerClient implements ContainerDriver {
@@ -55,12 +59,14 @@ export class DockerClient implements ContainerDriver {
   private readonly image: string;
   private readonly rzagentBin: string;
   private readonly checksPath: string;
+  private readonly limits: SandboxLimits;
 
   constructor(options: DockerClientOptions) {
     this.docker = options.docker ?? new Docker();
     this.image = options.image;
     this.rzagentBin = options.rzagentBin;
     this.checksPath = options.checksPath;
+    this.limits = options.limits ?? loadSandboxLimits();
   }
 
   /** Fails fast and clearly instead of letting the first container create
@@ -83,12 +89,12 @@ export class DockerClient implements ContainerDriver {
       name: containerName,
       Image: this.image,
       Tty: false,
-      HostConfig: {
-        // ufw (the ufw-active check) manipulates iptables/nftables rules and
-        // network sysctls even outside a booted init — same rationale as
-        // agent/scripts/prove.sh.
-        CapAdd: ["NET_ADMIN", "NET_RAW"],
-      },
+      // The security profile is a pure function in sandbox.ts so it can be
+      // asserted without a daemon — see the note at the top of that file.
+      // NET_ADMIN/NET_RAW are in it because ufw (the ufw-active check)
+      // manipulates iptables/nftables rules even outside a booted init, the
+      // same rationale as agent/scripts/prove.sh.
+      HostConfig: buildHostConfig(this.limits),
     });
     await container.start();
 

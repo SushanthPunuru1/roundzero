@@ -71,6 +71,10 @@ Server, orchestrator, gVisor isolation, egress lockdown, pooling, teardown
 — so the lab runs for someone other than the author. `lab-broker/` is the
 local, single-lab seed of this; see DECISIONS 027.
 
+**Sequencing and threat model: `docs/PHASE2_INFRA_SPEC.md`.** Step 2.0
+(prove gVisor runs the practice image) is blocking and comes before any
+host work — one of the 33 checks, `ufw-active`, is the identifiable risk.
+
 ### 3. Full design pass — the whole app at once
 
 **Prerequisite, and the first task of this step: self-host Switzer and IBM
