@@ -2380,3 +2380,49 @@ hash and every encoded string in the new forensics questions was recomputed
 independently rather than trusted: an unanswerable question is worse than a
 missing one. **Step 1 of the locked build order is complete.** Next is step
 2, infrastructure.
+
+**043 · 2026-08-24 · Checklist forks become user-ownable; `TeamChecklist`
+gains a nullable `userId` and `organizationId` becomes nullable.** Found by
+looking at the deployed app rather than the code: `/app/checklists` told the
+reader "a coach or captain can customize one for your team." That copy was
+accurate, which is the problem. `TeamChecklist` was scoped only by
+`organizationId`, so every path — the detail page's fork lookup, the diff
+page, the print page, and `requireForkEditor` behind all eight mutations —
+began by finding a `Member` row. **A learner with no team therefore could not
+create, edit, or diff a checklist at all**, and under the individual-first
+scope (040) that learner is the only user the product has. The shipped
+fork/diff/print trio, which ROADMAP calls load-bearing for round day, was
+unreachable for its entire audience.
+This is the same failure mode as 040's focus rule — "a learner with no team
+must never be unable to express what they're focusing on" — one model over.
+The rule generalizes and is worth stating once: **no core capability may
+depend on a `Member` row.**
+Decisions inside the fix. (a) **Nullable `userId` beside a now-nullable
+`organizationId`, rather than re-scoping the model.** Exactly one is set;
+`forkOwnerKind` returns "invalid" when that rule is broken, in both
+directions, so a malformed row is inaccessible rather than silently resolved
+by picking a column. The migration is purely additive and relaxing —
+existing team-owned rows keep their `organizationId`, get `userId` NULL, and
+keep working for their coach. Postgres treats NULLs as distinct in a unique
+index, so `@@unique([userId, sourceId])` does not collide across the legacy
+rows. (b) **New forks are always personal.** Team forks still resolve and
+still edit, but nothing creates another one — teams are dormant, and
+`createFork` is idempotent across both shapes so a coach with an existing
+team fork does not silently get a personal one shadowing it. (c) **Resolution
+is personal-first**, in one server-only `loadForkForViewer` shared by all
+three pages. It lives in `lib/checklist-access.ts` and not in
+`lib/checklist-fork.ts` because the latter is imported by `fork-editor.tsx`,
+a client component — putting Prisma there reintroduces the client-bundle
+failure of DECISIONS 034/036. (d) **`canEditTeamChecklist` was deleted from
+`lib/teams.ts`, not left in place.** It moved to `@roundzero/db` as
+`canEditTeamFork`, one branch of `canEditFork`. Two live copies of an
+authorization rule is the one kind of duplication worth actively removing.
+(e) **Viewing and editing stay separate predicates.** A plain member still
+sees a team fork read-only, so `canViewFork` cannot be derived from
+`canEditFork` being false.
+Copy followed the capability, not the other way round: "Customize for your
+team" → "Customize this checklist", "Your team's fork" → owner-dependent via
+`forkOwnerLabel`, and the diff view's five team-voiced strings now address
+the reader. Fifteen new pure tests cover the ownership matrix; the action
+test proves the guard is wired to that decision and that a personal fork
+never triggers a membership lookup at all.

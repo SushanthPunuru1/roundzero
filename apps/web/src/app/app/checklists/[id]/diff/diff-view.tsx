@@ -55,7 +55,7 @@ export function DiffView({ data }: { data: DiffViewData }) {
       {data.updatedConflicting.length > 0 && (
         <Section
           title="Upstream changed a field you've pinned"
-          description="Your team is looking at older wording and won't see the correction unless it accepts upstream. This is the one that matters."
+          description="You're pinned to older wording and won't see the correction unless you accept upstream. This is the one that matters."
         >
           {data.updatedConflicting.map((entry) => (
             <ConflictingItem
@@ -69,7 +69,7 @@ export function DiffView({ data }: { data: DiffViewData }) {
       )}
 
       {data.added.length > 0 && (
-        <Section title="New upstream items" description="Upstream added these since your team forked.">
+        <Section title="New upstream items" description="Upstream added these since you forked.">
           {data.added.map((item) => (
             <AddedItem
               key={item.upstreamItemId}
@@ -82,7 +82,7 @@ export function DiffView({ data }: { data: DiffViewData }) {
       )}
 
       {data.removedByTeam.length > 0 && (
-        <Section title="Removed by your team" description="Soft-hidden, not deleted — restorable any time.">
+        <Section title="Removed by you" description="Soft-hidden, not deleted — restorable any time.">
           {data.removedByTeam.map((item) => (
             <RemovedItem
               key={item.upstreamItemId}
@@ -109,7 +109,7 @@ export function DiffView({ data }: { data: DiffViewData }) {
 
       {data.teamAddedCount > 0 && (
         <p className="text-sm text-text-dim">
-          Your team has also added {data.teamAddedCount} custom item
+          You&apos;ve also added {data.teamAddedCount} custom item
           {data.teamAddedCount === 1 ? "" : "s"} — visible directly in your checklist, upstream will
           never touch them.
         </p>
@@ -218,7 +218,7 @@ function ConflictingField({
       </div>
       <div className="mt-2 grid gap-3 sm:grid-cols-2">
         <div>
-          <p className="text-[11px] uppercase tracking-[0.06em] text-text-dim">Your team</p>
+          <p className="text-[11px] uppercase tracking-[0.06em] text-text-dim">Yours</p>
           <p className={`mt-1 ${textClass}`}>{teamValue}</p>
         </div>
         <div>

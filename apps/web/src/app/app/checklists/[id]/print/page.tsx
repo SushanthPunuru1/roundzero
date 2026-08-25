@@ -13,6 +13,7 @@ import {
   toUpstreamItem,
   versionLabel,
 } from "@/lib/checklist-fork";
+import { loadForkForViewer } from "@/lib/checklist-access";
 import { PrintButton } from "./print-button";
 
 interface PrintItem {
@@ -43,20 +44,15 @@ export default async function ChecklistPrintPage({
     notFound();
   }
 
-  // The print route works with or without a team fork — but a fork needs a
-  // member, and a member needs an organization. A signed-in viewer with
-  // neither still gets a real header, never a blank team name/slug
+  // The print route works with or without a fork — personal or team-owned.
+  // The organization lookup is only for the printed header; a solo learner
+  // has none and still gets a real header, never a blank team name/slug
   // (DESIGN.md: no placeholder voids).
   const member = await prisma.member.findFirst({ where: { userId: session.user.id } });
   const organization = member
     ? await prisma.organization.findUnique({ where: { id: member.organizationId } })
     : null;
-  const teamChecklist = member
-    ? await prisma.teamChecklist.findFirst({
-        where: { organizationId: member.organizationId, sourceId: id },
-        include: { items: true },
-      })
-    : null;
+  const { fork: teamChecklist } = await loadForkForViewer(session.user.id, id);
 
   let items: PrintItem[];
   if (teamChecklist) {

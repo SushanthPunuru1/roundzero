@@ -115,6 +115,18 @@ export type { NextStep as PlacementNextStep, PlacementAnswer } from "./placement
 export { diffFork, initialForkItems, isCleanFork, reorder, resolveFork } from "./checklists/fork";
 export type { ForkDiff, ForkItemRow, ResolvedItem, UpstreamItem } from "./checklists/fork";
 
+// Fork ownership: a fork belongs to exactly one of a user or an organization.
+// Personal forks exist because organization-only scoping made the trio above
+// unreachable for a learner with no team — DECISIONS 043.
+export {
+  canEditFork,
+  canEditTeamFork,
+  canViewFork,
+  forkOwnerKind,
+  forkOwnerLabel,
+} from "./checklists/ownership";
+export type { ForkOwner, ForkOwnerKind, ForkViewer } from "./checklists/ownership";
+
 export { FALLBACK_LESSON_REASON, generateTrack, linuxLabReady, resolveFocusDomains } from "./track/generate";
 export type {
   FocusMachine,

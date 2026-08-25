@@ -4,10 +4,9 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { prisma, Prisma, initialForkItems, reorder } from "@roundzero/db";
+import { prisma, Prisma, canEditFork, initialForkItems, reorder } from "@roundzero/db";
 
 import { auth } from "@/lib/auth";
-import { canEditTeamChecklist } from "@/lib/teams";
 import {
   commandsOverrideOrNull,
   overrideOrNull,
@@ -20,7 +19,7 @@ export interface ChecklistActionState {
   error?: string;
 }
 
-const NOT_YOUR_CHECKLIST_ERROR = "That checklist isn't on your team.";
+const NOT_YOUR_CHECKLIST_ERROR = "That checklist isn't yours to edit.";
 const EDIT_ROLE_ERROR = "Only a coach or captain can edit your team's checklist.";
 const CHECK_FORM_ERROR = "Check the form and try again.";
 
@@ -31,35 +30,54 @@ async function requireSessionUserId(): Promise<string> {
 }
 
 /**
- * The one authorization chokepoint every mutation below runs through:
- * session → same-org membership → coach/captain role. Checked here, not
- * just hidden in the UI — a member invoking the action directly still gets
- * refused (spec verification step 7).
+ * The one authorization chokepoint every mutation below runs through.
+ * Checked here, not just hidden in the UI — a member invoking the action
+ * directly still gets refused (spec verification step 7).
+ *
+ * Two ownership shapes resolve through the same call: a personal fork, which
+ * only its owner may touch and which needs no membership at all, and a
+ * team-owned fork, which keeps the original same-org coach/captain rule. The
+ * decision itself is pure and unit-tested in @roundzero/db — this function is
+ * only the lookup around it.
  */
 async function requireForkEditor(
   teamChecklistId: string,
-): Promise<{ error: string } | { checklist: { id: string; organizationId: string; sourceId: string } }> {
+): Promise<{ error: string } | { checklist: { id: string; sourceId: string } }> {
   const userId = await requireSessionUserId();
 
   const checklist = await prisma.teamChecklist.findUnique({
     where: { id: teamChecklistId },
-    select: { id: true, organizationId: true, sourceId: true },
+    select: { id: true, userId: true, organizationId: true, sourceId: true },
   });
   if (!checklist) {
     return { error: NOT_YOUR_CHECKLIST_ERROR };
   }
 
-  const member = await prisma.member.findFirst({
-    where: { userId, organizationId: checklist.organizationId },
-  });
-  if (!member) {
-    return { error: NOT_YOUR_CHECKLIST_ERROR };
-  }
-  if (!canEditTeamChecklist(member.role)) {
-    return { error: EDIT_ROLE_ERROR };
+  // Only looked up for a team-owned fork — a personal fork must never need a
+  // Member row to resolve, which is the entire point of DECISIONS 043.
+  const member =
+    checklist.organizationId !== null
+      ? await prisma.member.findFirst({
+          where: { userId, organizationId: checklist.organizationId },
+        })
+      : null;
+
+  const viewer = {
+    userId,
+    memberOrganizationId: member?.organizationId ?? null,
+    memberRole: member?.role ?? null,
+  };
+
+  if (!canEditFork(checklist, viewer)) {
+    // A member of the right team who simply lacks the role gets the specific
+    // message; everyone else gets the generic one, which doesn't confirm the
+    // fork exists.
+    return {
+      error: member !== null ? EDIT_ROLE_ERROR : NOT_YOUR_CHECKLIST_ERROR,
+    };
   }
 
-  return { checklist };
+  return { checklist: { id: checklist.id, sourceId: checklist.sourceId } };
 }
 
 function revalidateChecklist(templateId: string) {
@@ -99,14 +117,6 @@ export async function createFork(
   }
   const { templateId } = parsed.data;
 
-  const member = await prisma.member.findFirst({ where: { userId } });
-  if (!member) {
-    return { error: "Join a team before customizing a checklist." };
-  }
-  if (!canEditTeamChecklist(member.role)) {
-    return { error: EDIT_ROLE_ERROR };
-  }
-
   const template = await prisma.checklistTemplate.findUnique({
     where: { id: templateId },
     include: { items: { orderBy: { sortOrder: "asc" } } },
@@ -115,10 +125,22 @@ export async function createFork(
     return { error: "That checklist doesn't exist." };
   }
 
-  // Idempotent: a double-click, or a race between two coaches on the same
-  // team, shouldn't create a second fork.
+  // New forks are always PERSONAL. Team-owned forks still resolve and are
+  // still editable by their coach, but nothing creates another one — teams
+  // are dormant (DECISIONS 040) and the learner is the unit (043).
+  //
+  // Idempotent in both directions: a double-click shouldn't create a second
+  // personal fork, and a coach who already has a team fork of this template
+  // shouldn't silently get a personal one shadowing it.
+  const member = await prisma.member.findFirst({ where: { userId } });
   const existing = await prisma.teamChecklist.findFirst({
-    where: { organizationId: member.organizationId, sourceId: templateId },
+    where: {
+      sourceId: templateId,
+      OR: [
+        { userId },
+        ...(member ? [{ organizationId: member.organizationId }] : []),
+      ],
+    },
   });
   if (existing) {
     revalidateChecklist(templateId);
@@ -130,7 +152,7 @@ export async function createFork(
 
   await prisma.teamChecklist.create({
     data: {
-      organizationId: member.organizationId,
+      userId,
       sourceId: templateId,
       sourceVersion: template.version,
       title: template.title,

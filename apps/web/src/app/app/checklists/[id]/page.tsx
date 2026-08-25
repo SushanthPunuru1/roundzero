@@ -2,7 +2,7 @@ import { headers } from "next/headers";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, ChevronRight, TriangleAlert } from "lucide-react";
-import { prisma, diffFork, isCleanFork, resolveFork } from "@roundzero/db";
+import { prisma, diffFork, forkOwnerLabel, isCleanFork, resolveFork } from "@roundzero/db";
 import { Badge, Button, Eyebrow, PageHeader } from "@roundzero/ui";
 
 import { auth } from "@/lib/auth";
@@ -13,7 +13,7 @@ import {
   osLabel,
   type ChecklistItemView,
 } from "@/lib/checklists";
-import { canEditTeamChecklist } from "@/lib/teams";
+import { loadForkForViewer } from "@/lib/checklist-access";
 import { toForkItemRow, toUpstreamItem } from "@/lib/checklist-fork";
 import { CommandBlock } from "./command-block";
 import { CreateForkButton } from "./create-fork-button";
@@ -57,15 +57,7 @@ export default async function ChecklistDetailPage({
     notFound();
   }
 
-  const member = await prisma.member.findFirst({ where: { userId: session.user.id } });
-  const canEdit = member ? canEditTeamChecklist(member.role) : false;
-
-  const teamChecklist = member
-    ? await prisma.teamChecklist.findFirst({
-        where: { organizationId: member.organizationId, sourceId: id },
-        include: { items: true },
-      })
-    : null;
+  const { fork: teamChecklist, canEdit } = await loadForkForViewer(session.user.id, id);
 
   const printAction = (
     <Button asChild variant="ghost" size="sm">
@@ -92,7 +84,7 @@ export default async function ChecklistDetailPage({
               {template.title}
             </span>
           }
-          support="Your team's fork. Untouched items keep inheriting upstream corrections."
+          support={forkOwnerLabel(teamChecklist)}
           actions={
             <div className="flex items-center gap-2">
               {printAction}
@@ -145,7 +137,7 @@ export default async function ChecklistDetailPage({
         actions={
           <div className="flex items-center gap-2">
             {printAction}
-            {canEdit && <CreateForkButton templateId={id} />}
+            <CreateForkButton templateId={id} />
           </div>
         }
       />

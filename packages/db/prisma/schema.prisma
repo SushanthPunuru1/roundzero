@@ -53,6 +53,7 @@ model User {
   forensicsProgress ForensicsProgress[]
   quizProgress      QuizProgress[]
   placement         Placement?
+  checklistForks    TeamChecklist[]
 }
 
 model Session {
@@ -248,10 +249,22 @@ model ChecklistItem {
   @@index([templateId])
 }
 
+// A customized copy of a canonical checklist. Owned by EXACTLY ONE of a user
+// or an organization — never both, never neither (see checklists/ownership.ts,
+// which is the single place that rule is expressed).
+//
+// It was originally organization-only. Under the individual-first scope
+// (DECISIONS 040) that made the shipped fork/diff/print trio unreachable for
+// a learner with no team, which is the only user the product is scoped to —
+// so `userId` was added and `organizationId` made nullable rather than
+// re-scoping and re-migrating the whole model. New forks are personal;
+// existing team-owned rows keep working untouched. DECISIONS 043.
 model TeamChecklist {
   id             String            @id @default(cuid())
-  organizationId String
-  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId String?
+  organization   Organization?     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String?
+  user           User?             @relation(fields: [userId], references: [id], onDelete: Cascade)
   sourceId       String
   source         ChecklistTemplate @relation(fields: [sourceId], references: [id])
   sourceVersion  Int // for diffing against upstream
@@ -260,6 +273,9 @@ model TeamChecklist {
   updatedAt      DateTime          @updatedAt
 
   items TeamChecklistItem[]
+
+  @@unique([userId, sourceId]) // one personal fork per template per user
+  @@index([organizationId])
 }
 
 model TeamChecklistItem {

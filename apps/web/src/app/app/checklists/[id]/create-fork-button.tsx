@@ -14,7 +14,7 @@ export function CreateForkButton({ templateId }: { templateId: string }) {
     <form action={formAction} className="flex flex-col items-end gap-2">
       <input type="hidden" name="templateId" value={templateId} />
       <Button type="submit" disabled={pending}>
-        {pending ? "Customizing…" : "Customize for your team"}
+        {pending ? "Customizing…" : "Customize this checklist"}
       </Button>
       {state.error && <ErrorNote>{state.error}</ErrorNote>}
     </form>

@@ -8,7 +8,7 @@ import { Badge, PageHeader } from "@roundzero/ui";
 import { auth } from "@/lib/auth";
 import { osLabel } from "@/lib/checklists";
 import { toForkItemRow, toUpstreamItem } from "@/lib/checklist-fork";
-import { canEditTeamChecklist } from "@/lib/teams";
+import { loadForkForViewer } from "@/lib/checklist-access";
 import { DiffView, type DiffViewData } from "./diff-view";
 
 export default async function ChecklistDiffPage({
@@ -31,13 +31,7 @@ export default async function ChecklistDiffPage({
     notFound();
   }
 
-  const member = await prisma.member.findFirst({ where: { userId: session.user.id } });
-  const teamChecklist = member
-    ? await prisma.teamChecklist.findFirst({
-        where: { organizationId: member.organizationId, sourceId: id },
-        include: { items: true },
-      })
-    : null;
+  const { fork: teamChecklist, canEdit } = await loadForkForViewer(session.user.id, id);
 
   // No fork to diff against — nothing to show here.
   if (!teamChecklist) {
@@ -54,7 +48,7 @@ export default async function ChecklistDiffPage({
 
   const data: DiffViewData = {
     teamChecklistId: teamChecklist.id,
-    canEdit: member ? canEditTeamChecklist(member.role) : false,
+    canEdit,
     teamAddedCount: diff.teamAdded,
     updatedConflicting: diff.updatedConflicting.map((entry) => {
       const row = rowByUpstreamId.get(entry.item.id);

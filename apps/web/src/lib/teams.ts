@@ -33,11 +33,12 @@ export function canManageRoster(role: string): boolean {
   return role === "coach";
 }
 
-/** Coach or captain may edit a team's checklist fork (create, edit items,
- * reorder, accept upstream changes); plain members get read-only. */
-export function canEditTeamChecklist(role: string): boolean {
-  return role === "coach" || role === "captain";
-}
+// canEditTeamChecklist lived here. It moved to @roundzero/db as
+// `canEditTeamFork`, beside the ownership rules it is now only one branch of
+// — a fork can be owned by a user or an organization, and role only decides
+// the second case (DECISIONS 043). Keeping a copy here would be a second
+// source of truth for an authorization rule, which is the one kind of
+// duplication worth actively removing.
 
 export function canPromoteToCaptain(targetRole: string): boolean {
   return targetRole === "member";

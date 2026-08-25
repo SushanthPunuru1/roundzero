@@ -21,16 +21,21 @@ superseded and should be read as history.
 **Teams are dormant, not deleted.** `Organization`, `Member`, `Invitation`,
 join codes, `/app/team` and the roster stay and keep working. Build nothing
 further on them. They aren't removed because `Organization` is Better Auth's
-model (organization plugin, DECISIONS 004) and `TeamChecklist` is scoped by
-`organizationId` — removal means an auth migration plus re-scoping the
-shipped fork/diff/print trio, for no user gain.
+model (organization plugin, DECISIONS 004) — removal means an auth migration
+for no user gain.
 
-**Focus lives on placement, never on membership.** `Placement.focus` is
-user-scoped and is what the track generator reads —
-`normalizeFocus(placement?.focus)`, falling back to all machines when
-placement is absent. `Member.machineRole` is dormant. A learner with no team
-must never be unable to express what they're focusing on, so never
-reintroduce a membership dependency into focus resolution.
+**No core capability may depend on a `Member` row.** This is the rule that
+generalizes two separate near-misses, and it is the one to check first when
+adding anything. `Placement.focus` is user-scoped and is what the track
+generator reads — `normalizeFocus(placement?.focus)`, falling back to all
+machines when placement is absent; `Member.machineRole` is dormant.
+`TeamChecklist` is owned by exactly one of `userId` or `organizationId`
+(DECISIONS 043) — it was organization-only, which silently made the whole
+fork/diff/print trio unreachable for a learner with no team. New forks are
+personal; team-owned rows still resolve, and `canEditFork` in
+`packages/db/src/checklists/ownership.ts` is the single source of truth for
+who may edit which. Never reintroduce a membership dependency into either
+path.
 
 ## Current focus
 

@@ -52,7 +52,7 @@ export function ForkEditor({
 
       {removedItems.length > 0 && (
         <div>
-          <Eyebrow>Removed by your team</Eyebrow>
+          <Eyebrow>Removed</Eyebrow>
           <div className="mt-2 divide-y divide-hairline border-y border-hairline">
             {removedItems.map((item) => (
               <RemovedItemRow
