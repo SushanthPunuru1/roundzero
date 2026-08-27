@@ -145,7 +145,14 @@ Today's `HostConfig` is two capabilities and nothing else. It needs:
 asserted in a unit test without a Docker daemon. Do that: a resource limit
 that silently stops being applied is invisible until the box falls over.
 
-### 2.2 — Provision the host
+### 2.2 — Provision the host *(deliberately AFTER 2.3)*
+
+**Do not buy a box until the broker is safe to expose.** It currently has no
+authentication on any route, so a public bind today would mean anyone who
+finds the port gets a root shell on hardware we pay for. Auth and tenancy
+(2.3) are pure logic that needs no host, so they come first — and the spend
+is then buying something usable rather than something that has to sit
+firewalled until the real work lands.
 
 One Hetzner box. Docker, `runsc` installed and set as a named runtime,
 host-level firewall default-deny inbound except SSH and the broker port,

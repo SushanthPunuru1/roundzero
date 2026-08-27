@@ -2514,3 +2514,44 @@ propagated it. The full four-state comparison has to be re-run before 2.0 is
 closed. The generated lab README will also need to say plainly that the
 sandbox has no netfilter, since a learner running `ufw enable` still meets an
 iptables error and silence there reads as a broken lab.
+
+**046 · 2026-08-25 · Lab access is a short-lived HMAC token, and 2.2
+(provisioning) moves behind 2.3 (auth).** The broker has no authentication on
+any of its five routes or its WebSocket upgrade; loopback binding is the
+entire security model. That made "buy the Hetzner box next" the wrong call —
+the box would either be exposed with no auth, which hands a root shell to
+anyone who finds the port, or sit paid-for and firewalled until the real work
+landed. Auth and tenancy are pure logic needing no host, so they come first
+and the spend then buys something usable.
+*Why HMAC and not a session lookup.* The browser connects to the broker's
+WebSocket **directly** — serverless is a poor WS proxy — so the credential
+has to ride in something a browser can send and the broker can check with no
+callback to `apps/web` and no shared database. A signed token is exactly
+that; the only shared state is a secret in both environments. No new
+dependency: `node:crypto`.
+Four properties, each chosen against a specific failure. (a) **The signature
+is verified before the payload is parsed.** Running `JSON.parse` on
+unauthenticated attacker-controlled bytes converts a signature check into a
+parser attack surface. (b) **`timingSafeEqual`, with an explicit length check
+first**, because it throws on length mismatch — and length is fixed for
+SHA-256, so that check leaks nothing. (c) **Tokens are scoped to one lab.**
+`labId: null` means "may create a lab" and nothing more; a wildcard token
+would be a skeleton key, and leaking one must not hand over every lab on the
+box. (d) **Verification returns a typed reason, never a bare boolean, and the
+reason never reaches the client** — "expired" and "wrong-lab" both confirm a
+valid signature, which tells an attacker their secret guess was right. The
+broker logs the reason; the client gets "no".
+*On the two implementations.* `apps/web` mints and the broker verifies, which
+is one format in two places. That is not DECISIONS 043's duplicated-
+authorization-rule mistake — signing and checking are genuinely different
+operations, and `lab-broker` is outside the pnpm workspace by 027's design so
+it cannot import a shared package. The format is instead frozen by
+`TEST_VECTOR`: a fixed secret, claims, and expected token string that both
+sides assert. A format change fails both test suites rather than failing
+silently in production. Worth recording that the vector's signature was
+fabricated on the first pass and caught only by computing the real HMAC — a
+hand-written constant in a crypto test is worthless and worse than none.
+21 token tests; 50 across lab-broker. Still to do in 2.3: wire verification
+into the five routes and the upgrade handler, record an owner on every lab in
+`LabRegistry`, scope `GET /labs` to that owner, and write the apps/web
+minting side against the same vector.
