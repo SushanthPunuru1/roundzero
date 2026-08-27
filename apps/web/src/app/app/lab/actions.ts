@@ -110,6 +110,50 @@ export async function launchLab(): Promise<LaunchLabResult> {
   }
 }
 
+export interface ResumeLabResult {
+  labId?: string;
+  wsUrl?: string;
+  error?: string;
+}
+
+/**
+ * Finds the caller's already-running lab, if any, and returns a freshly
+ * minted terminal URL for it.
+ *
+ * Two problems this solves, both of which strand a learner otherwise:
+ *
+ * - **A dropped socket.** The container keeps running; only the WebSocket
+ *   died. Without this the terminal is unreachable and the lab sits burning
+ *   its lifetime until the idle sweep takes it.
+ * - **A reload, or coming back later.** Same situation, arrived at
+ *   deliberately.
+ *
+ * Both got worse with the per-user quota (DECISIONS 047): "just launch
+ * another" now fails, because the stranded lab still counts against the
+ * learner's allowance. Reconnecting is the only correct answer.
+ *
+ * `GET /labs` is owner-scoped broker-side, so this can only ever return a
+ * lab belonging to the caller.
+ */
+export async function resumeLab(): Promise<ResumeLabResult> {
+  const session = await requireSession();
+  try {
+    const res = await brokerFetch("/labs", session.user.id, null, { method: "GET" });
+    if (res.status !== 200) {
+      return { error: await brokerErrorMessage(res) };
+    }
+    const body = (await res.json()) as { labs: { id: string }[] };
+    const existing = body.labs[0];
+    if (!existing) return {};
+    return { labId: existing.id, wsUrl: wsUrlFor(brokerBaseUrl()!, existing.id, session.user.id) };
+  } catch (err) {
+    // A broker that isn't running is the normal local case, not an error
+    // worth surfacing on page load — the launch button reports it clearly
+    // enough when actually pressed.
+    return { error: err instanceof BrokerUnavailableError ? undefined : "Couldn't check for a running lab." };
+  }
+}
+
 export interface ScoreRow {
   id: string;
   state: ScoreLineState;

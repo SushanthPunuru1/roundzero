@@ -14,14 +14,26 @@ import {
   type TerminalFrameStatus,
 } from "@roundzero/ui";
 
-import { launchLab, scoreLab, stopLab, type ScoreRow } from "./actions";
+import { launchLab, resumeLab, scoreLab, stopLab, type ScoreRow } from "./actions";
 import { DebriefView, type ScoreSnapshot } from "./debrief-view";
 import type { NextStepView } from "../next-step-card";
 
 const LAB_IMAGE_NAME = "linux-practice";
 const LAB_MODE = "Practice";
 
-type Phase = "idle" | "launching" | "connecting" | "ready" | "stopped" | "error" | "debrief";
+type Phase =
+  | "idle"
+  | "launching"
+  | "connecting"
+  | "ready"
+  /** A lab is running but this page has no socket to it — after a dropped
+   * connection, a reload, or coming back later. Distinct from "stopped"
+   * because the container is still alive and reconnecting is the ONLY way
+   * back: with a per-user quota, launching another just fails. */
+  | "resumable"
+  | "stopped"
+  | "error"
+  | "debrief";
 
 interface ScoreReport {
   totalEarned: number;
@@ -58,6 +70,7 @@ const STATUS_LABEL: Record<Phase, string> = {
   launching: "Starting…",
   connecting: "Connecting…",
   ready: "Connected",
+  resumable: "Running — not connected",
   stopped: "Stopped",
   error: "Connection error",
   debrief: "Debrief",
@@ -80,8 +93,16 @@ export function LabConsole({ nextStep }: { nextStep?: NextStepView | null }) {
   const termRef = useRef<TerminalFrameHandle>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const launchedAtRef = useRef<number | null>(null);
+  /** Set before any close WE initiate, so onclose can tell "the user stopped
+   * the lab" from "the connection dropped" — those need opposite next
+   * states, and getting it wrong either strands a live lab or offers to
+   * reconnect to a container that no longer exists. */
+  const intentionalCloseRef = useRef(false);
 
+  /** Every caller of this is a close we chose: stop, retry, or unmount. The
+   * flag is what lets onclose distinguish those from a dropped connection. */
   const closeSocket = useCallback(() => {
+    intentionalCloseRef.current = true;
     if (wsRef.current) {
       wsRef.current.onopen = null;
       wsRef.current.onmessage = null;
@@ -94,29 +115,18 @@ export function LabConsole({ nextStep }: { nextStep?: NextStepView | null }) {
 
   useEffect(() => closeSocket, [closeSocket]);
 
-  const handleLaunch = useCallback(async () => {
-    setErrorMessage(null);
-    setReport(null);
-    setHistory([]);
-    launchedAtRef.current = null;
-    setPhase("launching");
-
-    const result = await launchLab();
-    if (result.error || !result.labId || !result.wsUrl) {
-      setErrorMessage(result.error ?? "Couldn't launch the lab.");
-      setPhase("error");
-      return;
-    }
-
-    setLabId(result.labId);
+  /** Wires one WebSocket to the terminal. Shared by launch and reconnect so
+   * the two cannot drift in how they handle data, errors, or close. */
+  const openSocket = useCallback((wsUrl: string) => {
+    intentionalCloseRef.current = false;
     setPhase("connecting");
 
-    const ws = new WebSocket(result.wsUrl);
+    const ws = new WebSocket(wsUrl);
     ws.binaryType = "arraybuffer";
     wsRef.current = ws;
 
     ws.onopen = () => {
-      launchedAtRef.current = Date.now();
+      launchedAtRef.current ??= Date.now();
       setPhase("ready");
       termRef.current?.fit();
       termRef.current?.focus();
@@ -138,11 +148,76 @@ export function LabConsole({ nextStep }: { nextStep?: NextStepView | null }) {
     };
     ws.onclose = () => {
       wsRef.current = null;
-      setPhase((prev) => (prev === "ready" || prev === "connecting" ? "stopped" : prev));
+      // A close we asked for means the lab is gone; one we didn't means the
+      // container is almost certainly still running and reconnectable.
+      const nextPhase = intentionalCloseRef.current ? "stopped" : "resumable";
+      setPhase((prev) => (prev === "ready" || prev === "connecting" ? nextPhase : prev));
     };
     ws.onerror = () => {
       setErrorMessage("The terminal connection failed.");
       setPhase("error");
+    };
+  }, []);
+
+  const handleLaunch = useCallback(async () => {
+    setErrorMessage(null);
+    setReport(null);
+    setHistory([]);
+    launchedAtRef.current = null;
+    setPhase("launching");
+
+    const result = await launchLab();
+    if (result.error || !result.labId || !result.wsUrl) {
+      setErrorMessage(result.error ?? "Couldn't launch the lab.");
+      setPhase("error");
+      return;
+    }
+
+    setLabId(result.labId);
+    openSocket(result.wsUrl);
+  }, [openSocket]);
+
+  /** Reattaches to a lab that is already running — after a dropped socket, a
+   * reload, or simply coming back. The container never stopped; only this
+   * page's connection to it did. */
+  const handleReconnect = useCallback(async () => {
+    setErrorMessage(null);
+    setPhase("connecting");
+
+    const result = await resumeLab();
+    if (result.error) {
+      // The lookup failed, which says nothing about whether the lab is
+      // alive — stay reconnectable so a transient failure doesn't strip the
+      // only route back to a running container.
+      setErrorMessage(result.error);
+      setPhase("resumable");
+      return;
+    }
+    if (!result.labId || !result.wsUrl) {
+      // Definitively no lab: it was swept, or stopped elsewhere.
+      setErrorMessage("That lab is no longer running.");
+      setLabId(null);
+      setPhase("idle");
+      return;
+    }
+
+    setLabId(result.labId);
+    openSocket(result.wsUrl);
+  }, [openSocket]);
+
+  // On mount, ask whether this learner already has a lab running. Without
+  // this a dropped socket strands the container: the terminal is gone, and
+  // launching another fails against the per-user quota.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const result = await resumeLab();
+      if (cancelled || !result.labId) return;
+      setLabId(result.labId);
+      setPhase((prev) => (prev === "idle" ? "resumable" : prev));
+    })();
+    return () => {
+      cancelled = true;
     };
   }, []);
 
@@ -226,6 +301,18 @@ export function LabConsole({ nextStep }: { nextStep?: NextStepView | null }) {
 
       {phase === "launching" && (
         <EmptyState icon={Container} message="Starting your lab container…" />
+      )}
+
+      {phase === "resumable" && (
+        <EmptyState
+          icon={Container}
+          message={
+            labId
+              ? `Lab ${shortId(labId)} is still running, but this page isn't connected to it. Reconnect to pick up where you left off.`
+              : "A lab is still running but this page isn't connected to it."
+          }
+          action={<Button onClick={() => void handleReconnect()}>Reconnect</Button>}
+        />
       )}
 
       {phase === "stopped" && (

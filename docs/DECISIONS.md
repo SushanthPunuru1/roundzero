@@ -2620,3 +2620,33 @@ failing in production.
 **2.3 is done.** Remaining before a public bind: TLS, egress lockdown
 (per-lab network, default-deny), and the host itself. Only then is 2.2 —
 buying the box — worth doing.
+
+**049 · 2026-08-25 · Reconnecting to a running lab, because the per-user
+quota made a dropped socket unrecoverable.** `lab-console.tsx` connected its
+WebSocket once at launch and never again; `onclose` went straight to
+"stopped". The container, meanwhile, keeps running — only the page's socket
+died. That was already poor, and 047's `maxLabsPerUser` made it a dead end:
+"just launch another" now fails, because the stranded lab still counts
+against the learner's allowance. Reconnecting became the only correct
+answer, so it had to exist.
+*A new `resumable` phase, distinct from `stopped`.* They look similar and
+mean opposite things — one has a live container to return to, the other
+does not. Collapsing them is what produced the bug.
+*`intentionalCloseRef`.* `onclose` cannot otherwise tell "the user stopped
+the lab" from "the connection dropped", and those need opposite next states:
+guess wrong one way and a live lab is stranded, wrong the other way and the
+UI offers to reconnect to a container that no longer exists. Every caller of
+`closeSocket` — stop, retry, unmount — is a close we chose, so the flag is
+set there.
+*`resumeLab()` is owner-scoped for free.* It calls `GET /labs`, which the
+broker already filters by token owner (047), so it cannot return someone
+else's lab even by accident.
+*Two failure paths, deliberately separated.* A `resumeLab` that errors says
+nothing about whether the lab is alive, so the UI stays `resumable` — a
+transient network failure must not strip away the only route back. Only a
+definitive empty result drops to `idle`.
+*Mount-time check* covers the reload and come-back-later cases, and stays
+silent when the broker simply is not running, which is the normal local
+state and not worth an error on page load.
+This also closes 048's recorded gap: an expired WS token is now recoverable,
+because reconnecting mints a fresh URL rather than needing a longer TTL.
