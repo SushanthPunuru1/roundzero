@@ -38,6 +38,12 @@ export const DEFAULT_LIMITS: SandboxLimits = {
   runtime: "",
   memoryBytes: 512 * 1024 * 1024,
   nanoCpus: 1_000_000_000, // 1.0 CPU
+  // 256 is generous for a shell session (<50 PIDs) and still stops a fork
+  // bomb instantly. Measured caveat worth knowing before anyone lowers it:
+  // an IDLE gVisor lab already holds ~30 PIDs, because the sandbox's own
+  // process tree counts against the container's cgroup — versus 1 under
+  // runc. A limit that looks generous for a shell can be nearly exhausted
+  // by the runtime alone.
   pidsLimit: 256,
   capAdd: [],
   networkName: "",

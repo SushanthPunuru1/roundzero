@@ -153,10 +153,28 @@ unattended-upgrades on, SSH key-only. The broker runs as a non-root user in
 the `docker` group — noting honestly that `docker` group membership is
 root-equivalent, so the box's own hardening is what contains that.
 
-**Capacity is a real number, not a guess.** Measure the practice container's
-steady-state memory and pick `MAX_LABS` from it with headroom, then hold the
-line: a queue that makes someone wait is strictly better than an OOM that
-kills six live sessions.
+**Capacity is a real number, not a guess.** Measured on WSL2, an idle
+practice container costs:
+
+| Runtime | Memory | PIDs |
+|---|---|---|
+| `runc` | 1.6 MiB | 1 |
+| `runsc` | 17.2 MiB | 30 |
+
+So gVisor's tax is ~15.6 MiB and ~29 PIDs per lab. Two consequences.
+
+*Sizing.* Idle is a floor, not a budget — a learner running `find /`, `apt
+upgrade`, or a build will use far more, and the 512 MiB cap in `sandbox.ts`
+is the number to plan against for a worst case. Budgeting the full cap for
+every concurrent lab is the safe read: on a 4 GB box, minus ~800 MiB for the
+OS and broker, that is roughly six labs. Budgeting a realistic working set
+instead (~150–250 MiB) roughly doubles it. Start from the conservative
+number, because a queue that makes someone wait is strictly better than an
+OOM that kills six live sessions — and Hetzner resizes up without a rebuild,
+so the cheap mistake is recoverable and the expensive one is not.
+
+*PID limits.* 30 of the 256-PID default are gone before the learner types
+anything. Still ample, but do not read "256" as 256 available.
 
 ### 2.3 — Authentication and egress
 
