@@ -30,6 +30,15 @@ function nowSeconds(): number {
   return Math.floor(Date.now() / 1000);
 }
 
+/** A mismatched RZ_TOKEN_SECRET between apps/web and this broker looks like
+ * every single request being refused, with nothing else wrong. Naming that
+ * possibility in the log turns an hour of confusion into thirty seconds. */
+function refusalDetail(reason: string): string {
+  return reason === "bad-signature"
+    ? `${reason} — if EVERY request is failing this way, RZ_TOKEN_SECRET almost certainly differs between apps/web and this broker`
+    : reason;
+}
+
 /** Authenticates, or writes the refusal and returns null. `labId` scopes the
  * token to one lab; omit it only for lab creation, where none exists yet. */
 function authorize(
@@ -42,7 +51,7 @@ function authorize(
   const token = extractToken(req.headers.authorization, url.searchParams.get("t"));
   const result = authenticate(auth, token, nowSeconds(), labId);
   if (!result.ok) {
-    console.warn(`[auth] refused ${req.method} ${url.pathname}: ${result.reason}`);
+    console.warn(`[auth] refused ${req.method} ${url.pathname}: ${refusalDetail(result.reason)}`);
     sendJson(res, 404, REFUSED);
     return null;
   }
@@ -105,10 +114,10 @@ export function createServer({ registry, docker, auth }: ServerDeps): http.Serve
     // attached — a rejected socket must never have reached a container.
     // The browser WebSocket API cannot set headers, so the token arrives as
     // ?t=; see auth.ts on why that is acceptable for a short-lived token.
-    const token = extractToken(req.headers.authorization, new URL(req.url ?? "", "http://localhost").searchParams.get("t"));
+    const token = extractToken(req.headers.authorization, url.searchParams.get("t"));
     const authResult = authenticate(auth, token, nowSeconds(), labId);
     if (!authResult.ok) {
-      console.warn(`[auth] refused WS ${url.pathname}: ${authResult.reason}`);
+      console.warn(`[auth] refused WS ${url.pathname}: ${refusalDetail(authResult.reason)}`);
       socket.write("HTTP/1.1 404 Not Found\r\n\r\n");
       socket.destroy();
       return;
@@ -124,7 +133,7 @@ export function createServer({ registry, docker, auth }: ServerDeps): http.Serve
       return;
     }
     wss.handleUpgrade(req, socket, head, (ws) => {
-      void attachTerminal(ws, labId, lab.containerId, { registry, docker, auth });
+      void attachTerminal(ws, labId, lab.containerId, { registry, docker });
     });
   });
 
@@ -190,11 +199,14 @@ async function handleHttp(
   }
 }
 
+/** Takes only what it needs, deliberately narrower than ServerDeps: the
+ * socket was authenticated and ownership resolved before handleUpgrade was
+ * ever called, so nothing here should be able to re-decide access. */
 async function attachTerminal(
   ws: WebSocket,
   labId: string,
   containerId: string,
-  { registry, docker, auth }: ServerDeps,
+  { registry, docker }: Pick<ServerDeps, "registry" | "docker">,
 ): Promise<void> {
   registry.attachSocket(labId);
 

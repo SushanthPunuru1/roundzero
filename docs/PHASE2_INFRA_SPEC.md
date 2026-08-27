@@ -184,7 +184,7 @@ so the cheap mistake is recoverable and the expensive one is not.
 *PID limits.* 30 of the 256-PID default are gone before the learner types
 anything. Still ample, but do not read "256" as 256 available.
 
-### 2.3 — Authentication and egress
+### 2.3 — Authentication and egress *(auth: DONE, DECISIONS 046/047/048)*
 
 The two changes that make public exposure survivable.
 

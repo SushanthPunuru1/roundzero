@@ -7,6 +7,13 @@ import type { ScoreLineState } from "@roundzero/ui";
 
 import { auth } from "@/lib/auth";
 import { enqueueSkillNodeCards } from "@/lib/drill";
+import {
+  WS_TOKEN_TTL_SECONDS,
+  labAuthHeader,
+  labTokenSecret,
+  mintLabToken,
+  nowSeconds,
+} from "@/lib/lab-token";
 
 const BROKER_TIMEOUT_MS = 5000;
 
@@ -18,13 +25,32 @@ function brokerBaseUrl(): string | null {
 
 /** apps/web never opens the terminal socket itself — it only returns the
  * broker's own ws:// URL, which the browser connects to directly (a
- * WebSocket can't be proxied through a Vercel serverless function, and this
- * feature is local-only by design; see docs/DECISIONS.md 027). */
-function wsUrlFor(base: string, labId: string): string {
-  return `${base.replace(/^http/, "ws")}/labs/${labId}/term`;
+ * WebSocket can't be proxied through a Vercel serverless function; see
+ * docs/DECISIONS.md 027).
+ *
+ * The token rides in the query string because the browser WebSocket API
+ * cannot set headers. That is why it is minted with a short TTL: a query
+ * string ends up in access and proxy logs, so it has to be useless by the
+ * time anyone reads one. */
+function wsUrlFor(base: string, labId: string, userId: string): string {
+  const url = `${base.replace(/^http/, "ws")}/labs/${labId}/term`;
+  const secret = labTokenSecret();
+  if (!secret) return url;
+  const token = mintLabToken(
+    { userId, labId, expiresAt: nowSeconds() + WS_TOKEN_TTL_SECONDS },
+    secret,
+  );
+  return `${url}?t=${encodeURIComponent(token)}`;
 }
 
-async function brokerFetch(path: string, init?: RequestInit): Promise<Response> {
+/** `labId` scopes the minted token to one lab; pass null for lab creation,
+ * where no id exists yet. */
+async function brokerFetch(
+  path: string,
+  userId: string,
+  labId: string | null,
+  init?: RequestInit,
+): Promise<Response> {
   const base = brokerBaseUrl();
   if (!base) {
     throw new BrokerUnavailableError(
@@ -32,7 +58,11 @@ async function brokerFetch(path: string, init?: RequestInit): Promise<Response> 
     );
   }
   try {
-    return await fetch(`${base}${path}`, { ...init, signal: AbortSignal.timeout(BROKER_TIMEOUT_MS) });
+    return await fetch(`${base}${path}`, {
+      ...init,
+      headers: { ...init?.headers, ...labAuthHeader(userId, labId) },
+      signal: AbortSignal.timeout(BROKER_TIMEOUT_MS),
+    });
   } catch {
     throw new BrokerUnavailableError(
       "Couldn't reach the lab broker. Make sure it's running locally (see lab-broker/README.md).",
@@ -67,14 +97,14 @@ export interface LaunchLabResult {
 }
 
 export async function launchLab(): Promise<LaunchLabResult> {
-  await requireSession();
+  const session = await requireSession();
   try {
-    const res = await brokerFetch("/labs", { method: "POST" });
+    const res = await brokerFetch("/labs", session.user.id, null, { method: "POST" });
     if (res.status !== 201) {
       return { error: await brokerErrorMessage(res) };
     }
     const body = (await res.json()) as { id: string };
-    return { labId: body.id, wsUrl: wsUrlFor(brokerBaseUrl()!, body.id) };
+    return { labId: body.id, wsUrl: wsUrlFor(brokerBaseUrl()!, body.id, session.user.id) };
   } catch (err) {
     return { error: err instanceof BrokerUnavailableError ? err.message : "Couldn't launch the lab." };
   }
@@ -100,9 +130,11 @@ export interface ScoreLabResult {
 }
 
 export async function scoreLab(labId: string): Promise<ScoreLabResult> {
-  await requireSession();
+  const session = await requireSession();
   try {
-    const res = await brokerFetch(`/labs/${encodeURIComponent(labId)}/score`, { method: "POST" });
+    const res = await brokerFetch(`/labs/${encodeURIComponent(labId)}/score`, session.user.id, labId, {
+      method: "POST",
+    });
     if (res.status !== 200) {
       return { error: await brokerErrorMessage(res) };
     }
@@ -161,9 +193,11 @@ export interface StopLabResult {
 }
 
 export async function stopLab(labId: string): Promise<StopLabResult> {
-  await requireSession();
+  const session = await requireSession();
   try {
-    const res = await brokerFetch(`/labs/${encodeURIComponent(labId)}`, { method: "DELETE" });
+    const res = await brokerFetch(`/labs/${encodeURIComponent(labId)}`, session.user.id, labId, {
+      method: "DELETE",
+    });
     if (res.status !== 204) {
       return { error: await brokerErrorMessage(res) };
     }

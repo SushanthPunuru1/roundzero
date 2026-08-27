@@ -2590,3 +2590,33 @@ container.
 75 tests in lab-broker. Remaining in 2.3: the `apps/web` minting side
 against 046's frozen `TEST_VECTOR`, and `RZ_TOKEN_SECRET` present in both
 environments.
+
+**048 · 2026-08-25 · apps/web mints; 2.3 is complete.** The last half of the
+token work. `lib/lab-token.ts` mints, `lab/actions.ts` sends an
+`Authorization: Bearer` on all three broker calls, and the terminal URL
+carries `?t=` because the browser WebSocket API cannot set headers.
+*Two TTLs, not one.* HTTP calls are server-to-server and immediate, so 60
+seconds is generous. The WS token is handed to the browser and rides in a
+query string, which lands in access and proxy logs — 5 minutes, chosen so a
+logged URL is useless by the time anyone reads the log. A reconnect after
+expiry needs a freshly minted URL, deliberately, rather than a longer TTL;
+that refresh action is not built yet and is the known gap.
+*A missing secret returns no header rather than throwing.* Against a
+loopback dev broker there is nothing to authenticate to, and against a real
+one the request fails closed with the broker logging `missing`. Failing
+open is impossible: the broker refuses to start unauthenticated on any
+non-loopback bind (047).
+*The failure mode that needed designing for.* A mismatched `RZ_TOKEN_SECRET`
+between Vercel and the box presents as every request being refused with
+nothing else wrong — no error, no clue, just a dead feature. The broker's
+refusal log now names that possibility explicitly on `bad-signature`, which
+turns an hour of confusion into thirty seconds. `.env.example` documents the
+variable, says the two must match exactly, and gives the `openssl rand`
+line.
+*The frozen vector now has two asserters.* `TEST_VECTOR` is byte-identical
+in `lab-broker/src/token.ts` and `apps/web/src/lib/lab-token.ts`, and both
+suites assert it. A format change on either side fails both rather than
+failing in production.
+**2.3 is done.** Remaining before a public bind: TLS, egress lockdown
+(per-lab network, default-deny), and the host itself. Only then is 2.2 —
+buying the box — worth doing.
