@@ -19,16 +19,18 @@ What it is *not* is a service anyone but the author can reach. Today:
 | | Today | Needed |
 |---|---|---|
 | Reachability | binds `127.0.0.1` only | public, over TLS |
-| Authentication | **none at all** | per-user, per-lab, unforgeable |
-| Tenancy | `MAX_LABS=1`, no owner recorded | many users, each isolated |
+| Authentication | ~~none at all~~ **done** — HMAC token on every route | per-user, per-lab, unforgeable |
+| Tenancy | ~~no owner recorded~~ **done** — owner-scoped, per-user quota | many users, each isolated |
 | Runtime | stock `runc` | `runsc` (gVisor) |
 | Container caps | ~~`CapAdd: NET_ADMIN, NET_RAW`~~ now none, root, no limits | least privilege + hard limits |
 | Egress | full outbound access | default-deny |
-| Memory / CPU / PIDs | **unbounded** | capped per lab |
+| Memory / CPU / PIDs | ~~unbounded~~ **done** — capped in `sandbox.ts` | capped per lab |
 | Cold start | untested, unpooled | < 20s |
 
-Loopback binding is currently the *entire* security model. Removing it
-without replacing it is the single most dangerous change in this project.
+Loopback binding *was* the entire security model. It no longer is: tokens,
+owner scoping, and resource caps have landed (DECISIONS 046/047), and the
+broker now refuses to start on a non-loopback bind with no secret. What
+remains before a public bind is the runtime, egress, and the host itself.
 
 ## Threat model — read before designing anything
 
@@ -147,12 +149,11 @@ that silently stops being applied is invisible until the box falls over.
 
 ### 2.2 — Provision the host *(deliberately AFTER 2.3)*
 
-**Do not buy a box until the broker is safe to expose.** It currently has no
-authentication on any route, so a public bind today would mean anyone who
-finds the port gets a root shell on hardware we pay for. Auth and tenancy
-(2.3) are pure logic that needs no host, so they come first — and the spend
-is then buying something usable rather than something that has to sit
-firewalled until the real work lands.
+**Do not buy a box until the broker is safe to expose.** That was the
+reason for putting 2.3 first, and it is now largely satisfied: auth, owner
+scoping, quotas, and resource caps are in. What is still missing before a
+public bind is TLS, egress lockdown, and the host hardening below — so the
+box is worth buying once those are the only remaining gap, not before.
 
 One Hetzner box. Docker, `runsc` installed and set as a named runtime,
 host-level firewall default-deny inbound except SSH and the broker port,

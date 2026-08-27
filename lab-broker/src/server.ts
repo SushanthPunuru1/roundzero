@@ -9,6 +9,7 @@
 import http from "node:http";
 import { WebSocketServer, type WebSocket } from "ws";
 
+import { authenticate, extractToken, type AuthMode } from "./auth";
 import { DockerClient, ExecFailedError, MissingPrerequisiteError } from "./docker";
 import { LabLimitExceededError, LabNotFoundError, LabRegistry } from "./registry";
 import { ScoreParseError, shapeReport } from "./score";
@@ -16,6 +17,36 @@ import { ScoreParseError, shapeReport } from "./score";
 export interface ServerDeps {
   registry: LabRegistry;
   docker: DockerClient;
+  auth: AuthMode;
+}
+
+/** Every refusal looks the same to the client. The broker logs the real
+ * reason; the response says nothing that distinguishes "no such lab" from
+ * "not yours" from "your token expired", because each of those is an oracle
+ * an attacker can query. */
+const REFUSED = { error: "Not found" } as const;
+
+function nowSeconds(): number {
+  return Math.floor(Date.now() / 1000);
+}
+
+/** Authenticates, or writes the refusal and returns null. `labId` scopes the
+ * token to one lab; omit it only for lab creation, where none exists yet. */
+function authorize(
+  req: http.IncomingMessage,
+  url: URL,
+  res: http.ServerResponse,
+  auth: AuthMode,
+  labId?: string,
+): { userId: string | null } | null {
+  const token = extractToken(req.headers.authorization, url.searchParams.get("t"));
+  const result = authenticate(auth, token, nowSeconds(), labId);
+  if (!result.ok) {
+    console.warn(`[auth] refused ${req.method} ${url.pathname}: ${result.reason}`);
+    sendJson(res, 404, REFUSED);
+    return null;
+  }
+  return { userId: result.claims?.userId ?? null };
 }
 
 interface ResizeMessage {
@@ -54,9 +85,9 @@ function errorMessage(err: unknown): string {
 
 const TERM_PATH = /^\/labs\/([^/]+)\/term$/;
 
-export function createServer({ registry, docker }: ServerDeps): http.Server {
+export function createServer({ registry, docker, auth }: ServerDeps): http.Server {
   const server = http.createServer((req, res) => {
-    void handleHttp(req, res, { registry, docker });
+    void handleHttp(req, res, { registry, docker, auth });
   });
 
   const wss = new WebSocketServer({ noServer: true });
@@ -69,16 +100,31 @@ export function createServer({ registry, docker }: ServerDeps): http.Server {
       return;
     }
     const labId = match[1]!;
+
+    // Authenticate BEFORE the upgrade completes and before any shell is
+    // attached — a rejected socket must never have reached a container.
+    // The browser WebSocket API cannot set headers, so the token arrives as
+    // ?t=; see auth.ts on why that is acceptable for a short-lived token.
+    const token = extractToken(req.headers.authorization, new URL(req.url ?? "", "http://localhost").searchParams.get("t"));
+    const authResult = authenticate(auth, token, nowSeconds(), labId);
+    if (!authResult.ok) {
+      console.warn(`[auth] refused WS ${url.pathname}: ${authResult.reason}`);
+      socket.write("HTTP/1.1 404 Not Found\r\n\r\n");
+      socket.destroy();
+      return;
+    }
+    const ownerUserId = authResult.claims?.userId ?? null;
+
     let lab;
     try {
-      lab = registry.get(labId);
+      lab = ownerUserId === null ? registry.get(labId) : registry.getOwned(labId, ownerUserId);
     } catch {
       socket.write("HTTP/1.1 404 Not Found\r\n\r\n");
       socket.destroy();
       return;
     }
     wss.handleUpgrade(req, socket, head, (ws) => {
-      void attachTerminal(ws, labId, lab.containerId, { registry, docker });
+      void attachTerminal(ws, labId, lab.containerId, { registry, docker, auth });
     });
   });
 
@@ -88,14 +134,18 @@ export function createServer({ registry, docker }: ServerDeps): http.Server {
 async function handleHttp(
   req: http.IncomingMessage,
   res: http.ServerResponse,
-  { registry, docker }: ServerDeps,
+  { registry, docker, auth }: ServerDeps,
 ): Promise<void> {
   const url = new URL(req.url ?? "", "http://localhost");
   const method = req.method ?? "GET";
 
   try {
     if (method === "POST" && url.pathname === "/labs") {
-      const lab = await registry.create();
+      // No labId scoping here: at mint time no lab exists yet, so the token
+      // is create-only (labId null) by construction.
+      const who = authorize(req, url, res, auth);
+      if (!who) return;
+      const lab = await registry.create(who.userId ?? "local-dev");
       sendJson(res, 201, { id: lab.id });
       return;
     }
@@ -103,7 +153,9 @@ async function handleHttp(
     const scoreMatch = /^\/labs\/([^/]+)\/score$/.exec(url.pathname);
     if (method === "POST" && scoreMatch) {
       const labId = scoreMatch[1]!;
-      const lab = registry.get(labId);
+      const who = authorize(req, url, res, auth, labId);
+      if (!who) return;
+      const lab = who.userId === null ? registry.get(labId) : registry.getOwned(labId, who.userId);
       registry.touch(labId);
       const raw = await docker.runScore(lab.containerId);
       const report = shapeReport(raw);
@@ -114,13 +166,21 @@ async function handleHttp(
     const labMatch = /^\/labs\/([^/]+)$/.exec(url.pathname);
     if (method === "DELETE" && labMatch) {
       const labId = labMatch[1]!;
-      await registry.delete(labId);
+      const who = authorize(req, url, res, auth, labId);
+      if (!who) return;
+      await registry.delete(labId, who.userId);
       res.writeHead(204).end();
       return;
     }
 
     if (method === "GET" && url.pathname === "/labs") {
-      sendJson(res, 200, { labs: registry.list().map((lab) => ({ id: lab.id })) });
+      // A create-only token has no labId, so this route cannot scope to one
+      // — it scopes to the OWNER instead, which is what stops one learner
+      // enumerating everyone else's lab ids.
+      const who = authorize(req, url, res, auth);
+      if (!who) return;
+      const labs = who.userId === null ? registry.list() : registry.list(who.userId);
+      sendJson(res, 200, { labs: labs.map((lab) => ({ id: lab.id })) });
       return;
     }
 
@@ -134,7 +194,7 @@ async function attachTerminal(
   ws: WebSocket,
   labId: string,
   containerId: string,
-  { registry, docker }: ServerDeps,
+  { registry, docker, auth }: ServerDeps,
 ): Promise<void> {
   registry.attachSocket(labId);
 

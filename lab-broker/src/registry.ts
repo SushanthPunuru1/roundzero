@@ -10,6 +10,10 @@ export interface ContainerDriver {
 
 export interface LabRecord {
   id: string;
+  /** Better Auth user id of the learner this lab belongs to. Recorded at
+   * creation and never changed — every lookup that can reach a container is
+   * scoped through it (DECISIONS 046). */
+  ownerUserId: string;
   containerId: string;
   containerName: string;
   createdAt: Date;
@@ -17,12 +21,19 @@ export interface LabRecord {
   socketCount: number;
 }
 
+/** Two different "no": the server is full, or you personally already have
+ * as many labs as you may have. They need different messages because the
+ * user's next action differs — wait, versus stop your own lab. */
 export class LabLimitExceededError extends Error {
-  constructor(max: number) {
+  readonly scope: "server" | "user";
+  constructor(scope: "server" | "user", max: number) {
     super(
-      `A lab is already running (max ${max} at a time on this broker). Stop it before launching another.`,
+      scope === "user"
+        ? `You already have ${max} lab${max === 1 ? "" : "s"} running. Stop it before launching another.`
+        : `The server is at capacity (${max} labs). Try again in a few minutes.`,
     );
     this.name = "LabLimitExceededError";
+    this.scope = scope;
   }
 }
 
@@ -35,8 +46,18 @@ export class LabNotFoundError extends Error {
 
 export interface LabRegistryOptions {
   driver: ContainerDriver;
+  /** Total labs this broker will run at once — the box's capacity. */
   maxLabs: number;
+  /** Labs any ONE user may hold. Without this, `maxLabs` is a shared pool a
+   * single learner can drain, which is denial of service by accident as
+   * easily as on purpose. */
+  maxLabsPerUser?: number;
   idleTimeoutMs: number;
+  /** Hard ceiling on a lab's age, regardless of activity. `idleTimeoutMs`
+   * alone is not enough once there is more than one user: a terminal left
+   * open never goes idle, so a single learner could hold a slot forever
+   * without doing anything wrong. */
+  maxLifetimeMs?: number;
   now?: () => Date;
   generateId?: () => string;
   containerNamePrefix?: string;
@@ -47,7 +68,9 @@ export interface LabRegistryOptions {
 export class LabRegistry {
   private readonly driver: ContainerDriver;
   private readonly maxLabs: number;
+  private readonly maxLabsPerUser: number;
   private readonly idleTimeoutMs: number;
+  private readonly maxLifetimeMs: number;
   private readonly now: () => Date;
   private readonly generateId: () => string;
   private readonly containerNamePrefix: string;
@@ -56,14 +79,19 @@ export class LabRegistry {
   constructor(options: LabRegistryOptions) {
     this.driver = options.driver;
     this.maxLabs = options.maxLabs;
+    this.maxLabsPerUser = options.maxLabsPerUser ?? 1;
     this.idleTimeoutMs = options.idleTimeoutMs;
+    this.maxLifetimeMs = options.maxLifetimeMs ?? Number.POSITIVE_INFINITY;
     this.now = options.now ?? (() => new Date());
     this.generateId = options.generateId ?? (() => crypto.randomUUID());
     this.containerNamePrefix = options.containerNamePrefix ?? "rz-lab-";
   }
 
-  list(): LabRecord[] {
-    return [...this.labs.values()];
+  /** Every lab on the broker. Internal callers only — the HTTP layer must
+   * use the owner-scoped overload, or one user learns another's lab ids. */
+  list(ownerUserId?: string): LabRecord[] {
+    const all = [...this.labs.values()];
+    return ownerUserId === undefined ? all : all.filter((l) => l.ownerUserId === ownerUserId);
   }
 
   get(id: string): LabRecord {
@@ -72,9 +100,26 @@ export class LabRegistry {
     return lab;
   }
 
-  async create(): Promise<LabRecord> {
+  /**
+   * The lookup every request-handling path must use.
+   *
+   * A lab that exists but belongs to someone else raises LabNotFoundError —
+   * deliberately the same error as one that does not exist. A distinct
+   * "forbidden" would confirm the id is real, which is exactly the leak the
+   * token layer avoids by never returning its failure reason to the client.
+   */
+  getOwned(id: string, ownerUserId: string): LabRecord {
+    const lab = this.labs.get(id);
+    if (!lab || lab.ownerUserId !== ownerUserId) throw new LabNotFoundError(id);
+    return lab;
+  }
+
+  async create(ownerUserId: string): Promise<LabRecord> {
     if (this.labs.size >= this.maxLabs) {
-      throw new LabLimitExceededError(this.maxLabs);
+      throw new LabLimitExceededError("server", this.maxLabs);
+    }
+    if (this.list(ownerUserId).length >= this.maxLabsPerUser) {
+      throw new LabLimitExceededError("user", this.maxLabsPerUser);
     }
     const id = this.generateId();
     const containerName = `${this.containerNamePrefix}${id}`;
@@ -82,6 +127,7 @@ export class LabRegistry {
     const createdAt = this.now();
     const lab: LabRecord = {
       id,
+      ownerUserId,
       containerId,
       containerName,
       createdAt,
@@ -92,8 +138,11 @@ export class LabRegistry {
     return lab;
   }
 
-  async delete(id: string): Promise<void> {
-    const lab = this.get(id);
+  /** `ownerUserId` null means "no scoping" — reachable only on an
+   * unauthenticated loopback broker, which auth.ts makes the sole
+   * configuration where that is possible. */
+  async delete(id: string, ownerUserId: string | null): Promise<void> {
+    const lab = ownerUserId === null ? this.get(id) : this.getOwned(id, ownerUserId);
     await this.driver.remove(lab.containerId);
     this.labs.delete(id);
   }
@@ -115,15 +164,29 @@ export class LabRegistry {
     lab.lastActivity = this.now();
   }
 
-  /** Removes any lab with zero attached terminal sockets that has been idle
-   * past idleTimeoutMs. Returns the ids it removed. Errors removing one lab
-   * don't stop the sweep from trying the rest. */
+  /**
+   * Removes labs that are done, by either of two independent rules:
+   *
+   * - **Idle**: no attached terminal socket and no activity past
+   *   `idleTimeoutMs`.
+   * - **Too old**: past `maxLifetimeMs` since creation, *regardless* of
+   *   sockets or activity. This one exists because the idle rule alone is
+   *   defeated by simply leaving a terminal open — fine for a single-user
+   *   broker, a way to hold a slot indefinitely once labs are shared.
+   *
+   * Returns the ids it removed. An error removing one lab does not stop the
+   * sweep from trying the rest.
+   */
   async sweep(): Promise<string[]> {
-    const cutoff = this.now().getTime() - this.idleTimeoutMs;
+    const nowMs = this.now().getTime();
+    const idleCutoff = nowMs - this.idleTimeoutMs;
     const removed: string[] = [];
     for (const lab of this.list()) {
-      if (lab.socketCount > 0) continue;
-      if (lab.lastActivity.getTime() > cutoff) continue;
+      const tooOld = nowMs - lab.createdAt.getTime() >= this.maxLifetimeMs;
+      if (!tooOld) {
+        if (lab.socketCount > 0) continue;
+        if (lab.lastActivity.getTime() > idleCutoff) continue;
+      }
       try {
         await this.driver.remove(lab.containerId);
       } finally {

@@ -14,17 +14,25 @@ const docker = new DockerClient({
 const registry = new LabRegistry({
   driver: docker,
   maxLabs: config.maxLabs,
+  maxLabsPerUser: config.maxLabsPerUser,
   idleTimeoutMs: config.idleTimeoutMs,
+  maxLifetimeMs: config.maxLifetimeMs,
 });
 
-const server = createServer({ registry, docker });
+const server = createServer({ registry, docker, auth: config.auth });
 
 server.listen(config.port, config.host, () => {
   console.log(`lab-broker listening on http://${config.host}:${config.port}`);
   console.log(`  image:        ${config.image}`);
   console.log(`  rzagent bin:  ${config.rzagentBin}`);
   console.log(`  checks file:  ${config.checksPath}`);
-  console.log(`  idle timeout: ${config.idleTimeoutMs / 60_000} min, max labs: ${config.maxLabs}`);
+  console.log(`  idle timeout: ${config.idleTimeoutMs / 60_000} min, max lifetime: ${config.maxLifetimeMs / 60_000} min`);
+  console.log(`  max labs:     ${config.maxLabs} total, ${config.maxLabsPerUser} per user`);
+  console.log(
+    config.auth.required
+      ? "  auth:         REQUIRED (token secret configured)"
+      : "  auth:         DISABLED — loopback bind only. Never expose this port.",
+  );
 });
 
 const sweepInterval = setInterval(() => {

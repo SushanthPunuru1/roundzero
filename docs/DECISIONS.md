@@ -2555,3 +2555,38 @@ hand-written constant in a crypto test is worthless and worse than none.
 into the five routes and the upgrade handler, record an owner on every lab in
 `LabRegistry`, scope `GET /labs` to that owner, and write the apps/web
 minting side against the same vector.
+
+**047 · 2026-08-25 · Token enforcement, owner-scoped labs, and a broker that
+refuses to start in an unsafe configuration.** The wiring half of 046: every
+route and the WebSocket upgrade now authenticate, and `LabRegistry` records
+who owns each lab.
+*The startup refusal is the load-bearing part.* `resolveAuthMode(host,
+secret)` throws `InsecureConfigError` when the bind is non-loopback and
+`RZ_TOKEN_SECRET` is unset. The alternative — a warning and an "auth
+disabled" mode — is the exact shape of how services end up publicly exposed
+with no authentication: the misconfiguration is invisible until someone
+finds the port. Making it impossible to start beats documenting it. Loopback
+with no secret stays legal because that is 027's local single-user case
+where the bind itself is the boundary, and it is the only configuration in
+which `claims` is null and owner scoping is skipped.
+*Refusals are indistinguishable.* Routes return a flat `{"error":"Not
+found"}` and log the real reason. `getOwned` raises `LabNotFoundError` for a
+lab that exists but belongs to someone else — the same error as one that
+never existed. A distinct "forbidden" is an oracle for which lab ids are
+real, the same reason 046 keeps the verify failure off the wire: "expired"
+and "wrong-lab" both confirm a valid signature.
+*Two limits, not one.* `maxLabs` is the box's capacity; `maxLabsPerUser`
+(default 1) is what any one learner may hold. Without the second, the first
+is a shared pool a single user drains — denial of service by accident as
+easily as on purpose — and the two produce different messages because the
+user's next action differs: wait, versus stop your own lab.
+*A hard lifetime.* `sweep()` skips any lab with an attached socket, so the
+idle timeout is defeated by leaving a terminal open. Harmless with one user;
+a way to hold a slot indefinitely once labs are shared. `maxLifetimeMs`
+(default 4h) reaps regardless of sockets or activity.
+*Order of operations in the upgrade handler:* authenticate, then resolve
+ownership, then `handleUpgrade`. A rejected socket must never have reached a
+container.
+75 tests in lab-broker. Remaining in 2.3: the `apps/web` minting side
+against 046's frozen `TEST_VECTOR`, and `RZ_TOKEN_SECRET` present in both
+environments.
