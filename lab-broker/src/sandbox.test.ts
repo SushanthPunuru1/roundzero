@@ -79,7 +79,11 @@ describe("loadSandboxLimits", () => {
     expect(loaded.runtime).toBe("");
     expect(loaded.memoryBytes).toBe(512 * 1024 * 1024);
     expect(loaded.nanoCpus).toBe(1_000_000_000);
-    expect(loaded.capAdd).toEqual(["NET_ADMIN", "NET_RAW"]);
+    // Zero added capabilities is the correct default now that ufw-active
+    // is gone — see DECISIONS 045. If this ever goes back to a non-empty
+    // list, agent/scripts/prove.sh must grant the same ones or the proof
+    // and the broker will disagree about what a lab can do.
+    expect(loaded.capAdd).toEqual([]);
   });
 
   it("reads the host profile from the environment", () => {
@@ -100,8 +104,8 @@ describe("loadSandboxLimits", () => {
   // Being able to reach zero capabilities matters: if 2.0 finds gVisor
   // doesn't need NET_ADMIN, the host should be able to grant none without
   // a code change.
-  it("accepts an explicitly empty capability list", () => {
-    expect(loadSandboxLimits({ RZ_CAP_ADD: "" }).capAdd).toEqual(["NET_ADMIN", "NET_RAW"]);
+  it("can still be given capabilities if a future check needs one", () => {
+    expect(loadSandboxLimits({ RZ_CAP_ADD: "" }).capAdd).toEqual([]);
     expect(loadSandboxLimits({ RZ_CAP_ADD: " " }).capAdd).toEqual([]);
     expect(loadSandboxLimits({ RZ_CAP_ADD: "NET_ADMIN, NET_RAW" }).capAdd).toEqual([
       "NET_ADMIN",

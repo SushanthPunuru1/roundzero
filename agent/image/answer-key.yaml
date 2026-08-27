@@ -233,14 +233,6 @@ vulnerabilities:
     plantedAs: "/usr/local/bin/qfind — a copy of /usr/bin/find with mode 4755 (a GTFOBins privesc). Distinct from the existing rogue-suid finding, proving the check handles multiple planted binaries."
     remediation: "chmod u-s /usr/local/bin/qfind, or remove it."
 
-  - checkId: ufw-active
-    category: updates-network
-    skillNode: linux.updates-network.ufw
-    points: 10
-    title: "Firewall disabled"
-    plantedAs: "ufw installed but left in its default inactive state."
-    remediation: "ufw enable (after confirming SSH access is allowed)."
-
   - checkId: sysctl-ip-forward
     category: updates-network
     skillNode: linux.updates-network.sysctl

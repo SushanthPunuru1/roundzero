@@ -71,9 +71,11 @@ Server, orchestrator, gVisor isolation, egress lockdown, pooling, teardown
 — so the lab runs for someone other than the author. `lab-broker/` is the
 local, single-lab seed of this; see DECISIONS 027.
 
-**Sequencing and threat model: `docs/PHASE2_INFRA_SPEC.md`.** Step 2.0
-(prove gVisor runs the practice image) is blocking and comes before any
-host work — one of the 33 checks, `ufw-active`, is the identifiable risk.
+**Sequencing and threat model: `docs/PHASE2_INFRA_SPEC.md`.** Step 2.0 is
+**done**: gVisor is proven against all four `prove.sh` states on WSL2, at
+zero added capabilities. `ufw-active` was removed from the lab check set —
+gVisor exposes no netfilter, so no learner action could make it pass
+(DECISIONS 045). Next blocking item is 2.2, provisioning.
 
 ### 3. Full design pass — the whole app at once
 

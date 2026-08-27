@@ -2475,3 +2475,42 @@ and the owner record live in the broker, not in Docker.
 Thirteen tests. Note that `lab-broker` is outside the pnpm workspace, so
 root `pnpm test` does not cover it — it has its own CI job, and a local gate
 run needs `npm test` inside `lab-broker/` as a separate step.
+
+**045 · 2026-08-25 · `ufw-active` leaves the lab check set: gVisor exposes no
+netfilter, so no learner action could ever make it pass.** Spec 2.0, run for
+real on WSL2 with `runsc` 20260817.0 and Docker 29.1.3.
+*The good half.* State 1 was byte-identical under both runtimes — 0 earned,
+29 failing, 3 decoys passing. Every check evaluates correctly under gVisor:
+file modes, package state, service enablement, process visibility, SUID
+discovery, cron inspection. **The scoring engine is runtime-independent**,
+which was the thing most worth knowing and is now known rather than assumed.
+*The failure, and why no rewrite saves it.* Under `runsc`, `ufw --force
+enable` exits 1 with "Couldn't determine iptables version" and leaves
+`ENABLED=no`; under `runc` it exits 0 with `ENABLED=yes` and `Status:
+active`. Both backends were tried: `nft` fails at "Failed to initialize nft:
+Protocol not supported", and the legacy binary loads but cannot initialize a
+single table. So the plan drafted hours earlier — grade `/etc/ufw/ufw.conf`
+the way the `sysctl-*` checks grade their file — does **not** work, because
+nothing writes `ENABLED=yes` in the first place. The break is in the
+learner's action, not the grader, and that distinction is the whole reason
+this needed measuring rather than reasoning.
+*The decision.* `ufw-active` comes out of the lab: 33 checks → 32, 276 points
+→ 266, 30 planted vulns → 29. `prove.sh`'s assertions, the answer key, and
+`fix-all.sh`'s call to `fix-ufw.sh` all move with it; the check itself leaves
+a tombstone comment in `linux-practice.yaml` explaining why, so nobody
+re-adds it in six months. The skill stays fully taught —
+`linux-updates-firewall-sysctl`, two Linux checklist items, three drill cards
+— it simply is not gradeable in a sandbox with no netfilter. Isolation
+outranks a 10-point check and it is not close: gVisor is what stands between
+a curious teenager with root and every other lab on the box.
+*What the removal bought.* `NET_ADMIN` and `NET_RAW` existed solely for ufw.
+Nothing in the remaining 32 checks touches the network stack, so a lab now
+runs at **zero added capabilities** — `CapDrop: ALL` with nothing added back,
+in both `prove.sh` and `sandbox.ts`'s defaults. Losing the check made the
+sandbox strictly tighter, which is the opposite of the usual trade.
+*Open.* States 2, 3, and 4 are still unproven under `runsc` — the gVisor run
+aborted at state 2 because `fix-all.sh` called `fix-ufw.sh` and `set -eu`
+propagated it. The full four-state comparison has to be re-run before 2.0 is
+closed. The generated lab README will also need to say plainly that the
+sandbox has no netfilter, since a learner running `ufw enable` still meets an
+iptables error and silence there reads as a broken lab.

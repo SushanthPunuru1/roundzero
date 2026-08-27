@@ -10,7 +10,7 @@ bigger jump than it sounds.
 `lab-broker/` (DECISIONS 027) already does the hard interactive part: it
 creates a container from `rz-practice:latest`, copies `rzagent` and the
 check file in, serves a real container-side PTY over a WebSocket, runs the
-33 checks on demand, and force-removes a lab that has been idle for 30
+32 checks on demand, and force-removes a lab that has been idle for 30
 minutes. `LabRegistry` is pure and unit-tested behind a `ContainerDriver`
 interface, so the bookkeeping is already separable from Docker.
 
@@ -22,7 +22,7 @@ What it is *not* is a service anyone but the author can reach. Today:
 | Authentication | **none at all** | per-user, per-lab, unforgeable |
 | Tenancy | `MAX_LABS=1`, no owner recorded | many users, each isolated |
 | Runtime | stock `runc` | `runsc` (gVisor) |
-| Container caps | `CapAdd: NET_ADMIN, NET_RAW`, root, no limits | least privilege + hard limits |
+| Container caps | ~~`CapAdd: NET_ADMIN, NET_RAW`~~ now none, root, no limits | least privilege + hard limits |
 | Egress | full outbound access | default-deny |
 | Memory / CPU / PIDs | **unbounded** | capped per lab |
 | Cold start | untested, unpooled | < 20s |
@@ -75,47 +75,58 @@ actually be *measured*. gVisor requires a Linux kernel; `runsc` does not run
 under Docker Desktop on Windows or macOS. So the order is 2.1 (local,
 runtime-independent) → 2.2 (provision) → 2.0 (prove, on the box) → the rest.
 
-Do run the **`runc` baseline locally** first, though — it costs nothing and
-2.0's gate is a comparison, so the baseline has to exist either way:
+**Prove it on WSL2, not on the Hetzner box, and do it before buying one.**
+The question is whether gVisor's netstack supports what `ufw` needs, and
+netstack behaves the same regardless of which platform gVisor uses to
+intercept syscalls (`systrap` in WSL2, likely KVM on the host). So the
+answer transfers, and it is worth having *before* provisioning: if
+`ufw-active` does not survive `runsc`, that changes the check, possibly the
+image, and possibly the capability set — all of which are cheaper to change
+before a host exists than after.
 
-```
-docker run --rm --cap-add=NET_ADMIN --cap-add=NET_RAW rz-practice:latest bash -lc "ufw --force enable && ufw status"
-```
+**The harness already exists.** `agent/scripts/prove.sh` builds the agent
+and image, then asserts four exact scoring states: 0/266 on a fresh box,
+266/266 hardened, 66 half-fixed, and a fourth. It now takes an optional
+`RZ_RUNTIME`, so the gVisor proof is the same script run twice, and the gate
+is that every number is identical:
 
-Everything below assumes `runsc` can run `rz-practice`. That assumption has
-one identifiable weak point.
-
-Of the 33 checks, 32 are file, content, account, or service inspection and
-are indifferent to the runtime. **One is not: `ufw-active` runs `ufw
-status`**, which is why `docker.ts` currently adds `NET_ADMIN` and
-`NET_RAW`. gVisor implements its own network stack in userspace with only
-partial iptables/nftables support, so this is the check that may not
-survive the runtime change.
-
-(The three `sysctl-*` checks are already safe: they deliberately grade the
-*file* at `/etc/sysctl.d/99-roundzero.conf`, never live `sysctl`, because
-Docker's namespacing already forced that workaround. The same decision pays
-off again here — worth noticing as a pattern.)
-
-Prove it directly:
-
-```
-docker run --rm --runtime=runsc --cap-add=NET_ADMIN --cap-add=NET_RAW \
-  rz-practice:latest bash -lc "ufw --force enable && ufw status"
+```bash
+# inside WSL2 (Ubuntu), from the repo root
+bash agent/scripts/prove.sh                    # baseline: runc
+RZ_RUNTIME=runsc bash agent/scripts/prove.sh   # the actual proof
 ```
 
-Three possible outcomes, and each changes the plan differently:
+That is a much stronger test than checking `ufw status` by hand: it exercises
+every check against four different machine states, so a runtime that subtly
+changes file modes, process visibility, or service detection shows up as a
+wrong number rather than passing unnoticed.
 
-- **Works.** Nothing changes. Proceed to 2.1.
-- **Fails, but `ufw` state is still readable from its config files.** Rewrite
-  `ufw-active` as a file check, the way the sysctl checks already are. Cheap,
-  and arguably more honest — it grades persistent configuration rather than
-  live daemon state.
-- **Fails in a way that breaks the shell or the agent.** Stop and reconsider
-  the isolation layer. Do not proceed by dropping gVisor.
+**Gate:** every `prove.sh` assertion produces the same number under `runsc`
+as under `runc`, across all four states plus the trap demo.
 
-**Gate:** all 33 checks produce the same report under `runsc` as under
-`runc`, on both a clean image and one where `fix-all.sh` has run.
+**Outcome: see "2.0 — RESOLVED" at the end of this document.** The prediction
+that stood here — that `ufw-active` might survive as a file check — turned
+out to be wrong for a reason worth keeping: the break is in the learner's
+*action*, not the grader. Reasoning would have produced the file-check fix
+and it would not have worked.
+
+Installing `runsc`, once per Linux host. Verified on WSL2 Ubuntu; the same
+sequence applies on the Hetzner box in 2.2, which is why it lives here
+rather than in a scratch note:
+
+```bash
+sudo apt-get update && sudo apt-get install -y docker.io
+curl -fsSL https://gvisor.dev/archive.key | sudo gpg --dearmor -o /usr/share/keyrings/gvisor-archive-keyring.gpg
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/gvisor-archive-keyring.gpg] https://storage.googleapis.com/gvisor/releases release main" | sudo tee /etc/apt/sources.list.d/gvisor.list > /dev/null
+sudo apt-get update && sudo apt-get install -y runsc
+sudo runsc install          # writes /etc/docker/daemon.json
+sudo service docker restart
+docker info | grep -i -A3 runtimes   # expect: runc runsc
+```
+
+On Windows, drive the whole thing from PowerShell without switching shells —
+`wsl bash -lc '<command>'` keeps everything inside the quotes away from
+PowerShell's parser, which otherwise mangles `&&`, `|`, and `VAR=value`.
 
 ### 2.1 — Harden the container spec *(local, testable now)*
 
@@ -215,3 +226,64 @@ token mint/verify pair and its tests (2.3), the pure lifecycle bookkeeping in
 
 What cannot: 2.0's proof, 2.2 entirely, and every end-to-end verification.
 Those run on the box.
+
+---
+
+## 2.0 — RESOLVED (2026-08-25)
+
+Run on WSL2 with `runsc` 20260817.0 and Docker 29.1.3. Outcome: **the second
+of the three predicted branches.**
+
+**State 1 was byte-identical under both runtimes** — 0 earned, 29 failing,
+3 decoys passing. Every check *evaluates* correctly under gVisor: file modes,
+package state, service enablement, process visibility, SUID discovery, cron
+inspection. The scoring engine is runtime-independent, which was the thing
+most worth knowing and is now known rather than assumed.
+
+**`ufw` cannot work under gVisor, and no check rewrite fixes that.** The
+failure is in the learner's *action*, not the grader:
+
+```
+runsc: ufw --force enable  ->  ERROR: Couldn't determine iptables version
+                               EXIT=1, ENABLED=no
+runc:  ufw --force enable  ->  Firewall is active and enabled on system startup
+                               EXIT=0, ENABLED=yes, Status: active
+```
+
+Both iptables backends were tried. `nft` fails at `Failed to initialize nft:
+Protocol not supported`; the legacy binary loads (`iptables v1.8.10
+(legacy)`) but cannot initialize a single table — `unable to initialize table
+'filter'`, repeated across every ufw rules file. gVisor's netstack simply
+exposes no netfilter. So grading `/etc/ufw/ufw.conf` instead of `ufw status`
+would not have helped: nothing writes `ENABLED=yes` because the enable itself
+never completes.
+
+**Decision: `ufw-active` leaves the lab check set.** 33 checks → 32,
+276 points → 266, 30 planted vulns → 29. The skill stays fully taught —
+`linux-updates-firewall-sysctl`, two Linux checklist items, three drill
+cards — it is simply not gradeable in a sandbox with no real netfilter, and
+isolation outranks a 10-point check. That tradeoff is not close: gVisor is
+what stands between a curious teenager with root and every other lab on the
+box.
+
+**Unlocked by the removal:** `NET_ADMIN` and `NET_RAW` existed *only* for
+ufw. Nothing in the remaining 32 checks touches the network stack, so a lab
+container now runs with **zero added capabilities** — `CapDrop: ALL` and
+nothing added back. That is a materially better starting position for §2.3
+than the profile drafted a few hours earlier assumed.
+
+**Consequence for §2.5 (observability) and the lab README:** a learner who
+runs `ufw enable` in the lab will still see an iptables error. The generated
+per-instance README must say plainly that the sandbox has no netfilter and
+that firewall work is practiced via the checklist rather than scored here.
+Silence there would read as a broken lab.
+
+**Re-run after the removal: both runtimes reach
+`PROVE.SH: all four states + the bonus trap demo scored as expected.`**
+All 32 checks, four machine states, and the drop-in trap demo score
+identically under `runc` and `runsc` — with no added capabilities in either.
+**2.0 is closed.** gVisor is proven for this image, and the `runc` run
+doubles as proof that nothing quietly depended on NET_ADMIN/NET_RAW.
+
+The next blocking item is 2.2, provisioning, which is the first step that
+costs money and the first that cannot be rehearsed locally.

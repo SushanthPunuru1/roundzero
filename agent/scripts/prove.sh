@@ -21,6 +21,21 @@ IMAGE_TAG="rz-practice:latest"
 PLATFORM="linux/amd64"
 WORKDIR="$(mktemp -d)"
 
+# Optional container runtime, empty = Docker's default (runc). Set
+# RZ_RUNTIME=runsc to run this whole proof under gVisor — which is exactly
+# what PHASE2_INFRA_SPEC.md 2.0 asks for, and a far stronger test than
+# checking `ufw status` by hand: every assertion below must produce the same
+# number under runsc as under runc, or the isolation layer has changed the
+# behaviour of the scoring engine.
+#
+# The image and agent builds deliberately do NOT use it — those are ordinary
+# build containers and have no reason to be sandboxed.
+RUNTIME_ARGS=()
+if [ -n "${RZ_RUNTIME:-}" ]; then
+  RUNTIME_ARGS=(--runtime "$RZ_RUNTIME")
+  echo "==> Lab containers will run under runtime: $RZ_RUNTIME"
+fi
+
 cleanup() {
   for c in fresh hardened half altfix trap-demo; do
     docker rm -f "rz-practice-$c" >/dev/null 2>&1 || true
@@ -56,12 +71,17 @@ docker build --platform "$PLATFORM" -t "$IMAGE_TAG" "$AGENT_DIR/image"
 start_container() {
   local name="$1"
   docker rm -f "rz-practice-$name" >/dev/null 2>&1 || true
-  # NET_ADMIN/NET_RAW: ufw (the ufw-active check) manipulates iptables/nftables
-  # rules and network sysctls, which need these capabilities even in a
-  # plain (non-systemd, non-privileged) container. The real Phase 2
-  # orchestrator will need to grant the same to any lab container a
-  # student is expected to run `ufw enable` inside.
-  docker run -d --platform "$PLATFORM" --cap-add=NET_ADMIN --cap-add=NET_RAW \
+  # No added capabilities. NET_ADMIN/NET_RAW used to be here for ufw alone;
+  # with ufw-active removed from the check set (DECISIONS 045) nothing left
+  # in the 32 checks touches netfilter, so the lab runs at zero added
+  # privilege. If a future check needs a capability, add it here AND to
+  # lab-broker/src/sandbox.ts — they must not drift.
+  #
+  # ${ARR[@]+"${ARR[@]}"} rather than plain "${ARR[@]}": under `set -u` an
+  # empty array is an unbound variable on bash < 4.4, which git-bash on
+  # Windows still ships.
+  docker run -d --platform "$PLATFORM" \
+    ${RUNTIME_ARGS[@]+"${RUNTIME_ARGS[@]}"} \
     --name "rz-practice-$name" "$IMAGE_TAG" >/dev/null
   docker cp "$AGENT_DIR/rzagent" "rz-practice-$name:/usr/local/bin/rzagent" >/dev/null
   docker cp "$AGENT_DIR/checks/linux-practice.yaml" "rz-practice-$name:/opt/checks.yaml" >/dev/null
@@ -88,8 +108,8 @@ echo "==================================================================="
 start_container fresh
 score fresh
 assert_eq "state1 totalEarned" 0 "$(total_earned "$WORKDIR/fresh.json")"
-assert_eq "state1 totalPossible" 276 "$(total_possible "$WORKDIR/fresh.json")"
-assert_eq "state1 failing checks (the 30 planted vulns)" 30 "$(fail_count "$WORKDIR/fresh.json")"
+assert_eq "state1 totalPossible" 266 "$(total_possible "$WORKDIR/fresh.json")"
+assert_eq "state1 failing checks (the 29 planted vulns)" 29 "$(fail_count "$WORKDIR/fresh.json")"
 assert_eq "state1 passing checks (the 3 decoys)" 3 "$(pass_count "$WORKDIR/fresh.json")"
 
 echo
@@ -99,8 +119,8 @@ echo "==================================================================="
 start_container hardened
 docker exec "rz-practice-hardened" /opt/fixes/fix-all.sh
 score hardened
-assert_eq "state2 totalEarned" 276 "$(total_earned "$WORKDIR/hardened.json")"
-assert_eq "state2 passing checks (all 33)" 33 "$(pass_count "$WORKDIR/hardened.json")"
+assert_eq "state2 totalEarned" 266 "$(total_earned "$WORKDIR/hardened.json")"
+assert_eq "state2 passing checks (all 32)" 32 "$(pass_count "$WORKDIR/hardened.json")"
 assert_eq "state2 failing checks" 0 "$(fail_count "$WORKDIR/hardened.json")"
 
 echo

@@ -21,9 +21,11 @@ export interface SandboxLimits {
   memoryBytes: number;
   nanoCpus: number;
   pidsLimit: number;
-  /** Capabilities added back after dropping ALL. `ufw-active` is the only
-   * check that needs any, and whether gVisor honours them is exactly what
-   * spec §2.0 exists to find out. */
+  /** Capabilities added back after dropping ALL. Empty, and that is the
+   * finding rather than an oversight: NET_ADMIN/NET_RAW existed solely for
+   * `ufw-active`, which spec §2.0 removed from the check set because gVisor
+   * exposes no netfilter (DECISIONS 045). None of the remaining 32 checks
+   * touches the network stack, so a lab runs at zero added privilege. */
   capAdd: string[];
   /** Docker network name, or empty for the default bridge. Per-lab networks
    * with default-deny egress are §2.3; until then this is empty and the
@@ -37,7 +39,7 @@ export const DEFAULT_LIMITS: SandboxLimits = {
   memoryBytes: 512 * 1024 * 1024,
   nanoCpus: 1_000_000_000, // 1.0 CPU
   pidsLimit: 256,
-  capAdd: ["NET_ADMIN", "NET_RAW"],
+  capAdd: [],
   networkName: "",
 };
 

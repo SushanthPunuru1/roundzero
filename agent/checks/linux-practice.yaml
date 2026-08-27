@@ -273,15 +273,13 @@ checks:
       present: false
 
   # --- Updates & network ---------------------------------------------------------
-  - id: ufw-active
-    title: "Firewall (UFW) is enabled"
-    skillNode: linux.updates-network.ufw
-    points: 10
-    type: command
-    params:
-      command: "ufw status"
-      pattern: 'Status: active'
-      present: true
+  # ufw-active was here. Removed deliberately, not lost: gVisor's netstack
+  # exposes no netfilter, so `ufw enable` cannot succeed inside a lab
+  # container and NO learner action could make this check pass. Both the nft
+  # and legacy iptables backends fail to initialize a single table under
+  # runsc, so this is not a backend-selection problem. Isolation outranks a
+  # 10-point check — see docs/DECISIONS.md 045. The skill is still taught:
+  # linux-updates-firewall-sysctl, two checklist items, three drill cards.
 
   - id: sysctl-ip-forward
     title: "sysctl hardening disables IP forwarding"

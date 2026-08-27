@@ -11,7 +11,6 @@ DIR="$(dirname "$0")"
 "$DIR/fix-insecure-service.sh"
 "$DIR/fix-shadow-mode.sh"
 "$DIR/fix-suid.sh"
-"$DIR/fix-ufw.sh"
 # --- vuln expansion (10 -> 30): see ../../VULN_EXPANSION_SPEC.md ------------
 # fix-pwquality.sh above already remediates pwquality-credits too (it writes
 # all four credit lines alongside minlen) — no separate script needed.
