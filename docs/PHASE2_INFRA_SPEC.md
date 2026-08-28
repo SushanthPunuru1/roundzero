@@ -23,14 +23,15 @@ What it is *not* is a service anyone but the author can reach. Today:
 | Tenancy | ~~no owner recorded~~ **done** — owner-scoped, per-user quota | many users, each isolated |
 | Runtime | stock `runc` | `runsc` (gVisor) |
 | Container caps | ~~`CapAdd: NET_ADMIN, NET_RAW`~~ now none, root, no limits | least privilege + hard limits |
-| Egress | full outbound access | default-deny |
+| Egress | ~~full outbound~~ **done** — per-lab `Internal` network, all 32 checks verified under lockdown | default-deny |
 | Memory / CPU / PIDs | ~~unbounded~~ **done** — capped in `sandbox.ts` | capped per lab |
 | Cold start | untested, unpooled | < 20s |
 
 Loopback binding *was* the entire security model. It no longer is: tokens,
 owner scoping, and resource caps have landed (DECISIONS 046/047), and the
-broker now refuses to start on a non-loopback bind with no secret. What
-remains before a public bind is the runtime, egress, and the host itself.
+broker now refuses to start on a non-loopback bind with no secret, gVisor
+is proven, and egress is locked down per-lab. What remains before a public
+bind is TLS and the host itself.
 
 ## Threat model — read before designing anything
 

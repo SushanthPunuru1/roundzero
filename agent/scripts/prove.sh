@@ -36,6 +36,18 @@ if [ -n "${RZ_RUNTIME:-}" ]; then
   echo "==> Lab containers will run under runtime: $RZ_RUNTIME"
 fi
 
+# Optional network, empty = Docker's default bridge. Set RZ_NETWORK to an
+# internal network to run the whole proof under egress lockdown, which is
+# what the broker does in production (DECISIONS 050). The probe in
+# lab-broker/scripts/probe-egress.sh answers "does purge still work"; this
+# answers the bigger question, "do all 32 checks across all four states still
+# score identically with no route off the host".
+NETWORK_ARGS=()
+if [ -n "${RZ_NETWORK:-}" ]; then
+  NETWORK_ARGS=(--network "$RZ_NETWORK")
+  echo "==> Lab containers will run on network: $RZ_NETWORK"
+fi
+
 cleanup() {
   for c in fresh hardened half altfix trap-demo; do
     docker rm -f "rz-practice-$c" >/dev/null 2>&1 || true
@@ -82,6 +94,7 @@ start_container() {
   # Windows still ships.
   docker run -d --platform "$PLATFORM" \
     ${RUNTIME_ARGS[@]+"${RUNTIME_ARGS[@]}"} \
+    ${NETWORK_ARGS[@]+"${NETWORK_ARGS[@]}"} \
     --name "rz-practice-$name" "$IMAGE_TAG" >/dev/null
   docker cp "$AGENT_DIR/rzagent" "rz-practice-$name:/usr/local/bin/rzagent" >/dev/null
   docker cp "$AGENT_DIR/checks/linux-practice.yaml" "rz-practice-$name:/opt/checks.yaml" >/dev/null

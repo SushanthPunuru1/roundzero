@@ -82,21 +82,58 @@ export class DockerClient implements ContainerDriver {
     }
   }
 
+  /** The per-lab network's name, derived from the container's so the two can
+   * always be found from each other — including by a human cleaning up by
+   * hand after a crash. */
+  private networkNameFor(containerName: string): string {
+    return `${containerName}-net`;
+  }
+
+  /**
+   * Creates the lab's own isolated network when egress is denied.
+   *
+   * `Internal: true` is the whole mechanism: Docker gives the network no
+   * gateway, so nothing on it can route off the host. One network per lab
+   * rather than one shared internal network, because a shared one would
+   * block the internet while leaving every lab able to reach every other —
+   * lateral movement between learners, which is worse than the problem it
+   * would have solved.
+   */
+  private async createNetwork(containerName: string): Promise<string | null> {
+    if (this.limits.egress !== "deny") return null;
+    const name = this.networkNameFor(containerName);
+    await this.docker.createNetwork({ Name: name, Internal: true, Driver: "bridge" });
+    return name;
+  }
+
+  /** Best-effort: a leaked network is untidy but harmless, and throwing here
+   * would turn a successful container teardown into a failed one. */
+  private async removeNetwork(name: string): Promise<void> {
+    await this.docker.getNetwork(name).remove().catch(() => undefined);
+  }
+
   async create(containerName: string): Promise<{ containerId: string }> {
     this.checkPrerequisites();
 
-    const container = await this.docker.createContainer({
-      name: containerName,
-      Image: this.image,
-      Tty: false,
-      // The security profile is a pure function in sandbox.ts so it can be
-      // asserted without a daemon — see the note at the top of that file.
-      // NET_ADMIN/NET_RAW are in it because ufw (the ufw-active check)
-      // manipulates iptables/nftables rules even outside a booted init, the
-      // same rationale as agent/scripts/prove.sh.
-      HostConfig: buildHostConfig(this.limits),
-    });
-    await container.start();
+    const networkName = await this.createNetwork(containerName);
+
+    let container;
+    try {
+      container = await this.docker.createContainer({
+        name: containerName,
+        Image: this.image,
+        Tty: false,
+        // The security profile is a pure function in sandbox.ts so it can be
+        // asserted without a daemon — see the note at the top of that file.
+        HostConfig: buildHostConfig(this.limits, networkName),
+      });
+      await container.start();
+    } catch (err) {
+      // The network outlives a failed container create unless we say
+      // otherwise, and it is named after a container that will never exist.
+      if (networkName) await this.removeNetwork(networkName);
+      throw err;
+    }
 
     try {
       await execFileAsync("docker", ["cp", this.rzagentBin, `${container.id}:/usr/local/bin/rzagent`]);
@@ -104,6 +141,7 @@ export class DockerClient implements ContainerDriver {
       await this.runExec(container.id, ["chmod", "+x", "/usr/local/bin/rzagent"]);
     } catch (err) {
       await container.remove({ force: true }).catch(() => undefined);
+      if (networkName) await this.removeNetwork(networkName);
       throw err;
     }
 
@@ -111,7 +149,22 @@ export class DockerClient implements ContainerDriver {
   }
 
   async remove(containerId: string): Promise<void> {
+    // Read the name BEFORE removing the container — afterwards there is
+    // nothing left to derive the network's name from, and it would leak.
+    let networkName: string | null = null;
+    if (this.limits.egress === "deny") {
+      try {
+        const info = await this.docker.getContainer(containerId).inspect();
+        // Docker prefixes inspected names with a slash.
+        networkName = this.networkNameFor(info.Name.replace(/^\//, ""));
+      } catch {
+        // Container already gone; nothing to derive from, and the sweep
+        // below would have nothing to remove anyway.
+      }
+    }
+
     await this.docker.getContainer(containerId).remove({ force: true });
+    if (networkName) await this.removeNetwork(networkName);
   }
 
   /** Interactive `/bin/bash -l` with a real TTY, hijacked as a raw duplex

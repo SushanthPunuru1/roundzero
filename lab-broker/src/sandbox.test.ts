@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { DEFAULT_LIMITS, buildHostConfig, loadSandboxLimits, type SandboxLimits } from "./sandbox";
+import {
+  DEFAULT_LIMITS,
+  InvalidSandboxConfigError,
+  buildHostConfig,
+  loadSandboxLimits,
+  type SandboxLimits,
+} from "./sandbox";
 
 const limits = (over: Partial<SandboxLimits> = {}): SandboxLimits => ({ ...DEFAULT_LIMITS, ...over });
 
@@ -67,9 +73,13 @@ describe("buildHostConfig — runtime", () => {
     expect(buildHostConfig(limits({ runtime: "runsc" })).Runtime).toBe("runsc");
   });
 
-  it("omits NetworkMode when no per-lab network is configured", () => {
-    expect("NetworkMode" in buildHostConfig(limits({ networkName: "" }))).toBe(false);
-    expect(buildHostConfig(limits({ networkName: "rz-lab-7" })).NetworkMode).toBe("rz-lab-7");
+  it("omits NetworkMode when no per-lab network is given", () => {
+    expect("NetworkMode" in buildHostConfig(DEFAULT_LIMITS, null)).toBe(false);
+    expect("NetworkMode" in buildHostConfig(DEFAULT_LIMITS)).toBe(false);
+  });
+
+  it("attaches to the per-lab network when one is given", () => {
+    expect(buildHostConfig(DEFAULT_LIMITS, "rz-lab-7-net").NetworkMode).toBe("rz-lab-7-net");
   });
 });
 
@@ -92,13 +102,13 @@ describe("loadSandboxLimits", () => {
       RZ_MEMORY_MB: "256",
       RZ_CPUS: "0.5",
       RZ_PIDS_LIMIT: "64",
-      RZ_NETWORK: "rz-lab-net",
+      RZ_EGRESS: "deny",
     });
     expect(loaded.runtime).toBe("runsc");
     expect(loaded.memoryBytes).toBe(268435456);
     expect(loaded.nanoCpus).toBe(500_000_000);
     expect(loaded.pidsLimit).toBe(64);
-    expect(loaded.networkName).toBe("rz-lab-net");
+    expect(loaded.egress).toBe("deny");
   });
 
   // Being able to reach zero capabilities matters: if 2.0 finds gVisor
@@ -111,5 +121,40 @@ describe("loadSandboxLimits", () => {
       "NET_ADMIN",
       "NET_RAW",
     ]);
+  });
+});
+
+describe("egress policy", () => {
+  // Defaulting to "allow" looks backwards for a security setting. It is not:
+  // this default only ever reaches a loopback dev broker, because auth.ts
+  // refuses to start a non-loopback bind without a secret, and the host sets
+  // RZ_EGRESS=deny explicitly. Defaulting to deny would mean every local
+  // `npm run dev` quietly building labs that behave differently from the
+  // ones this repo documents.
+  it("allows egress by default, and only 'deny' turns it off", () => {
+    expect(loadSandboxLimits({}).egress).toBe("allow");
+    expect(loadSandboxLimits({ RZ_EGRESS: "deny" }).egress).toBe("deny");
+  });
+
+  // The correction that matters. An earlier draft fell back to "allow" on an
+  // unrecognised value, which means a host that wrote RZ_EGRESS=Deny and
+  // believes its labs are contained would silently run them with full
+  // outbound access. Same failure the Runtime field avoids — believing you
+  // are isolated when you are not — so it gets the same answer: throw.
+  it("REFUSES a value that is neither deny nor allow, rather than guessing", () => {
+    for (const value of ["DENY", "denied", "off", "true", "no-egress", "1"]) {
+      expect(() => loadSandboxLimits({ RZ_EGRESS: value })).toThrow(InvalidSandboxConfigError);
+    }
+  });
+
+  it("treats unset and empty as the local-dev default", () => {
+    expect(loadSandboxLimits({}).egress).toBe("allow");
+    expect(loadSandboxLimits({ RZ_EGRESS: "" }).egress).toBe("allow");
+    expect(loadSandboxLimits({ RZ_EGRESS: "  " }).egress).toBe("allow");
+  });
+
+  it("accepts both explicit values, trimmed", () => {
+    expect(loadSandboxLimits({ RZ_EGRESS: " deny " }).egress).toBe("deny");
+    expect(loadSandboxLimits({ RZ_EGRESS: "allow" }).egress).toBe("allow");
   });
 });

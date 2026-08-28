@@ -27,11 +27,21 @@ export interface SandboxLimits {
    * exposes no netfilter (DECISIONS 045). None of the remaining 32 checks
    * touches the network stack, so a lab runs at zero added privilege. */
   capAdd: string[];
-  /** Docker network name, or empty for the default bridge. Per-lab networks
-   * with default-deny egress are §2.3; until then this is empty and the
-   * container has full outbound access, which is only acceptable because
-   * the broker is loopback-only. */
-  networkName: string;
+  /**
+   * Outbound network policy.
+   *
+   * "deny" puts each lab on its OWN Docker network created with
+   * `Internal: true` — no route off the host. Per-lab rather than one shared
+   * internal network, because a shared one would isolate labs from the
+   * internet while leaving them able to reach *each other*: lateral movement
+   * between learners, which is a worse problem than the one being solved.
+   *
+   * The threat this closes is not primarily about protecting us. A root
+   * shell with outbound access means our IP scanning, brute-forcing, or
+   * mining on someone else's behalf, and an abuse complaint ends the
+   * project's hosting (PHASE2_INFRA_SPEC.md, threat 2).
+   */
+  egress: "deny" | "allow";
 }
 
 export const DEFAULT_LIMITS: SandboxLimits = {
@@ -46,7 +56,9 @@ export const DEFAULT_LIMITS: SandboxLimits = {
   // by the runtime alone.
   pidsLimit: 256,
   capAdd: [],
-  networkName: "",
+  // Local development default. The host sets RZ_EGRESS=deny; see
+  // loadSandboxLimits, which is also where that asymmetry is justified.
+  egress: "allow",
 };
 
 /**
@@ -65,7 +77,13 @@ export const DEFAULT_LIMITS: SandboxLimits = {
  *   a check provably needs, plus no-new-privileges so a SUID binary inside
  *   the image cannot walk it back up.
  */
-export function buildHostConfig(limits: SandboxLimits): Docker.HostConfig {
+export function buildHostConfig(
+  limits: SandboxLimits,
+  /** The per-lab network to attach to, or null for Docker's default bridge.
+   * Passed in rather than read from config because the name is derived per
+   * container — one network per lab is the whole point. */
+  networkName: string | null = null,
+): Docker.HostConfig {
   const config: Docker.HostConfig = {
     // Empty string is not the same as absent: Docker rejects an unknown
     // runtime, so a typo'd RZ_RUNTIME must fail loudly at create time rather
@@ -91,10 +109,40 @@ export function buildHostConfig(limits: SandboxLimits): Docker.HostConfig {
     // by the registry, never resurrected behind its back.
     RestartPolicy: { Name: "no", MaximumRetryCount: 0 },
 
-    ...(limits.networkName ? { NetworkMode: limits.networkName } : {}),
+    ...(networkName ? { NetworkMode: networkName } : {}),
   };
 
   return config;
+}
+
+export class InvalidSandboxConfigError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "InvalidSandboxConfigError";
+  }
+}
+
+/**
+ * Unset means "allow", which is the local-development default and the only
+ * case it applies to in practice. But an unrecognised value THROWS rather
+ * than falling back.
+ *
+ * The distinction matters and an earlier draft of this got it wrong. Falling
+ * back to "allow" on a typo means a host that wrote `RZ_EGRESS=Deny`, and
+ * genuinely believes its labs cannot reach the internet, quietly runs them
+ * with full outbound access. That is the same failure the `Runtime` field
+ * above is careful to avoid — believing the box is isolated when it is not —
+ * and it deserves the same treatment: fail at startup, loudly.
+ */
+function parseEgress(raw: string | undefined): "deny" | "allow" {
+  const value = raw?.trim();
+  if (value === undefined || value === "") return "allow";
+  if (value === "deny" || value === "allow") return value;
+  throw new InvalidSandboxConfigError(
+    `RZ_EGRESS must be exactly "deny" or "allow" (got ${JSON.stringify(raw)}). ` +
+      `Refusing to guess: falling back to "allow" would silently give labs full ` +
+      `outbound access on a host that meant to deny it.`,
+  );
 }
 
 /** Reads the profile from the environment. Every value has a default that
@@ -107,6 +155,6 @@ export function loadSandboxLimits(env: NodeJS.ProcessEnv = process.env): Sandbox
     nanoCpus: Math.round(Number(env.RZ_CPUS || 1) * 1_000_000_000),
     pidsLimit: Number(env.RZ_PIDS_LIMIT || DEFAULT_LIMITS.pidsLimit),
     capAdd: env.RZ_CAP_ADD ? env.RZ_CAP_ADD.split(",").map((c) => c.trim()).filter(Boolean) : [...DEFAULT_LIMITS.capAdd],
-    networkName: env.RZ_NETWORK || DEFAULT_LIMITS.networkName,
+    egress: parseEgress(env.RZ_EGRESS),
   };
 }
