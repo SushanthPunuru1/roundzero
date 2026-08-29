@@ -77,7 +77,24 @@ zero added capabilities. `ufw-active` was removed from the lab check set —
 gVisor exposes no netfilter, so no learner action could make it pass
 (DECISIONS 045). Next blocking item is 2.2, provisioning.
 
-### 3. Full design pass — the whole app at once
+### 3. Full design pass — the whole app at once ← the gate on launching
+
+**This is the only thing standing between today and a usable launch.** Worth
+stating plainly because it is easy to lose: every *learning* surface already
+works in production — 54 lessons, 265 drill cards on the SRS, 64 forensics
+questions, 60 quiz questions, the subnetting trainer, placement, the
+dashboard, and the checklist fork/diff/print trio. A learner can sign in and
+use all of it right now. Only the lab needs step 2's host.
+
+So the critical path to any launch date runs through this step, not through
+infrastructure. What it contains, measured rather than estimated:
+
+1. Self-host Switzer and IBM Plex Mono — still a TODO in `globals.css`, so
+   every screen critiqued so far has been rendering a fallback stack.
+2. Build the four missing primitives: `DataTable`, `Toast`, `Dialog`,
+   `CommandPalette`.
+3. The 19 screens against `docs/DESIGN_GRIPES.md`.
+4. The empty/loading/error audit from Milestone 4 — same sweep, same screens.
 
 **Prerequisite, and the first task of this step: self-host Switzer and IBM
 Plex Mono.** `DESIGN.md` specifies both; `globals.css` still carries a TODO
@@ -122,11 +139,15 @@ Superseded by the locked build order above; retained for reference.
 
 ### Milestone 1 — Skeleton with a pulse (target: end of July)
 
-- [ ] Monorepo scaffolded per `CLAUDE.md` layout; CI green; deployed on
+- [x] Monorepo scaffolded per `CLAUDE.md` layout; CI green; deployed on
       Vercel with PR previews
-- [ ] `DESIGN.md` tokens wired into Tailwind theme; `packages/ui` v1
-      primitives built (at minimum: Button, Card, Input, Badge, PageHeader,
-      EmptyState, DataTable, ScoreLine)
+- [~] `DESIGN.md` tokens wired into Tailwind theme; `packages/ui` v1
+      primitives built. Tokens are wired and 19 components exist. **Still
+      missing: `DataTable`, `Toast`, `Dialog`, `CommandPalette`** — carried
+      into the design pass (step 3), where they belong: every screen that
+      improvises a table today is a screen the pass has to fix individually
+      instead of once. `Checkbox` and `Select` DO exist, contrary to an
+      earlier note in `DESIGN_GRIPES.md`.
 - [x] Better Auth live: Google + magic link sign-in; platform roles
       (student / coach / admin)
 - [x] Coach creates a team (division tag) → join code works → student
@@ -143,10 +164,12 @@ Superseded by the locked build order above; retained for reference.
 - [x] Canonical Windows + Linux checklists authored in
       `packages/content` (every item: action, why, per-OS commands,
       skill-node ID, lesson link)
-- [ ] Team fork: customize items, add items, reorder
-- [ ] Diff view against upstream canonical version
-- [ ] Print/PDF export formatted for round day (this is load-bearing —
-      teams may use printed references in competition)
+- [x] Fork: customize items, add items, reorder — shipped, DECISIONS 039.
+      Now user-ownable, not team-only (043): a learner with no team could
+      previously not fork at all.
+- [x] Diff view against upstream canonical version — shipped, DECISIONS 039,
+      with the false-positive conflict fix in 039a.
+- [x] Print/PDF export formatted for round day — shipped, DECISIONS 039.
 - [x] Forensics question bank — Part A of `docs/FORENSICS_BUILD_SPEC.md`:
       ~24 self-contained CyberPatriot-style forensics questions across all 8
       archetypes at `/app/forensics`, graded as normalized exact strings,
@@ -202,11 +225,16 @@ Superseded by the locked build order above; retained for reference.
       (the `/app` dashboard: "Next up," a "Today" block, cross-pillar progress,
       a warm non-blocking placement invite, and inline "Next up" after every
       lesson/quiz/drill/lab). See DECISIONS 037.
-- [ ] Coach setup wizard: create team → invite → cadence → season plan
-      generated from `Season` calendar data
+- ~~Coach setup wizard~~ — **CUT** with the coach tools under the
+  individual-first scope (DECISIONS 040). Implementation was reverted
+  deliberately, not lost. Do not reinstate.
 - [x] First-session guided path for new students (Part C above: the dashboard
       is now the post-sign-in landing and removes the "what do I do?" decision)
-- [ ] Empty/loading/error states audited across every page
+- [ ] **Empty/loading/error states audited across every page.** The one
+      genuinely unfinished functional item in Phase 1, and the one a
+      first-time user meets hardest: a screen with no data and no explanation
+      reads as broken rather than empty. Belongs with the design pass (step
+      3), since it is the same sweep across the same 19 screens.
 - **Phase 1 gate (deferred to step 4 of the locked order):** own club
   completes Windows + Linux knowledge tracks; ≥ 80% weekly return over
   3 weeks.

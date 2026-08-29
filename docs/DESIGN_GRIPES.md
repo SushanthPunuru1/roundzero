@@ -26,7 +26,10 @@ unusable.
   indistinguishable, so nothing on a screen reads as more important than
   anything else without adding an accent border by hand.
 - `[systemic]` **Missing `packages/ui` primitives push screens to improvise.**
-  Not yet built: `DataTable`, `Checkbox`, `Toast`, `Dialog`, `CommandPalette`.
+  Not yet built: `DataTable`, `Toast`, `Dialog`, `CommandPalette`.
+  (`Checkbox` and `Select` were on this list and DO exist — 19 components
+  ship today. Corrected 2026-08-27 by counting them rather than trusting
+  the list.)
   Tables are hand-rolled per screen today. Every screen that improvises is a
   screen the design pass has to fix individually instead of once.
 - `[systemic]` **Section-heading tier missing outside `/app`.** `SectionHeader`
