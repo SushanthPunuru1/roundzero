@@ -92,6 +92,50 @@
   transition-duration: var(--duration-standard);
 }
 
+/* --- Brand motif ---------------------------------------------------------
+   The logo is a slashed zero (packages/ui logo.tsx). Its slash angle is
+   reused here as a texture so the mark is the geometry the site is built
+   from rather than a badge in the corner: diagonal hatching at the same
+   angle, at very low contrast, behind the hero and the closing statement.
+
+   Kept to two utilities rather than scattered inline gradients so the angle
+   lives in exactly one place — change it here and the mark's `stroke` in
+   logo.tsx and nothing else drifts. */
+@utility brand-hatch {
+  background-image: repeating-linear-gradient(
+    124deg,
+    var(--hairline) 0px,
+    var(--hairline) 1px,
+    transparent 1px,
+    transparent 14px
+  );
+}
+
+/* The same angle as a single hard edge — for section transitions that should
+   feel cut rather than stacked. */
+@utility brand-rule {
+  background-image: linear-gradient(
+    124deg,
+    transparent calc(50% - 0.5px),
+    var(--hairline) calc(50% - 0.5px),
+    var(--hairline) calc(50% + 0.5px),
+    transparent calc(50% + 0.5px)
+  );
+}
+
+/* Marketing surface only (the landing page's terminal demo types itself out
+   line by line). Kept here rather than inline so the reduced-motion block
+   below reaches it — that block collapses animation-duration globally, so a
+   reader who has asked for less motion still gets every line, instantly. */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 /* DESIGN.md Motion: "Respect prefers-reduced-motion: disable transforms and
    count-ups, keep instant state changes." Transitions collapse to instant
    rather than being removed, so state still changes — it just doesn't
