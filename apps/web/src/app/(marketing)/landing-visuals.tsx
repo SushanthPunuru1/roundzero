@@ -118,7 +118,11 @@ export function DebriefDemo() {
 
   useEffect(() => {
     if (revealed === 0 || revealed >= SCORE_ROWS.length) return;
-    const timer = setTimeout(() => setRevealed((n) => n + 1), 340);
+    // 340ms per row meant 1.7s before the card was whole, and because every
+    // row is already in the DOM at opacity-0 the panel is full height the
+    // entire time — so mid-scroll it read as a broken box with a void under
+    // it. Fast enough now that the card fills before it has been looked at.
+    const timer = setTimeout(() => setRevealed((n) => n + 1), 130);
     return () => clearTimeout(timer);
   }, [revealed]);
 

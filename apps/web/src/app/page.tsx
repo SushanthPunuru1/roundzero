@@ -146,12 +146,13 @@ export default async function Home() {
       </section>
 
       {/* --- Inventory strip: dense mono data, not floating cards --------
-          Full-bleed rather than inside max-w-6xl. Contained, the six columns
-          ended two-thirds across while the section's own border ran to the
-          edge, so the row read as unfinished — content on the left, a void
-          on the right. Edge-to-edge, the density IS the point. */}
+          Contained, matching every other section. A previous pass made this
+          full-bleed to cure an "unfinished" look, but that look was just the
+          normal container margin — and edge-to-edge here left the data band
+          running the full width while its neighbours sat ~400px in, which
+          reads far worse than the thing it fixed. */}
       <section className="border-b border-hairline">
-        <div className="px-6">
+        <div className="mx-auto max-w-6xl px-6">
           <dl className="grid grid-cols-2 divide-hairline sm:grid-cols-3 lg:grid-cols-6 lg:divide-x">
             {INVENTORY.map(([value, label], index) => (
               <Reveal key={label} delayMs={index * 50}>
