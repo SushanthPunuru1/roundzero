@@ -93,7 +93,7 @@ questions:
     case_sensitive: false
     strip_trailing_slash: false
     technique: "Recall the well-known port list, or check: grep -w 445 /etc/services"
-    why: "445 is SMB file sharing, and it is the port behind a long run of Windows worms. Port-to-service recall is asked directly, in both directions, and it is pure memorisation."
+    why: "445 is SMB file sharing, and it is the port behind a long run of Windows worms. Port-to-service recall is asked directly, in both directions, and it is pure memorization."
 
   - id: forensics.q.port-pid-owner
     archetype: ports

@@ -191,7 +191,7 @@ describe("findCoverageGaps", () => {
     expect(findCoverageGaps(cards, knownNodes)).toEqual([]);
   });
 
-  it("honours a caller-supplied floor", () => {
+  it("honors a caller-supplied floor", () => {
     const cards = cardsFor({
       "linux.accounts.uid0": 3,
       "linux.accounts.sudoers": 3,

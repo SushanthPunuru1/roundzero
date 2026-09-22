@@ -59,7 +59,7 @@ questions:
     case_sensitive: false
     strip_trailing_slash: false
     technique: "echo 'ZGlzYWJsZSB0ZWxuZXQgbm93' | base64 -d"
-    why: "The A-Z a-z 0-9 + / alphabet with no spaces is base64 on sight. Decoding is one command — the skill is recognising it in the first place."
+    why: "The A-Z a-z 0-9 + / alphabet with no spaces is base64 on sight. Decoding is one command — the skill is recognizing it in the first place."
 
   - id: forensics.q.base64-cron
     archetype: decoding

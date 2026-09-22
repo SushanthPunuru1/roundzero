@@ -10,7 +10,7 @@ import { Button, Wordmark } from "@roundzero/ui";
  * and dropping them on a page with no mark and no way forward is how a free
  * tool gets mistaken for a dead one.
  *
- * Centred and short on purpose. There is nothing to explain here and no
+ * Centered and short on purpose. There is nothing to explain here and no
  * action worth offering beyond "go somewhere that exists".
  */
 export default function NotFound() {

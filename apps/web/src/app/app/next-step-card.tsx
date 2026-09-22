@@ -204,7 +204,7 @@ export function NextStepRow({
         <span className="block truncate text-sm font-medium text-text">{step.title}</span>
         <span className="mt-1 block truncate text-sm text-text-dim">{step.reason}</span>
       </span>
-      {/* Right cluster: gives the trailing arrow a neighbour instead of
+      {/* Right cluster: gives the trailing arrow a neighbor instead of
           leaving it stranded at the far edge of a 1100px row. Kept at every
           width — the pillar and the time cost are the point of the eyebrow,
           so hiding them on small screens hid the information itself. */}

@@ -891,7 +891,7 @@ cards:
   - id: card.forensics.core.decoding.recognise
     skillNodeId: forensics.core.decoding
     type: CONCEPT
-    front: "How do you recognise base64 on sight?"
+    front: "How do you recognize base64 on sight?"
     back: "A long run of A–Z, a–z, 0–9, + and /, length a multiple of 4, often ending in one or two = signs as padding. No spaces."
 
   - id: card.forensics.core.stego.strings
@@ -959,12 +959,12 @@ cards:
     skillNodeId: linux.accounts.uid0
     type: CONCEPT
     front: "An account named 'backup' has UID 0. Is it root?"
-    back: "Yes. The kernel authorises on the numeric UID, not the name. Any account with UID 0 has full root privilege, which is why a second UID-0 account is a vulnerability regardless of what it is called."
+    back: "Yes. The kernel authorizes on the numeric UID, not the name. Any account with UID 0 has full root privilege, which is why a second UID-0 account is a vulnerability regardless of what it is called."
 
   - id: card.linux.accounts.uid0.fix
     skillNodeId: linux.accounts.uid0
     type: COMMAND
-    front: "You find a non-root account with UID 0 and the README does not authorise it. How do you fix it?"
+    front: "You find a non-root account with UID 0 and the README does not authorize it. How do you fix it?"
     back: "sudo usermod -u 1005 baduser    # give it a normal UID; delete the account only if the README does not list it at all"
 
   - id: card.linux.accounts.chage.audit
@@ -1408,7 +1408,7 @@ cards:
   - id: card.windows.persistence.wmi.what
     skillNodeId: windows.persistence.wmi
     type: CONCEPT
-    front: "What is a WMI event subscription, and why is it a favourite persistence spot?"
+    front: "What is a WMI event subscription, and why is it a favorite persistence spot?"
     back: "A standing rule pairing a trigger (a filter) with an action (a consumer). It lives in the WMI repository rather than in the registry or a folder, so it survives reboots and is missed by anyone only checking Run keys, tasks, and services."
 
   - id: card.windows.persistence.wmi.enumerate

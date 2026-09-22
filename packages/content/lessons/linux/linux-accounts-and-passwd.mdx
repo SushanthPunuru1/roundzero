@@ -26,7 +26,7 @@ check:
       - "It is a disabled account"
       - "It is the account that owns /etc/shadow"
     answer: 1
-    why: "The kernel checks the number, not the name. Any account with UID 0 is root under a different label, which is exactly why it is a favourite hiding place."
+    why: "The kernel checks the number, not the name. Any account with UID 0 is root under a different label, which is exactly why it is a favorite hiding place."
   - q: "Why check /etc/shadow for empty password fields rather than trying to log in as each user?"
     options:
       - "Logging in as each user is slower but equally reliable"

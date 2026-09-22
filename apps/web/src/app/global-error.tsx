@@ -1,14 +1,14 @@
 "use client";
 
 /**
- * The last line of defence: an error thrown by the ROOT layout itself, which
+ * The last line of defense: an error thrown by the ROOT layout itself, which
  * every other boundary sits inside and therefore cannot catch. Next replaces
  * the whole document with this, so it has to supply its own <html> and
  * <body>.
  *
  * ---------------------------------------------------------------------------
  * Why this file breaks golden rule 3 (compose UI from packages/ui only) and
- * DESIGN.md's "no raw colours" on purpose:
+ * DESIGN.md's "no raw colors" on purpose:
  *
  * If the root layout failed, the most likely single cause is that its one
  * side-effect import — `./globals.css` — did not load. Every token, every

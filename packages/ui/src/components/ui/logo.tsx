@@ -12,7 +12,7 @@ import { cn } from "../../lib/utils";
  *
  * Three things it has to do, which is why it is drawn rather than set in a
  * typeface: read at 16px in a nav and at 400px on a landing page; survive
- * being one colour when it has to (favicon, print, a sticker); and give the
+ * being one color when it has to (favicon, print, a sticker); and give the
  * rest of the design a motif — the slash angle is reused as the diagonal in
  * section rules and hover states, so the mark is not a logo sitting in a
  * corner but the geometry the site is built from.
@@ -23,7 +23,7 @@ import { cn } from "../../lib/utils";
 export const LOGO_SLASH_ANGLE = 34; // degrees off vertical — reused site-wide
 
 export interface LogoProps extends React.SVGProps<SVGSVGElement> {
-  /** Drop the accent on the slash — favicons, print, anywhere colour is
+  /** Drop the accent on the slash — favicons, print, anywhere color is
    * unavailable or would be noise. */
   monochrome?: boolean;
 }

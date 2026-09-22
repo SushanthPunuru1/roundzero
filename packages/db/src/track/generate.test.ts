@@ -400,7 +400,7 @@ describe("Rule 4 — lab gate, robust to an empty prerequisite set", () => {
     expect(lab.status).toBe("available-when-runnable");
   });
 
-  it("linuxLabReady unit: empty-prereq proxy behaviour", () => {
+  it("linuxLabReady unit: empty-prereq proxy behavior", () => {
     expect(linuxLabReady([], new Set(), "FOUNDATIONS")).toBe(false);
     expect(linuxLabReady([], new Set(), "STANDARD")).toBe(true);
     expect(linuxLabReady(FOUNDATIONS_LESSONS, new Set(), "FOUNDATIONS")).toBe(false);

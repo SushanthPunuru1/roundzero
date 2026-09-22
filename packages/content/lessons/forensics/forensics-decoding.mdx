@@ -37,10 +37,10 @@ check:
 ---
 
 Encoded text shows up on competition images in cron jobs, scripts, and files
-left behind deliberately. Recognising it and reversing it is a single command
+left behind deliberately. Recognizing it and reversing it is a single command
 once you know what you are looking at.
 
-## Recognising base64
+## Recognizing base64
 
 Base64 uses only A–Z, a–z, 0–9, `+` and `/`, and is often padded with one or
 two `=` at the end. It looks like a long run of random letters and digits with
@@ -77,7 +77,7 @@ certutil -decode encoded.txt decoded.txt
 
 ## It is encoding, not encryption
 
-Base64 has no key. Anyone who recognises it can reverse it in one command.
+Base64 has no key. Anyone who recognizes it can reverse it in one command.
 Its actual purpose is moving binary data through channels that only handle
 text — email attachments, config files, HTTP headers.
 

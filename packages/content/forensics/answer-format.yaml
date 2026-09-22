@@ -90,7 +90,7 @@ questions:
     case_sensitive: false
     strip_trailing_slash: false
     technique: "Read the port after the colon in the Local Address column."
-    why: "\"21/tcp\" and \"0021\" are both recognisable to a human and both wrong to a grader. Give the value in the form the output shows it."
+    why: "\"21/tcp\" and \"0021\" are both recognizable to a human and both wrong to a grader. Give the value in the form the output shows it."
 
   - id: forensics.q.format-exact-filename
     archetype: answer-format
@@ -106,7 +106,7 @@ questions:
     case_sensitive: true
     strip_trailing_slash: false
     technique: "Copy the filename exactly: capitals, underscores, dots, extension."
-    why: "This one is graded case-sensitively on purpose. Underscores, mixed capitals, and a dotted version number are all easy to normalise by accident when you retype from memory instead of reading."
+    why: "This one is graded case-sensitively on purpose. Underscores, mixed capitals, and a dotted version number are all easy to normalize by accident when you retype from memory instead of reading."
 
   - id: forensics.q.format-ip-not-hostname
     archetype: answer-format

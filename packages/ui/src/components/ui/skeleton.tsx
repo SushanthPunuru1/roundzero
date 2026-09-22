@@ -7,7 +7,7 @@ export type SkeletonProps = React.HTMLAttributes<HTMLDivElement>;
 /**
  * A placeholder block for content that hasn't arrived yet.
  *
- * `bg-surface-2` rather than a lighter shimmer colour: DESIGN.md has no
+ * `bg-surface-2` rather than a lighter shimmer color: DESIGN.md has no
  * "skeleton grey", and surface-2 is already the token for a raised-but-inert
  * area. Nothing here introduces a new value.
  *

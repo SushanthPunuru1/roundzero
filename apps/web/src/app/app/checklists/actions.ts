@@ -517,7 +517,7 @@ const moveItemSchema = z.object({
  * display/print numbering is always the item's position in this filtered
  * list, never the raw sortOrder value. That also means a restored item
  * lands by the [sortOrder, id] tie-break, not necessarily next to its old
- * neighbours — deterministic, not a promised position. */
+ * neighbors — deterministic, not a promised position. */
 export async function moveForkItem(
   _prevState: ChecklistActionState,
   formData: FormData,

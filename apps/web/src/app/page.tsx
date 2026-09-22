@@ -73,10 +73,10 @@ export default async function Home() {
           className="brand-hatch pointer-events-none absolute inset-0 opacity-40 [mask-image:radial-gradient(120%_80%_at_85%_0%,black,transparent_65%)]"
         />
         {/* Tighter top: the old pt-28 left a band of dead space above the
-            eyebrow, and centring the two columns makes the countdown read
+            eyebrow, and centering the two columns makes the countdown read
             against the terminal rather than floating above it. */}
         <div className="relative mx-auto max-w-6xl px-6 pb-20 pt-16 md:pt-20">
-          {/* items-stretch, not items-center. Centred, the terminal sat as a
+          {/* items-stretch, not items-center. Centered, the terminal sat as a
               short card floating in the middle of a tall column, leaving a
               ~120px void above and below it — the bottom-right quadrant of
               the hero read as unfinished. Stretched, the two columns are two
@@ -155,7 +155,7 @@ export default async function Home() {
           Contained, matching every other section. A previous pass made this
           full-bleed to cure an "unfinished" look, but that look was just the
           normal container margin — and edge-to-edge here left the data band
-          running the full width while its neighbours sat ~400px in, which
+          running the full width while its neighbors sat ~400px in, which
           reads far worse than the thing it fixed. */}
       <section className="border-b border-hairline">
         <div className="mx-auto max-w-6xl px-6">
@@ -239,9 +239,9 @@ export default async function Home() {
         <div className="mx-auto max-w-6xl px-6 py-28">
           <Reveal>
             <p className="max-w-3xl text-[clamp(32px,5.5vw,64px)] font-semibold leading-[1.05] tracking-[-0.03em] text-text">
-              You can&apos;t practise the round.
+              You can&apos;t practice the round.
               <br />
-              <span className="text-accent">You can practise everything in it.</span>
+              <span className="text-accent">You can practice everything in it.</span>
             </p>
           </Reveal>
           <Reveal delayMs={100}>

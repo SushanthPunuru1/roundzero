@@ -28,7 +28,7 @@ export interface ResolvedForkAccess {
  * Loads the viewer's fork of `templateId`, preferring their personal copy over
  * their team's. Membership is looked up once and only used for the team case —
  * a learner with no Member row resolves their own fork fine, which is the
- * behaviour this whole change exists to restore.
+ * behavior this whole change exists to restore.
  */
 export async function loadForkForViewer(
   userId: string,

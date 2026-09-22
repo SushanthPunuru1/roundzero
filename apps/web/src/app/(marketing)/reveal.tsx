@@ -24,7 +24,7 @@ import { cn } from "@roundzero/ui";
  * has already been painted must never be hidden again, so the viewport test
  * happens synchronously in the same effect, before `armed` is ever set.
  *
- * IntersectionObserver rather than a scroll library: one behaviour on one
+ * IntersectionObserver rather than a scroll library: one behavior on one
  * page, and golden rules 4 and 7 both point at using what the platform
  * already has.
  *

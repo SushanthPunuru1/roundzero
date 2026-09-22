@@ -2761,3 +2761,42 @@ mount now skip the hidden state entirely, via one synchronous
 `getBoundingClientRect` before `armed` is ever set. This is the second bug
 in this component from the same root cause: an animation may sequence
 content, but it may never be the reason content is absent.
+
+**052 · 2026-09-22 · All user-facing copy is American English, enforced by a
+test rather than by care.**
+*Found by a human, not by any gate.* The landing page read "You can't
+practise the round" two sentences after "Most practice hands you a score".
+A sweep then found 26 more British spellings in lessons, drill cards and the
+forensics/quiz banks, plus 15 in code comments — `authorises`, `favourite`,
+`behaviour`, `organisation`, `memorisation`, `labelled`, `honoured`. None of
+`tsc`, ESLint, the content parsers or the 545 existing tests has an opinion
+about spelling, so the next one would have shipped too. The audience is US
+high-school CyberPatriot competitors; American English is not a preference
+here.
+*The guard: `packages/db/src/content/prose-style.test.ts`.* Zero new
+dependencies — a word list and a regex over `packages/content`,
+`apps/web/src`, `packages/ui/src` and `packages/db/src`. Deliberately not a
+real spellchecker: that needs a dictionary dependency (golden rules 4 and 7)
+and would drown in `sshd`, `pwquality` and `auditpol` anyway. It checks one
+mechanical, high-frequency mistake, and it fails with file:line for each.
+*Two exemptions, both deliberate.* `grey` and `cancelled` are not flagged —
+both spellings are standard American English and failing a build over them
+is noise. Dotted and hyphenated identifiers are exempt, which is why the
+drill card `card.forensics.core.decoding.recognise` keeps its ID while its
+`front` text now reads "recognize": renaming a card ID would orphan every
+learner's FSRS scheduling state for that card, which is a real cost for an
+invisible string.
+*The bug inside the fix, worth recording because it is the third of its
+kind.* The first version of the identifier guard skipped any match adjacent
+to a `.`, which meant `memorisation."` and `flavour.` — words ending a
+sentence — were read as identifiers and silently passed. A correct-looking
+constraint made three real defects unreachable, exactly as the `Member`-row
+dependency, the organization-only `TeamChecklist` scoping and the per-user
+lab quota each did. The guard now requires the separator to be glued to a
+word character on its far side. The cheap check, again: what does this rule
+do to the thing that has nothing?
+*Operational note.* `DrillCard.front/back`, `ForensicsQuestion.prompt`,
+`QuizQuestion.prompt` and `ChecklistItem.why` are stored in Postgres, so the
+eight fixes in those banks do NOT reach a running instance on deploy alone —
+`pnpm db:seed` must run against the target database. Lesson prose is MDX
+compiled into the app and ships with the build.
