@@ -79,8 +79,10 @@ export default async function Home() {
           <div className="grid gap-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)] lg:items-center lg:gap-14">
             <div>
               <Reveal>
+                {/* "Round 1" moved to the countdown's own unit label below,
+                    so this no longer says it twice. */}
                 <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-dim">
-                  CyberPatriot XIX · Round 1
+                  CyberPatriot XIX
                 </p>
               </Reveal>
 
@@ -94,10 +96,13 @@ export default async function Home() {
                   <span className="font-mono text-[clamp(84px,15vw,168px)] font-semibold tracking-[-0.05em]">
                     <CountdownNumber days={days} />
                   </span>
-                  <span className="font-mono text-[13px] uppercase tracking-[0.14em] text-text-dim">
+                  {/* Aligned to the numeral's baseline and given its own
+                      leading — stacked against a 168px glyph it was reading
+                      as cramped rather than as a unit label. */}
+                  <span className="font-mono text-[13px] uppercase leading-[1.5] tracking-[0.14em] text-text-dim">
                     days
                     <br />
-                    left
+                    to Round&nbsp;1
                   </span>
                 </p>
               </Reveal>
@@ -140,9 +145,13 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* --- Inventory strip: dense mono data, not floating cards -------- */}
+      {/* --- Inventory strip: dense mono data, not floating cards --------
+          Full-bleed rather than inside max-w-6xl. Contained, the six columns
+          ended two-thirds across while the section's own border ran to the
+          edge, so the row read as unfinished — content on the left, a void
+          on the right. Edge-to-edge, the density IS the point. */}
       <section className="border-b border-hairline">
-        <div className="mx-auto max-w-6xl px-6">
+        <div className="px-6">
           <dl className="grid grid-cols-2 divide-hairline sm:grid-cols-3 lg:grid-cols-6 lg:divide-x">
             {INVENTORY.map(([value, label], index) => (
               <Reveal key={label} delayMs={index * 50}>
