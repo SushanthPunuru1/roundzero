@@ -76,7 +76,13 @@ export default async function Home() {
             eyebrow, and centring the two columns makes the countdown read
             against the terminal rather than floating above it. */}
         <div className="relative mx-auto max-w-6xl px-6 pb-20 pt-16 md:pt-20">
-          <div className="grid gap-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)] lg:items-center lg:gap-14">
+          {/* items-stretch, not items-center. Centred, the terminal sat as a
+              short card floating in the middle of a tall column, leaving a
+              ~120px void above and below it — the bottom-right quadrant of
+              the hero read as unfinished. Stretched, the two columns are two
+              solid masses, and a terminal whose output sits at the bottom of
+              a taller frame is simply what a terminal looks like. */}
+          <div className="grid gap-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)] lg:items-stretch lg:gap-14">
             <div>
               <Reveal>
                 {/* "Round 1" moved to the countdown's own unit label below,
@@ -138,7 +144,7 @@ export default async function Home() {
             </div>
 
             {/* Bleeds past the container edge on wide screens. */}
-            <Reveal delayMs={280} className="lg:-mr-24 xl:-mr-40">
+            <Reveal delayMs={280} className="lg:-mr-24 lg:h-full xl:-mr-40">
               <TerminalDemo />
             </Reveal>
           </div>

