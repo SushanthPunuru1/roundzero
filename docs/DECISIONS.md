@@ -2711,3 +2711,53 @@ across all four states and the trap demo. That combination — gVisor runtime,
 zero added capabilities, no route off the host — is the production
 configuration, and proving each layer alone would not have shown they
 compose.
+
+**051 · 2026-09-22 · Step 3 (design) starts before step 2 (infrastructure)
+finishes, and the app grows its missing loading / error / 404 states.**
+*The reorder.* The locked build order put infrastructure second and the
+design pass third. It also says, in step 3's own text, that the design pass
+is "the only thing standing between today and a usable launch" — because
+every learning surface already runs in production and only the lab needs a
+host. Those two statements pull in opposite directions the moment a launch
+date exists. The order is now: design pass first, remaining step 2 work
+(TLS, host hardening, 2.2 provisioning) in parallel or after. Nothing about
+step 4 changes — no onboarding, no soft launch, no club, until the design
+pass is done. The lab is the one surface that ships late, and it is the one
+surface a learner can be told is coming.
+*What actually got built here* is step 3's fourth item, the empty / loading /
+error audit. Worth recording that it was not a polish task: `apps/web` had
+**no** `loading.tsx`, `error.tsx`, `not-found.tsx` or `global-error.tsx`
+anywhere. Six routes call `notFound()` and all six fell through to Next's
+built-in 404 — an unstyled white page outside the app shell. Any thrown
+server action rendered "Application error: a client-side exception has
+occurred" on white. For a product whose pitch is that it explains what you
+got wrong, those were the worst two screens in the repo, and they were
+invisible because nothing in `next build`, `tsc` or the test suite has an
+opinion about a boundary that does not exist.
+*Three rules the new boundaries follow.* (1) `error.message` is never
+rendered — production replaces it with a generic string anyway, and in
+development it can carry query fragments and user rows, which `CLAUDE.md`
+rule 8 forbids surfacing. Only `digest` is shown: it is the server-side hash
+Next exposes on purpose, and it is what makes a user's report matchable to a
+log line. (2) The boundaries sit INSIDE their layout, so the top bar and
+navigation survive an error rather than the user being stranded on a dead
+page. (3) `global-error.tsx` is the deliberate exception to golden rule 3
+and to DESIGN.md's no-raw-colours rule: it catches failures of the root
+layout, whose single side-effect import is `globals.css`, so a version built
+from tokens or `packages/ui` would render unstyled in exactly the case it
+exists for. It has zero imports and literal hex values, and says so in a
+comment so the next reader doesn't "fix" it.
+*One new primitive, no new dependency.* `Skeleton` in `packages/ui` —
+`bg-surface-2`, existing radius token, `motion-safe:animate-pulse`, and
+always `aria-hidden` with the `role="status"` announcement on the container
+instead. A dozen blocks each announcing themselves is worse than silence.
+*Also fixed, in the landing page's `Reveal`.* The armed-after-mount pattern
+from the previous session still hid content that had **already been
+painted**, and relied on the observer's callback in a later commit to bring
+it back. On a cold Vercel start, with hydration arriving a second or two
+after first paint, that makes the entire hero blink out and fade back in —
+visibly worse than no animation. Elements already inside the viewport at
+mount now skip the hidden state entirely, via one synchronous
+`getBoundingClientRect` before `armed` is ever set. This is the second bug
+in this component from the same root cause: an animation may sequence
+content, but it may never be the reason content is absent.

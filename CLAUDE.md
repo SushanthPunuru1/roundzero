@@ -42,10 +42,17 @@ path.
 **Sequencing authority: `docs/ROADMAP.md`'s "Locked build order" section.**
 Read it before starting work; don't restate it here.
 
-Active slice: **step 2, infrastructure** — the orchestrator, gVisor
-isolation, egress lockdown, pooling, and teardown that let a lab run for
-someone other than the author. `lab-broker/` is the local single-lab seed of
-it (DECISIONS 027).
+Active slice: **step 3, the full design pass** — the launch gate. Fonts
+first (Switzer + IBM Plex Mono are still a TODO in `globals.css`, so every
+screen critiqued so far rendered a fallback stack), then the 19 screens
+against `docs/DESIGN_GRIPES.md`. The route-level loading/error/404 audit is
+done (DECISIONS 051).
+
+Step 2 (infrastructure) is started but no longer blocking — TLS, host
+hardening and 2.2 provisioning remain, and the lab is the one surface a
+learner can be told is coming. `lab-broker/` is the local single-lab seed of
+it (DECISIONS 027). This reorder is recorded in DECISIONS 051; it is not an
+invitation to re-open the rest of the locked order.
 
 Step 1 is complete: 54 lessons across all 7 taxonomy domains, and every bank
 depth-passed — 265 drill cards (every leaf node at a 3-card floor), 64
@@ -53,9 +60,9 @@ forensics questions, 60 networking-quiz questions, 75 checklist items, and a
 placement bank deliberately left at 28 (DECISIONS 041, 042). The coach
 wizard (1.4) was cut with the coach tools.
 
-The full design pass stays explicitly after infrastructure, per the locked
-order. If a task drifts past the current slice, stop and flag it instead of
-building it.
+If a task drifts past the current slice, stop and flag it instead of
+building it. Step 4 has NOT moved: no onboarding, no soft launch, no club,
+until the design pass is done.
 
 Content invariants worth not rediscovering: every taxonomy leaf node carries
 at least 3 drill cards and at least one lesson, because `enqueueLessonCards`

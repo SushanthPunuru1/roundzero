@@ -63,9 +63,13 @@ In this order:
 Functionality sits inside this step rather than after it because the design
 pass cannot run on screens that do not exist.
 
-**Step 1 is complete.** Next is step 2.
+**Step 1 is complete.** Steps 2 and 3 now run in that order of *start*, not
+of *finish* — see DECISIONS 051. Step 3 is the launch gate and is where
+session effort goes; step 2's remainder (TLS, host hardening, 2.2
+provisioning) is real work that no longer blocks a launch, because the lab
+is the one surface a learner can be told is coming.
 
-### 2. Infrastructure — the hosting launch ← current
+### 2. Infrastructure — the hosting launch ← in progress, no longer blocking
 
 Server, orchestrator, gVisor isolation, egress lockdown, pooling, teardown
 — so the lab runs for someone other than the author. `lab-broker/` is the
@@ -77,7 +81,7 @@ zero added capabilities. `ufw-active` was removed from the lab check set —
 gVisor exposes no netfilter, so no learner action could make it pass
 (DECISIONS 045). Next blocking item is 2.2, provisioning.
 
-### 3. Full design pass — the whole app at once ← the gate on launching
+### 3. Full design pass — the whole app at once ← current, and the gate on launching
 
 **This is the only thing standing between today and a usable launch.** Worth
 stating plainly because it is easy to lose: every *learning* surface already
@@ -94,7 +98,11 @@ infrastructure. What it contains, measured rather than estimated:
 2. Build the four missing primitives: `DataTable`, `Toast`, `Dialog`,
    `CommandPalette`.
 3. The 19 screens against `docs/DESIGN_GRIPES.md`.
-4. The empty/loading/error audit from Milestone 4 — same sweep, same screens.
+4. ~~The empty/loading/error audit from Milestone 4~~ — **done** for the
+   route-level boundaries. `apps/web` had none of `loading.tsx`,
+   `error.tsx`, `not-found.tsx` or `global-error.tsx`; all six now exist,
+   plus a `Skeleton` primitive (DECISIONS 051). Per-component empty states
+   still get looked at again during the screen sweep in item 3.
 
 **Prerequisite, and the first task of this step: self-host Switzer and IBM
 Plex Mono.** `DESIGN.md` specifies both; `globals.css` still carries a TODO

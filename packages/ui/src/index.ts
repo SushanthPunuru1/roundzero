@@ -18,6 +18,7 @@ export { Stat, StatStrip, type StatProps, type StatStripProps } from "./componen
 export { EmptyState, type EmptyStateProps } from "./components/ui/empty-state";
 export { Eyebrow, type EyebrowProps } from "./components/ui/eyebrow";
 export { ErrorNote, type ErrorNoteProps } from "./components/ui/error-note";
+export { Skeleton, type SkeletonProps } from "./components/ui/skeleton";
 export { Kbd, type KbdProps } from "./components/ui/kbd";
 export { Logo, Wordmark, LOGO_SLASH_ANGLE, type LogoProps } from "./components/ui/logo";
 export { ScoreLine, type ScoreLineProps, type ScoreLineState } from "./components/ui/score-line";
