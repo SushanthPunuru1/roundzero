@@ -122,8 +122,18 @@ export function NextStepHero({
   return (
     <div
       className={cn(
-        "flex flex-col gap-4 rounded-md border bg-surface p-6 sm:flex-row sm:items-center sm:justify-between",
-        muted ? "border-hairline" : "border-accent/30",
+        // TIER 1 of the dashboard's three surface tiers. `bg-surface-2` plus a
+        // 2px accent left rule, where ordinary rows get `bg-surface` and the
+        // escape hatches at the bottom get no fill at all.
+        //
+        // This is the fix for DESIGN_GRIPES' oldest [systemic] entry: every
+        // surface in the app was `rounded-md border-hairline bg-surface` at
+        // 14px, so the single most important thing on the dashboard and a
+        // footer link were literally the same object. A hairline border in a
+        // 30%-opacity accent was not enough to carry "this is the answer to
+        // what now" — it read as decoration at a glance.
+        "flex flex-col gap-4 rounded-md border border-hairline p-6 sm:flex-row sm:items-center sm:justify-between",
+        muted ? "bg-surface" : "border-l-2 border-l-accent bg-surface-2",
         className,
       )}
     >

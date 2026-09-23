@@ -1,7 +1,7 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { ArrowRight, Compass, ListChecks, Users } from "lucide-react";
+import { ArrowRight, Compass, ListChecks, type LucideIcon, Users } from "lucide-react";
 import { prisma } from "@roundzero/db";
 import { Button, Card, EmptyState, PageHeader, SectionHeader, Stat, StatStrip } from "@roundzero/ui";
 
@@ -142,10 +142,40 @@ export default async function DashboardPage() {
         </div>
       </section>
 
-      {/* Team + browse-everything escape */}
-      <section className="grid gap-2 sm:grid-cols-2">
-        <TeamCard teamName={membership?.organization.name ?? null} />
-        <BrowseCard />
+      {/* TIER 3 — escape hatches. No fill and no border of their own, just a
+          hairline rule separating them from the content above. These used to
+          be `bg-surface` cards identical to the pillar rows and the next
+          step, which is how a footer link ended up with the same visual
+          weight as the one thing the screen is telling you to do.
+
+          Placement lives here now rather than in the top bar: it is a
+          one-time action, not a destination. Team lives here rather than
+          leading the nav — the route and roster keep working (CLAUDE.md:
+          dormant, not deleted), it just stops being the first thing a
+          learner with no team is offered. */}
+      <section className="grid gap-1 border-t border-hairline pt-4 sm:grid-cols-3">
+        <QuietLink
+          href="/app/lessons"
+          icon={ListChecks}
+          title="Browse everything"
+          support="Skip the track and explore any pillar directly."
+        />
+        <QuietLink
+          href="/app/placement"
+          icon={Compass}
+          title="Placement check"
+          support="Re-set your level per domain and rebuild the track."
+        />
+        <QuietLink
+          href="/app/team"
+          icon={Users}
+          title={membership?.organization.name ?? "Team"}
+          support={
+            membership
+              ? "View your roster and machine roles."
+              : "Join with a code, or create a roster."
+          }
+        />
       </section>
     </div>
   );
@@ -296,43 +326,41 @@ function PillarRow({ pillar, href }: { pillar: PillarProgress; href: string }) {
   );
 }
 
-function TeamCard({ teamName }: { teamName: string | null }) {
-  // Always /app/team: teams are dormant under the individual-first scope
-  // (DECISIONS 040), and the setup wizard that used to catch team-less users
-  // was cut with the coach tools.
-  const href = "/app/team";
+/**
+ * TIER 3. One component for all three escape hatches, replacing the two
+ * near-identical hand-rolled cards that sat here — which is also why they
+ * drifted: only one of the two carried the design system's easing.
+ *
+ * No fill, no border, smaller icon well. It should be findable and should
+ * never compete.
+ */
+function QuietLink({
+  href,
+  icon: Icon,
+  title,
+  support,
+}: {
+  href: string;
+  icon: LucideIcon;
+  title: string;
+  support: string;
+}) {
   return (
-    <Link href={href} className={`group flex items-center gap-4 rounded-md border border-hairline bg-surface px-4 py-4 ${ROW_INTERACTIVE}`}>
-      <span className="flex size-9 shrink-0 items-center justify-center rounded-md border border-hairline bg-surface-2">
-        <Users className="size-5 text-text-dim" strokeWidth={1.75} aria-hidden="true" />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block text-sm font-medium text-text">
-          {teamName ? teamName : "Set up or join a team"}
-        </span>
-        <span className="mt-1 block text-sm text-text-dim">
-          {teamName ? "View your roster and machine roles." : "Create a roster or join with a code from your coach."}
-        </span>
-      </span>
-      <ArrowRight
-        className="size-4 shrink-0 text-text-dim transition-transform duration-standard ease-standard motion-safe:group-hover:translate-x-1"
+    <Link
+      href={href}
+      className={`group flex items-center gap-3 rounded-md px-3 py-3 ${ROW_INTERACTIVE}`}
+    >
+      <Icon
+        className="size-5 shrink-0 text-text-dim"
         strokeWidth={1.75}
         aria-hidden="true"
       />
-    </Link>
-  );
-}
-
-function BrowseCard() {
-  return (
-    <Link href="/app/lessons" className={`group flex items-center gap-4 rounded-md border border-hairline bg-surface px-4 py-4 ${ROW_INTERACTIVE}`}>
-      <span className="flex size-9 shrink-0 items-center justify-center rounded-md border border-hairline bg-surface-2">
-        <ListChecks className="size-5 text-text-dim" strokeWidth={1.75} aria-hidden="true" />
-      </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-sm font-medium text-text">Browse everything</span>
-        <span className="mt-1 block text-sm text-text-dim">
-          Skip the track and explore any pillar directly.
+        <span className="block truncate text-sm font-medium text-text">
+          {title}
+        </span>
+        <span className="mt-0.5 block text-[13px] leading-5 text-text-dim">
+          {support}
         </span>
       </span>
       <ArrowRight
