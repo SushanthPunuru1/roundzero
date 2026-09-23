@@ -20,12 +20,16 @@ export default async function LessonsPage() {
       orderBy: [{ domainId: "asc" }, { sortOrder: "asc" }],
     }),
     prisma.lessonProgress.findMany({ where: { userId: session.user.id } }),
-    prisma.skillNode.findMany({ where: { kind: "DOMAIN" }, select: { id: true, title: true } }),
+    // sortOrder is the taxonomy's teaching order. Without it the groups came
+    // back alphabetically and Forensics led the page.
+    prisma.skillNode.findMany({
+      where: { kind: "DOMAIN" },
+      select: { id: true, title: true, sortOrder: true },
+    }),
   ]);
 
-  const domainTitles = new Map(domains.map((domain) => [domain.id, domain.title]));
   const progressBySlug = new Map(progress.map((row) => [row.lessonSlug, row]));
-  const groups = groupLessonsByDomain(lessons, domainTitles);
+  const groups = groupLessonsByDomain(lessons, domains);
   const publishedSlugs = new Set(lessons.map((lesson) => lesson.slug));
   const completedCount = progress.filter((row) => publishedSlugs.has(row.lessonSlug)).length;
 
@@ -49,7 +53,17 @@ export default async function LessonsPage() {
         ) : (
           groups.map((group) => (
             <section key={group.domainId}>
-              <Eyebrow as="h2">{group.domainTitle}</Eyebrow>
+              {/* Per-domain progress, not just a label. Seven bare headings
+                  over 54 identical rows gave no sense of where you are; the
+                  count is the cheapest possible answer to "how much of this
+                  have I done". */}
+              <div className="flex items-baseline justify-between gap-4 border-b border-hairline pb-2">
+                <Eyebrow as="h2">{group.domainTitle}</Eyebrow>
+                <span className="font-mono text-[11px] tabular-nums text-text-dim">
+                  {group.lessons.filter((l) => progressBySlug.has(l.slug)).length}
+                  /{group.lessons.length}
+                </span>
+              </div>
               <div className="mt-3 flex flex-col gap-2">
                 {group.lessons.map((lesson) => {
                   const best = progressBySlug.get(lesson.slug);
@@ -87,7 +101,14 @@ export default async function LessonsPage() {
                             {best.checkScore ?? 0}%
                           </span>
                         )}
-                        <Badge>{levelLabel(lesson.level)}</Badge>
+                        {/* Only when it says something. "Core" is the default
+                            and was on 34 of 54 rows — a chip on two thirds of
+                            a list carries no information, it just adds weight
+                            beside the two thirds that matter. Intro and
+                            Advanced are the signal. */}
+                        {lesson.level !== "STANDARD" && (
+                          <Badge>{levelLabel(lesson.level)}</Badge>
+                        )}
                         <span className="font-mono tabular-nums">{lesson.minutes} min</span>
                       </span>
                     </Link>
