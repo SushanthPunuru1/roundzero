@@ -154,7 +154,7 @@ export default async function DashboardPage() {
           dormant, not deleted), it just stops being the first thing a
           learner with no team is offered. */}
       {/* `items-start`: the support lines are different lengths, and one of
-          them wraps at this width. Centred, that pushed the middle link's
+          them wraps at this width. Centered, that pushed the middle link's
           title 8px above its neighbors' — three titles that should read as
           one row instead read as a stagger. Top-aligned, a wrap costs height
           below the title rather than moving it. */}
