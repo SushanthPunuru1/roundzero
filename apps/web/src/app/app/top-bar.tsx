@@ -77,7 +77,13 @@ export function TopBar({
   return (
     <header className="sticky top-0 z-10 h-14 shrink-0 border-b border-hairline bg-bg/95 backdrop-blur-sm print:hidden">
       <div className="mx-auto flex h-full max-w-[1100px] items-center justify-between gap-4 px-6">
-        <div className="flex min-w-0 items-center gap-5">
+        {/* `grow`, not `flex-1`. Under `justify-between` this group would only
+            take the width it needs, so any space freed on the right became a
+            gap in the middle instead of reaching the nav — which is why the
+            nav clipped "Checklists" mid-word while 100px sat unused beside it.
+            `flex-1` is wrong here too: it sets flex-basis to 0 and, with
+            `min-w-0` on the nav, collapses the whole group to nothing. */}
+        <div className="flex min-w-0 grow items-center gap-5">
           <Link
             href="/"
             aria-label="RoundZero home page"
@@ -101,7 +107,7 @@ export function TopBar({
                 {groupIndex > 0 && (
                   <span
                     aria-hidden="true"
-                    className="mx-2 h-4 w-px shrink-0 bg-hairline"
+                    className="mx-1.5 h-4 w-px shrink-0 bg-hairline"
                   />
                 )}
                 {group.map((link) => {
@@ -117,7 +123,7 @@ export function TopBar({
                       href={link.href}
                       aria-current={active ? "page" : undefined}
                       className={cn(
-                        "flex h-14 shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-2.5 text-sm transition-colors duration-standard ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset",
+                        "flex h-14 shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-2 text-sm transition-colors duration-standard ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset",
                         active
                           ? "border-accent text-text"
                           : "border-transparent text-text-dim hover:bg-surface hover:text-text",
@@ -137,17 +143,20 @@ export function TopBar({
           </nav>
         </div>
 
-        {/* The name stays visible rather than collapsing into the avatar.
-            These are school Chromebooks that get shared, so which account you
-            are signed into is worth 80px. `title` carries the email. */}
+        {/* Avatar only — the name is deliberately not repeated beside it.
+            Measured on the deployed page: nine nav items, the mark, a name
+            and a sign-out button need ~682px of the 1100px container's
+            ~667px. Tuning padding got that to exactly zero slack, which is
+            the same bug one character away; a longer display name or a
+            three-digit due badge re-broke it every time.
+
+            So something had to go, and the name is the lowest information
+            per pixel in the row: the avatar already encodes identity from
+            the same string, and `title` carries both name and email on
+            hover for the shared-Chromebook case. Dropping it returns ~119px,
+            which is real headroom rather than a lucky fit. */}
         <div className="flex shrink-0 items-center gap-3">
-          <Avatar name={name} size="sm" />
-          <span
-            className="hidden text-sm text-text-dim sm:inline"
-            title={email}
-          >
-            {name}
-          </span>
+          <Avatar name={name} size="sm" title={`${name} · ${email}`} />
           <SignOutButton className="w-auto" size="sm" />
         </div>
       </div>
