@@ -21,10 +21,15 @@
   --score: #3fb950;
   --penalty: #f85149;
 
-  /* TODO(DESIGN.md): self-host Switzer + IBM Plex Mono (Fontshare, free
-     license) and swap these fallback stacks for @font-face-backed ones. */
-  --font-body: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-mono-stack: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  /* Switzer + IBM Plex Mono, both self-hosted. `--font-switzer` and
+     `--font-plex-mono` are injected on <html> by next/font in layout.tsx.
+     The system stacks stay behind them as a real fallback rather than a
+     placeholder: if a font request fails on a locked-down school network,
+     text still renders in something sane instead of nothing. */
+  --font-body: var(--font-switzer), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", sans-serif;
+  --font-mono-stack: var(--font-plex-mono), ui-monospace, "SFMono-Regular",
+    Menlo, Consolas, monospace;
 
   /* DESIGN.md Motion: "One duration, one easing." */
   --duration-standard: 150ms;

@@ -2800,3 +2800,35 @@ do to the thing that has nothing?
 eight fixes in those banks do NOT reach a running instance on deploy alone —
 `pnpm db:seed` must run against the target database. Lesson prose is MDX
 compiled into the app and ships with the build.
+
+**053 · 2026-09-23 · Switzer and IBM Plex Mono are self-hosted; the design
+pass can finally judge typography.**
+*Why it was the first task of step 3.* `globals.css` carried a TODO and fell
+back to `ui-sans-serif` / `ui-monospace`, so every screen critiqued in this
+project's history — including the landing page that was rebuilt three times
+— was being judged on a system stack rather than on the design. Tuning
+letterforms, weight or optical size before the real faces land is tuning
+something that then evaporates.
+*Two different mechanisms, both self-hosted, both free (golden rule 4).*
+Switzer has no npm package, so `Switzer-Variable.woff2` (43 KB) is committed
+to `apps/web/src/app/fonts/` and loaded with `next/font/local`. IBM Plex Mono
+needs no committed file: `next/font/google` downloads it **at build time**
+and serves it from our own origin. Neither makes a runtime request to a third
+party, which matters for golden rule 5 — a locked-down school network that
+blocks Google's font CDN would otherwise strip the mono face, and
+`DESIGN.md` says the mono carries the brand.
+*The axis was read, not assumed.* `fvar` reports `wght` 100–900, default 400,
+no italic, so `weight: "100 900"` is declared. `DESIGN.md` restricts *usage*
+to 400/500/600; that restraint deliberately stays in review rather than
+being enforced by clamping the axis, because a clamped axis renders a stray
+`font-bold` at 600 with no error — a silent failure, which the conventions in
+`CLAUDE.md` forbid.
+*`adjustFontFallback: "Arial"`* makes Next synthesize a metric-matched
+fallback so the swap does not reflow the page. On the throttled Chromebook
+that rule 5 targets, that reflow is the most visible event on screen.
+*One new build-time dependency worth stating plainly:* `next build` now
+requires Google Fonts to be reachable. If it is not, the build FAILS rather
+than silently shipping a fallback — which is the right failure mode, but it
+is a new way for a deploy to break that has nothing to do with our code.
+The system stacks remain behind both faces in `--font-body` /
+`--font-mono-stack` as a genuine runtime fallback, not a placeholder.

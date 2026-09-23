@@ -93,8 +93,10 @@ use all of it right now. Only the lab needs step 2's host.
 So the critical path to any launch date runs through this step, not through
 infrastructure. What it contains, measured rather than estimated:
 
-1. Self-host Switzer and IBM Plex Mono — still a TODO in `globals.css`, so
-   every screen critiqued so far has been rendering a fallback stack.
+1. ~~Self-host Switzer and IBM Plex Mono~~ — **done** (DECISIONS 053).
+   Switzer ships as a `.woff2` in `apps/web/src/app/fonts/`; IBM Plex Mono
+   comes from `next/font/google`, which self-hosts it at build time. Every
+   screen critiqued before this was rendering a fallback stack.
 2. Build the four missing primitives: `DataTable`, `Toast`, `Dialog`,
    `CommandPalette`.
 3. The 19 screens against `docs/DESIGN_GRIPES.md`.
@@ -104,12 +106,11 @@ infrastructure. What it contains, measured rather than estimated:
    plus a `Skeleton` primitive (DECISIONS 051). Per-component empty states
    still get looked at again during the screen sweep in item 3.
 
-**Prerequisite, and the first task of this step: self-host Switzer and IBM
-Plex Mono.** `DESIGN.md` specifies both; `globals.css` still carries a TODO
-and falls back to `ui-sans-serif` / `ui-monospace` system stacks. Every
-screen critiqued so far has been rendering the fallback, so any typography
-tuning done before the real faces land is tuning the wrong thing. Fonts
-first, then everything else.
+**The prerequisite is met: both faces are live.** Fonts came first for a
+reason — every screen critiqued before 2026-09-23 was being judged on a
+system fallback, so typography tuning done earlier was tuning the wrong
+thing. Anything in `DESIGN_GRIPES.md` about letterforms, weight or optical
+size predates the real faces and should be re-checked before it is acted on.
 
 Input for the rest of the pass is `docs/DESIGN_GRIPES.md`, not taste.
 

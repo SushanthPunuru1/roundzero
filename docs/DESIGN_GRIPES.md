@@ -5,13 +5,12 @@ without a fix in mind. This file is the input to step 3 of the locked build
 order (see `docs/ROADMAP.md`) — the point is that the design pass starts from
 concrete observations rather than "make it look premium."
 
-**Read before adding a typography gripe.** Switzer and IBM Plex Mono are not
-self-hosted yet; the app currently renders system fallback stacks. Self-
-hosting them is the first task of the design pass, not an entry here. Until
-that lands, anything about letterforms, weight, rhythm or optical size is an
-observation about the fallback and will likely evaporate. Gripes about which
-*size token* is used (13px vs 12px) are still valid — those are class
-choices, independent of the face.
+**Typography gripes are now valid.** Switzer and IBM Plex Mono are both
+self-hosted as of 2026-09-23 (DECISIONS 053), so the app finally renders the
+faces `DESIGN.md` specifies rather than a system fallback stack. Anything
+logged before that date about letterforms, weight, rhythm or optical size was
+an observation about the fallback and should be re-checked against the real
+faces before being acted on.
 
 Format: one bullet per gripe. Where it is, what's wrong, and — only if it's
 obvious — what it should be. Severity tags optional: `[systemic]` for things
