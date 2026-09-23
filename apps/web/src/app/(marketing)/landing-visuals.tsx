@@ -186,8 +186,8 @@ const SCORE_TOTAL = SCORE_ROWS.reduce((sum, row) => sum + row.points, 0);
  * zero meant the server rendered `Debrief 0 / 52` above five rows sitting at
  * `opacity-0` — so a crawler indexed a score of zero next to a list of passed
  * checks, and anyone without JavaScript got an empty panel with a zero in it.
- * That is the flaw this file's neighbour `Reveal` has a three-paragraph
- * comment about, reproduced one component over. Two rows render statically,
+ * That is the flaw `Reveal` next door has a three-paragraph comment about,
+ * reproduced one component over. Two rows render statically,
  * which is a coherent partial debrief rather than a contradictory empty one.
  */
 const PRELOADED_ROWS = 2;
