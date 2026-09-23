@@ -2832,3 +2832,28 @@ than silently shipping a fallback — which is the right failure mode, but it
 is a new way for a deploy to break that has nothing to do with our code.
 The system stacks remain behind both faces in `--font-body` /
 `--font-mono-stack` as a genuine runtime fallback, not a placeholder.
+
+**054 · 2026-09-23 · `display-tight`: letter-spacing and word-spacing are one
+decision at display sizes, not two.**
+*Found by looking at the deployed page, not by reasoning about it.* Within
+minutes of Switzer going live (053) the closing statement rendered as
+"Youcan'tpracticethe" at 64px. The cause is mechanical: negative
+letter-spacing shrinks the SPACE glyph along with the letters, and Switzer is
+a tight geometric grotesque where Segoe UI — the fallback every earlier
+critique was unknowingly judging — is wide. The `-0.03em` looked correct for
+two months against a font we were never shipping.
+*The rule that generalises.* Tracking without word-spacing compensation is
+half a decision. So the two now ship as one `@utility display-tight`
+(-0.02em / +0.06em) rather than as a `tracking-*` class a screen picks for
+itself, and `DESIGN.md`'s typography section names it as the only way to set
+display type. This also collapses two arbitrary values — `-0.02em` on the
+section headings, `-0.03em` on the close — into one system value.
+*Verified at both ends of the clamp*, 44px and 64px, by applying candidate
+values to the live page and zooming in at 1:1 before committing anything.
+Single-word type is exempt and says so: the countdown numeral (-0.05em) and
+the wordmark (-0.01em) have no word gaps to protect.
+*Worth noting what this predicts.* `DESIGN_GRIPES.md` now warns that every
+typography observation logged before 053 was made against the fallback. This
+is the first confirmation that the warning was real, and it was a bug rather
+than a matter of taste — which suggests re-reading the whole gripes file
+against the real faces rather than trusting entries written before them.

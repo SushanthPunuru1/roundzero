@@ -192,7 +192,7 @@ export default async function Home() {
               </p>
             </Reveal>
             <Reveal delayMs={60}>
-              <h2 className="mt-5 text-[clamp(30px,4vw,44px)] font-semibold leading-[1.08] tracking-[-0.02em] text-text">
+              <h2 className="display-tight mt-5 text-[clamp(30px,4vw,44px)] font-semibold leading-[1.08] text-text">
                 A score is a number.
                 <br />
                 A debrief is a lesson.
@@ -216,7 +216,7 @@ export default async function Home() {
       <section className="border-b border-hairline">
         <div className="mx-auto max-w-6xl px-6 py-24">
           <Reveal>
-            <h2 className="max-w-xl text-[clamp(30px,4vw,44px)] font-semibold leading-[1.08] tracking-[-0.02em] text-text">
+            <h2 className="display-tight max-w-xl text-[clamp(30px,4vw,44px)] font-semibold leading-[1.08] text-text">
               Built for one person getting better.
             </h2>
           </Reveal>
@@ -244,7 +244,7 @@ export default async function Home() {
       <section className="border-b border-hairline">
         <div className="mx-auto max-w-6xl px-6 py-28">
           <Reveal>
-            <p className="max-w-3xl text-[clamp(32px,5.5vw,64px)] font-semibold leading-[1.05] tracking-[-0.03em] text-text">
+            <p className="display-tight max-w-3xl text-[clamp(32px,5.5vw,64px)] font-semibold leading-[1.05] text-text">
               You can&apos;t practice the round.
               <br />
               <span className="text-accent">You can practice everything in it.</span>

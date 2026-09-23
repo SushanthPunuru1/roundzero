@@ -97,6 +97,29 @@
   transition-duration: var(--duration-standard);
 }
 
+/* --- Display type fit ----------------------------------------------------
+   Letter-spacing and word-spacing belong together at display sizes, so they
+   live in one utility rather than being chosen per heading.
+
+   The reason is specific to the real typeface. Switzer sets tight, and
+   negative letter-spacing shrinks the SPACE glyph along with the letters —
+   so the closing statement, which read fine in the old Segoe UI fallback,
+   rendered as "Youcan'tpracticethe" the moment the real face landed. The
+   negative tracking is not wrong; tracking WITHOUT the word-spacing
+   compensation is. Shipping only half of the pair is the bug.
+
+   It also replaces two arbitrary values (-0.02em on the section headings,
+   -0.03em on the close) that were both picked against a font we were never
+   shipping. Verified by eye at 44px and 64px against the deployed page.
+
+   Single-word type is unaffected and keeps its own tighter tracking — the
+   countdown numeral at -0.05em and the wordmark at -0.01em have no word gaps
+   to protect. */
+@utility display-tight {
+  letter-spacing: -0.02em;
+  word-spacing: 0.06em;
+}
+
 /* --- Brand motif ---------------------------------------------------------
    The logo is a slashed zero (packages/ui logo.tsx). Its slash angle is
    reused here as a texture so the mark is the geometry the site is built

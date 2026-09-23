@@ -72,6 +72,13 @@ on `--paper-bg` ≈ 5.5:1 — both clear AA. Implementation in
   updates (scores, timers, counts, tables).
 - Sentence case everywhere. No all-caps except tiny eyebrow labels
   (11px, tracked +0.06em, `--text-dim`).
+- **Display sizes (30px and up) use the `display-tight` utility, never a
+  hand-picked `tracking-*`.** Switzer sets tight, and negative letter-spacing
+  shrinks the space glyph along with the letters — tracking on its own turns
+  a heading into "Youcan'tpracticethe". `display-tight` pairs -0.02em
+  tracking with +0.06em word-spacing so the letterfit stays close without the
+  words colliding. Single-word type (the countdown numeral, the wordmark) is
+  exempt: it has no word gaps to protect and keeps its own tighter tracking.
 
 ## Space, radius, elevation
 
