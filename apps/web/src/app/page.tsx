@@ -17,7 +17,13 @@ import { DebriefDemo, TerminalDemo } from "./(marketing)/landing-visuals";
 const CAPABILITIES = [
   {
     n: "01",
-    title: "Placement, not a firehose",
+    // Was "Placement, not a firehose". "Drinking from a firehose" is American
+    // business idiom for being swamped — opaque to a 14-year-old, which is
+    // most of this audience, and against DESIGN.md's "plain verbs, zero
+    // filler". It also broke the set: its two siblings are plain noun phrases
+    // and this one was an "X, not Y" construction. The anti-firehose point
+    // survives in the body's last sentence, in words anyone can read.
+    title: "A track shaped to you",
     body: "A short adaptive check sets your level per domain and builds a track from it. You start where you actually are.",
   },
   {
