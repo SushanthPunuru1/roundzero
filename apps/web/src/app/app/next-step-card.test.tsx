@@ -117,18 +117,32 @@ describe("sequence signal", () => {
 });
 
 describe("hero accent hierarchy", () => {
-  // Two accent-bordered cards stacked (the placement invite and this hero)
-  // made neither one the answer to "what now".
-  it("drops the accent border when something above it owns the primary slot", () => {
-    const { container } = render(<NextStepHero step={step()} muted />);
-    const card = container.firstElementChild as HTMLElement;
-    expect(card.className).toContain("border-hairline");
-    expect(card.className).not.toContain("border-accent");
+  // Two accent-marked cards stacked (the placement invite and this hero) made
+  // neither one the answer to "what now".
+  //
+  // These assert the DISTINCTION, not the exact classes. The earlier version
+  // pinned the literal string "border-accent/30", so changing the treatment
+  // from a 30%-opacity border to a raised surface with a solid accent rule
+  // failed a test whose stated intent — "keeps the accent when it is primary"
+  // — was still perfectly satisfied. A test that breaks on a restyle it was
+  // never about is a test that trains you to ignore red.
+  const heroClass = (muted: boolean) => {
+    const { container } = render(<NextStepHero step={step()} muted={muted} />);
+    return (container.firstElementChild as HTMLElement).className;
+  };
+
+  it("drops the accent when something above it owns the primary slot", () => {
+    expect(heroClass(true)).not.toContain("accent");
   });
 
-  it("keeps the accent border when it is the primary thing on the screen", () => {
-    const { container } = render(<NextStepHero step={step()} />);
-    const card = container.firstElementChild as HTMLElement;
-    expect(card.className).toContain("border-accent/30");
+  it("keeps the accent when it is the primary thing on the screen", () => {
+    expect(heroClass(false)).toContain("accent");
+  });
+
+  it("raises the primary hero above the surface every other row sits on", () => {
+    // The dashboard's three tiers only work if tier 1 is visually separable
+    // from tier 2 — which it was not when both were plain `bg-surface`.
+    expect(heroClass(false)).toContain("bg-surface-2");
+    expect(heroClass(true)).not.toContain("bg-surface-2");
   });
 });
