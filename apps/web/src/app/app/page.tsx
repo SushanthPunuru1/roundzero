@@ -153,7 +153,12 @@ export default async function DashboardPage() {
           leading the nav — the route and roster keep working (CLAUDE.md:
           dormant, not deleted), it just stops being the first thing a
           learner with no team is offered. */}
-      <section className="grid gap-1 border-t border-hairline pt-4 sm:grid-cols-3">
+      {/* `items-start`: the support lines are different lengths, and one of
+          them wraps at this width. Centred, that pushed the middle link's
+          title 8px above its neighbors' — three titles that should read as
+          one row instead read as a stagger. Top-aligned, a wrap costs height
+          below the title rather than moving it. */}
+      <section className="grid items-start gap-1 border-t border-hairline pt-4 sm:grid-cols-3">
         <QuietLink
           href="/app/lessons"
           icon={ListChecks}
@@ -164,7 +169,7 @@ export default async function DashboardPage() {
           href="/app/placement"
           icon={Compass}
           title="Placement check"
-          support="Re-set your level per domain and rebuild the track."
+          support="Re-set your level and rebuild the track."
         />
         <QuietLink
           href="/app/team"
