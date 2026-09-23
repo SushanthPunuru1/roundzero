@@ -64,7 +64,7 @@ export default function RootError({
           </Button>
         </div>
         {error.digest && (
-          <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-dim">
+          <p className="font-mono text-[11px] uppercase tracking-[0.06em] text-text-dim">
             Reference {error.digest}
           </p>
         )}

@@ -27,7 +27,7 @@ export default function NotFound() {
       <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col items-center justify-center gap-5 px-6 py-24 text-center">
         <SearchX className="size-8 text-text-dim" strokeWidth={1.75} aria-hidden="true" />
         <div>
-          <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-dim">
+          <p className="font-mono text-[11px] uppercase tracking-[0.06em] text-text-dim">
             404
           </p>
           <h1 className="mt-2 text-[25px] font-semibold leading-8 text-text">

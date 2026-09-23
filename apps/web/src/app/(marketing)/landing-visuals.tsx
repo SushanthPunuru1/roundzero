@@ -103,7 +103,7 @@ export function TerminalDemo() {
       className="flex h-full flex-col overflow-hidden rounded-md border border-hairline bg-surface"
     >
       <div className="flex shrink-0 items-center justify-between border-b border-hairline px-4 py-2.5">
-        <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-dim">
+        <span className="font-mono text-[11px] uppercase tracking-[0.06em] text-text-dim">
           linux-practice
         </span>
         <span className="font-mono text-[11px] text-text-dim">root@lab</span>

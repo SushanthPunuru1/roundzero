@@ -41,7 +41,11 @@ const CAPABILITIES = [
 const INVENTORY = [
   ["54", "lessons"],
   ["265", "drill cards"],
-  ["124", "practice questions"],
+  // "practice questions" cannot fit a 1/6 column at any padding worth having
+  // — measured on the deployed page, it wrapped even at 8px. "drill cards" is
+  // already its own entry above, so there is nothing for "questions" to be
+  // confused with here.
+  ["124", "questions"],
   ["75", "checklist items"],
   ["7", "domains"],
   ["0", "cost"],
@@ -63,7 +67,7 @@ export default async function Home() {
           <Wordmark />
           <Link
             href="/app"
-            className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-dim transition-colors duration-standard ease-standard hover:text-text"
+            className="font-mono text-[11px] uppercase tracking-[0.06em] text-text-dim transition-colors duration-standard ease-standard hover:text-text"
           >
             {session ? "Open app" : "Sign in"}
           </Link>
@@ -93,7 +97,7 @@ export default async function Home() {
               <Reveal>
                 {/* "Round 1" moved to the countdown's own unit label below,
                     so this no longer says it twice. */}
-                <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-dim">
+                <p className="font-mono text-[11px] uppercase tracking-[0.06em] text-text-dim">
                   CyberPatriot XIX
                 </p>
               </Reveal>
@@ -111,7 +115,7 @@ export default async function Home() {
                   {/* Aligned to the numeral's baseline and given its own
                       leading — stacked against a 168px glyph it was reading
                       as cramped rather than as a unit label. */}
-                  <span className="font-mono text-[13px] uppercase leading-[1.5] tracking-[0.14em] text-text-dim">
+                  <span className="font-mono text-[13px] uppercase leading-[1.5] tracking-[0.06em] text-text-dim">
                     days
                     <br />
                     to Round&nbsp;1
@@ -142,7 +146,7 @@ export default async function Home() {
                       <ArrowRight className="size-4" strokeWidth={1.75} aria-hidden="true" />
                     </Link>
                   </Button>
-                  <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-dim">
+                  <p className="font-mono text-[11px] uppercase tracking-[0.06em] text-text-dim">
                     Free · No team needed
                   </p>
                 </div>
@@ -167,12 +171,22 @@ export default async function Home() {
         <div className="mx-auto max-w-6xl px-6">
           <dl className="grid grid-cols-2 divide-hairline sm:grid-cols-3 lg:grid-cols-6 lg:divide-x">
             {INVENTORY.map(([value, label], index) => (
-              <Reveal key={label} delayMs={index * 50}>
-                <div className="py-8 lg:px-6 lg:first:pl-0">
+              // Padding lives on the Reveal, not on the div inside it.
+              // `first:` resolves against the element's PARENT, and the inner
+              // div is always the only child of its Reveal — so `first:pl-0`
+              // matched all six cells instead of one, and every label sat
+              // flush against the divider to its left. The Reveal is the real
+              // grid child, so the variant works here.
+              <Reveal
+                key={label}
+                delayMs={index * 50}
+                className="py-8 lg:px-3 lg:first:pl-0"
+              >
+                <div>
                   <dt className="font-mono text-[28px] font-semibold tabular-nums leading-none text-text">
                     {value}
                   </dt>
-                  <dd className="mt-2 font-mono text-[11px] uppercase tracking-[0.14em] text-text-dim">
+                  <dd className="mt-2 font-mono text-[11px] uppercase tracking-[0.06em] text-text-dim">
                     {label}
                   </dd>
                 </div>
@@ -187,7 +201,7 @@ export default async function Home() {
         <div className="mx-auto grid max-w-6xl gap-14 px-6 py-24 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1fr)] lg:items-center lg:gap-20">
           <div>
             <Reveal>
-              <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-dim">
+              <p className="font-mono text-[11px] uppercase tracking-[0.06em] text-text-dim">
                 The part that teaches
               </p>
             </Reveal>
@@ -222,9 +236,18 @@ export default async function Home() {
           </Reveal>
           <div className="mt-14 grid gap-px bg-hairline md:grid-cols-3">
             {CAPABILITIES.map((item, index) => (
-              <Reveal key={item.n} delayMs={index * 70}>
-                <div className="h-full bg-bg py-8 md:px-8 md:first:pl-0">
-                  <p className="font-mono text-[11px] tracking-[0.14em] text-accent">
+              // Same `first:`-through-a-wrapper bug as the inventory strip
+              // above. `bg-bg` moves up with the padding too: this grid draws
+              // its dividers as `gap-px` over a `bg-hairline` parent, so the
+              // fill has to cover the whole cell — left on the inner div it
+              // would stop at the padding edge and leak hairline into the gap.
+              <Reveal
+                key={item.n}
+                delayMs={index * 70}
+                className="h-full bg-bg py-8 md:px-8 md:first:pl-0"
+              >
+                <div>
+                  <p className="font-mono text-[11px] tracking-[0.06em] text-accent">
                     {item.n}
                   </p>
                   <h3 className="mt-5 text-[17px] font-semibold leading-[24px] text-text">
@@ -265,7 +288,7 @@ export default async function Home() {
 
       <footer>
         <div className="mx-auto flex max-w-6xl flex-wrap items-baseline justify-between gap-4 px-6 py-10">
-          <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-dim">
+          <p className="font-mono text-[11px] uppercase tracking-[0.06em] text-text-dim">
             RoundZero · Independent · Open source
           </p>
           <p className="max-w-md text-[11px] leading-[18px] text-text-dim">
