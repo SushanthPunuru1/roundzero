@@ -180,13 +180,26 @@ const SCORE_TOTAL = SCORE_ROWS.reduce((sum, row) => sum + row.points, 0);
  * Green and red here are `--score` and `--penalty` used for their actual
  * scoring meaning, which is the one use DESIGN.md permits. They are never
  * decoration on this page either.
+ *
+ * Preloaded for the same reason `TerminalDemo` is, and caught the same way:
+ * reading the deployed page's text instead of screenshotting it. Starting at
+ * zero meant the server rendered `Debrief 0 / 52` above five rows sitting at
+ * `opacity-0` — so a crawler indexed a score of zero next to a list of passed
+ * checks, and anyone without JavaScript got an empty panel with a zero in it.
+ * That is the flaw this file's neighbour `Reveal` has a three-paragraph
+ * comment about, reproduced one component over. Two rows render statically,
+ * which is a coherent partial debrief rather than a contradictory empty one.
  */
+const PRELOADED_ROWS = 2;
+
 export function DebriefDemo() {
-  const [revealed, setRevealed] = useState(0);
-  const ref = useInView<HTMLDivElement>(() => setRevealed(1));
+  const [revealed, setRevealed] = useState(PRELOADED_ROWS);
+  const ref = useInView<HTMLDivElement>(() =>
+    setRevealed((n) => Math.min(n + 1, SCORE_ROWS.length)),
+  );
 
   useEffect(() => {
-    if (revealed === 0 || revealed >= SCORE_ROWS.length) return;
+    if (revealed <= PRELOADED_ROWS || revealed >= SCORE_ROWS.length) return;
     // 340ms per row meant 1.7s before the card was whole, and because every
     // row is already in the DOM at opacity-0 the panel is full height the
     // entire time — so mid-scroll it read as a broken box with a void under
