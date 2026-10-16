@@ -126,7 +126,10 @@ export default async function Home() {
 
               <Reveal delayMs={120}>
                 <h1 className="mt-10 max-w-lg text-[26px] font-semibold leading-[34px] text-text">
-                  Every one of them is a week you could be a vulnerability
+                  {/* "them" is the countdown directly above, which counts
+                      DAYS. "week" made the sentence disagree with the number
+                      it refers to. */}
+                  Every one of them is a day you could be a vulnerability
                   better.
                 </h1>
               </Reveal>

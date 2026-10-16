@@ -6,23 +6,32 @@
 // — which is why `next build` passed and the page still broke.
 
 /**
- * ⚠️ INFERRED, NOT OFFICIAL — confirm at uscyberpatriot.org before this page
- * is shown to anyone outside the project.
+ * CyberPatriot XIX Round 1: October 22–25, 2026. Confirmed by the author,
+ * 2026-10-16, replacing a placeholder of 2026-11-12 that had been inferred
+ * from XVIII's November window. The countdown was reading 28 days when the
+ * true figure was 6 — the single worst number on the page to be wrong about,
+ * because it is the one a competitor checks against what their coach told
+ * them.
  *
- * CyberPatriot XIX's Round 1 dates were not published when this was written.
- * XVIII ran Round 1 on November 13–16 2025, a Thursday-to-Sunday window, so
- * this is the equivalent Thursday in 2026 rather than an arbitrary pick.
- * That makes it a reasonable estimate and still not a fact.
- *
- * It matters because this is the one number on the page a competitor will
- * check against what their coach told them: wrong here costs more credibility
- * than every other detail on the page combined.
+ * This is the FIRST day of the window. `daysUntil` therefore counts down to
+ * the moment the round opens, not to its end.
  */
-export const ROUND_ONE = "2026-11-12";
+export const ROUND_ONE = "2026-10-22";
+
+/** Last day of the Round 1 window. Not used by the countdown yet — see the
+ * note on `daysUntil` about what this page shows once the round has passed. */
+export const ROUND_ONE_END = "2026-10-25";
 
 /** Whole days between now and the target, floored at zero. Computed in UTC on
  * both server and client so the two agree — a locale-dependent day count is a
- * hydration mismatch that only shows up for readers in other timezones. */
+ * hydration mismatch that only shows up for readers in other timezones.
+ *
+ * ⚠️ The floor means this returns 0 forever once the date has passed, and the
+ * hero will read "0 DAYS TO ROUND 1" indefinitely from 2026-10-22 onward.
+ * That is a visible bug on a launch page, not a theoretical one — it starts
+ * the day the round opens. Fixing it needs a product decision about what the
+ * hero says during and after the window, which is why it is flagged here
+ * rather than guessed at. */
 export function daysUntil(iso: string, now: Date = new Date()): number {
   const target = Date.UTC(
     Number(iso.slice(0, 4)),
