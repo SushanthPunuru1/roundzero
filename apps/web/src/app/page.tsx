@@ -8,6 +8,7 @@ import { Reveal } from "./(marketing)/reveal";
 import { CountdownNumber } from "./(marketing)/countdown";
 import { ROUND_ONE, daysUntil } from "./(marketing)/round-one";
 import { DebriefDemo, TerminalDemo } from "./(marketing)/landing-visuals";
+import { SiteFooter } from "@/components/site-footer";
 
 /* Marketing surface. DESIGN.md's type scale tops out at 32/40 "display
    (marketing only)" — this page goes past it deliberately, and it is the only
@@ -286,17 +287,7 @@ export default async function Home() {
         </div>
       </section>
 
-      <footer>
-        <div className="mx-auto flex max-w-6xl flex-wrap items-baseline justify-between gap-4 px-6 py-10">
-          <p className="font-mono text-[11px] uppercase tracking-[0.06em] text-text-dim">
-            RoundZero · Independent · Open source
-          </p>
-          <p className="max-w-md text-[11px] leading-[18px] text-text-dim">
-            Not affiliated with or endorsed by the Air &amp; Space Forces
-            Association or CyberPatriot.
-          </p>
-        </div>
-      </footer>
+      <SiteFooter />
     </main>
   );
 }
