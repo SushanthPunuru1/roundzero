@@ -120,6 +120,16 @@
   word-spacing: 0.06em;
 }
 
+/* The mirror of `display-tight`, for the marketing surface's one all-caps
+   headline (DECISIONS 055). Same principle, opposite direction: POSITIVE
+   letter-spacing inflates the space glyph along with the letters, so words
+   drift apart instead of colliding, and the word-spacing pulls them back.
+   Tracking on its own is half a decision either way. */
+@utility display-wide {
+  letter-spacing: 0.07em;
+  word-spacing: -0.04em;
+}
+
 /* --- Brand motif ---------------------------------------------------------
    The logo is a slashed zero (packages/ui logo.tsx). Its slash angle is
    reused here as a texture so the mark is the geometry the site is built

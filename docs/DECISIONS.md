@@ -2857,3 +2857,39 @@ typography observation logged before 053 was made against the fallback. This
 is the first confirmation that the warning was real, and it was a bug rather
 than a matter of taste — which suggests re-reading the whole gripes file
 against the real faces rather than trusting entries written before them.
+
+**055 · 2026-10-22 · The marketing surface gets its own type rules, and one
+hand-written canvas. Amending DESIGN.md rather than breaking it quietly.**
+*Why this was reopened.* The request for a "premium / award winning" landing
+page came up five times across sessions and was never satisfied, because
+`DESIGN.md`'s don't-list forbids most of what that phrase usually means and
+I kept silently siding with the document. The deadlock broke by asking for
+references: activetheory.net and orano.group/experience/innovation.
+*What the references actually are, measured rather than assumed.* Active
+Theory is ONE canvas, WebGL, essentially no DOM — no keyboard path, no
+screen-reader text, and a GPU load a school Chromebook cannot carry. That is
+refused on golden rule 5 and on DESIGN.md's own quality floor, not on taste.
+Orano is 5 canvases over a conventional DOM page, and — the useful finding —
+**it already looks like RoundZero**: near-black ground, a single amber accent
+almost identical to `--accent`, thin tracked uppercase display type. The gap
+was never color or effects. It was structure and space.
+*Three things taken, all free.* Five full-height grid rules across the hero;
+`display-wide` (+0.07em tracking, -0.04em word-spacing) on an all-caps
+headline; and content confined to the lower-left so most of the frame is
+empty. No bandwidth, no GPU, no dependency.
+*The amendment.* An all-caps display headline contradicts "sentence case
+everywhere". Rather than breaking the rule on one page and hoping nobody
+notices, DESIGN.md now carries the exception explicitly, scoped to `/` and
+explicitly NOT extending into `/app`. A spec that gets quietly violated is
+worse than one that records its own exceptions.
+*`display-wide` is the mirror of `display-tight` (DECISIONS 054)*, and the
+symmetry is the point: letter-spacing changes the width of the space glyph
+too, so tracking without word-spacing compensation is half a decision in
+either direction. Negative tracking collides words; positive scatters them.
+*The canvas is deliberately small.* `BrandField` is a hand-written 2D dot
+lattice sheared along the logo's 124° slash angle — no Three.js, so no new
+dependency (golden rule 7). It renders a single static frame under
+`prefers-reduced-motion` or on a device reporting <= 2 cores, caps at ~30fps
+otherwise, is `aria-hidden`, and the page is complete and correct with the
+element deleted. That last property is the test for whether decoration has
+been allowed to become load-bearing.

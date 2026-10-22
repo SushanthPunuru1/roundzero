@@ -72,8 +72,20 @@ on `--paper-bg` ≈ 5.5:1 — both clear AA. Implementation in
   updates (scores, timers, counts, tables).
 - Sentence case everywhere. No all-caps except tiny eyebrow labels
   (11px, tracked +0.06em, `--text-dim`).
-- **Display sizes (30px and up) use the `display-tight` utility, never a
-  hand-picked `tracking-*`.** Switzer sets tight, and negative letter-spacing
+- **One exception, scoped to the marketing surface (`/`): the hero headline
+  is all-caps at display size, and its eyebrow is tracked +0.34em.** See
+  DECISIONS 055. This is a deliberate amendment, not drift — it exists
+  because the product surface and the front door have different jobs, and
+  the front door is the only screen whose job is to be looked at before it
+  is used. It does NOT extend past `/`: inside `/app`, sentence case and the
+  11px/+0.06em eyebrow still bind everywhere, including on page titles.
+- **Display sizes (30px and up) use `display-tight` for sentence-case
+  headings and `display-wide` for the marketing hero's all-caps line, never
+  a hand-picked `tracking-*`.** Both pair letter-spacing with a compensating
+  word-spacing, in opposite directions, for the same reason: changing letter
+  spacing also changes the width of the space glyph, so tracking on its own
+  is half a decision. Negative tracking collides words; positive tracking
+  scatters them. Switzer sets tight, and negative letter-spacing
   shrinks the space glyph along with the letters — tracking on its own turns
   a heading into "Youcan'tpracticethe". `display-tight` pairs -0.02em
   tracking with +0.06em word-spacing so the letterfit stays close without the

@@ -6,8 +6,9 @@ import { Button, Wordmark } from "@roundzero/ui";
 import { auth } from "@/lib/auth";
 import { Reveal } from "./(marketing)/reveal";
 import { CountdownNumber } from "./(marketing)/countdown";
-import { ROUND_ONE, daysUntil } from "./(marketing)/round-one";
+import { ROUND_ONE, daysUntil, roundPhase } from "./(marketing)/round-one";
 import { DebriefDemo, TerminalDemo } from "./(marketing)/landing-visuals";
+import { BrandField } from "./(marketing)/brand-field";
 import { SiteFooter } from "@/components/site-footer";
 
 /* Marketing surface. DESIGN.md's type scale tops out at 32/40 "display
@@ -56,6 +57,7 @@ export default async function Home() {
   const session = await auth.api.getSession({ headers: await headers() });
   const cta = session ? "Open RoundZero" : "Start training";
   const days = daysUntil(ROUND_ONE);
+  const phase = roundPhase();
 
   return (
     <main className="flex-1">
@@ -76,13 +78,26 @@ export default async function Home() {
       </header>
 
       <section className="relative overflow-hidden border-b border-hairline">
-        {/* The mark's own slash angle, as texture. Masked so it fades out
-            rather than stopping at an edge — a hard boundary would read as a
-            panel, and this is meant to feel like the page's grain. */}
+        {/* Layer 1 — the drifting lattice, furthest back. Masked toward the
+            upper right so it reads as atmosphere behind the headline rather
+            than as a pattern the text is sitting on top of. */}
+        <BrandField className="pointer-events-none absolute inset-0 size-full opacity-[0.85] [mask-image:radial-gradient(120%_90%_at_78%_8%,black_10%,transparent_68%)]" />
+
+        {/* Layer 2 — five full-height structural rules. The single biggest
+            thing the Orano reference does that this page did not: it makes
+            the frame read as engineered rather than as a column of content
+            that happens to be centered. Pure CSS, no cost. */}
         <div
           aria-hidden="true"
-          className="brand-hatch pointer-events-none absolute inset-0 opacity-40 [mask-image:radial-gradient(120%_80%_at_85%_0%,black,transparent_65%)]"
-        />
+          className="pointer-events-none absolute inset-0 grid grid-cols-2 md:grid-cols-5"
+        >
+          {[0, 1, 2, 3, 4].map((i) => (
+            <span
+              key={i}
+              className="border-r border-hairline/55 last:border-r-0"
+            />
+          ))}
+        </div>
         {/* Tighter top: the old pt-28 left a band of dead space above the
             eyebrow, and centering the two columns makes the countdown read
             against the terminal rather than floating above it. */}
@@ -96,43 +111,61 @@ export default async function Home() {
           <div className="grid gap-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)] lg:items-stretch lg:gap-14">
             <div>
               <Reveal>
-                {/* "Round 1" moved to the countdown's own unit label below,
-                    so this no longer says it twice. */}
-                <p className="font-mono text-[11px] uppercase tracking-[0.06em] text-text-dim">
+                {/* Tracked far wider than the standard 0.06em eyebrow. At
+                    11px above a 70px all-caps headline the default reads as a
+                    caption that drifted up; this reads as a label on an
+                    instrument. Marketing surface only — DESIGN.md's
+                    typography section says where this is allowed. */}
+                <p className="font-mono text-[11px] uppercase tracking-[0.34em] text-text-dim">
                   CyberPatriot XIX
                 </p>
               </Reveal>
 
+              {/* Headline first now, countdown second. The countdown used to
+                  lead, which made the page about a date; the product is not
+                  the date. All-caps at display size is the one place
+                  DESIGN.md's sentence-case rule is suspended (DECISIONS 055)
+                  — the treatment needs short declarative lines, and the old
+                  sentence at 70px was a wall of text. */}
               <Reveal delayMs={60}>
-                <p className="mt-6 flex items-baseline gap-4 leading-[0.85] text-text">
-                  {/* The oversized mark that used to sit behind this is gone:
-                      at 1.5em it clipped off the viewport's left edge and cut
-                      straight through the eyebrow above, and at that scale a
-                      slashed zero reads as a plain circle anyway. The header
-                      mark and the hatch motif carry the identity without it. */}
-                  <span className="font-mono text-[clamp(84px,15vw,168px)] font-semibold tracking-[-0.05em]">
-                    <CountdownNumber days={days} />
-                  </span>
-                  {/* Aligned to the numeral's baseline and given its own
-                      leading — stacked against a 168px glyph it was reading
-                      as cramped rather than as a unit label. */}
-                  <span className="font-mono text-[13px] uppercase leading-[1.5] tracking-[0.06em] text-text-dim">
-                    days
-                    <br />
-                    to Round&nbsp;1
-                  </span>
-                </p>
-              </Reveal>
-
-              <Reveal delayMs={120}>
-                <h1 className="mt-10 max-w-lg text-[26px] font-semibold leading-[34px] text-text">
-                  {/* "them" is the countdown directly above, which counts
-                      DAYS. "week" made the sentence disagree with the number
-                      it refers to. */}
-                  Every one of them is a day you could be a vulnerability
-                  better.
+                <h1 className="display-wide mt-7 max-w-[15ch] text-[clamp(34px,5.4vw,70px)] font-medium uppercase leading-[1.04] text-text">
+                  Train for the <span className="text-accent">round</span>, not
+                  the score
                 </h1>
               </Reveal>
+
+              {/* The countdown only exists while there is something to count
+                  to. Once Round 1 opened, "0 DAYS TO ROUND 1" sat on the hero
+                  looking like the page had been abandoned — so the numeral is
+                  dropped after the window and the headline carries the hero
+                  on its own. */}
+              {phase !== "after" && (
+                <Reveal delayMs={120}>
+                  <p className="mt-9 flex items-baseline gap-4 leading-[0.9] text-text">
+                    {/* Smaller than the old 168px: it is the second element
+                        in the hero now, not the first, and at full size it
+                        shouted over the headline above it. */}
+                    <span className="font-mono text-[clamp(44px,6vw,78px)] font-semibold tracking-[-0.03em]">
+                      {phase === "during" ? "NOW" : <CountdownNumber days={days} />}
+                    </span>
+                    <span className="font-mono text-[11px] uppercase leading-[1.7] tracking-[0.2em] text-text-dim">
+                      {phase === "during" ? (
+                        <>
+                          Round&nbsp;1
+                          <br />
+                          Oct 22&ndash;25
+                        </>
+                      ) : (
+                        <>
+                          days
+                          <br />
+                          to Round&nbsp;1
+                        </>
+                      )}
+                    </span>
+                  </p>
+                </Reveal>
+              )}
 
               <Reveal delayMs={160}>
                 <p className="mt-4 max-w-md text-[15px] leading-[24px] text-text-dim">

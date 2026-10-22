@@ -18,9 +18,34 @@
  */
 export const ROUND_ONE = "2026-10-22";
 
-/** Last day of the Round 1 window. Not used by the countdown yet — see the
- * note on `daysUntil` about what this page shows once the round has passed. */
+/** Last day of the Round 1 window, inclusive. */
 export const ROUND_ONE_END = "2026-10-25";
+
+export type RoundPhase = "before" | "during" | "after";
+
+/**
+ * Which side of the Round 1 window we are on.
+ *
+ * This exists because `daysUntil` floors at zero, so from the morning the
+ * round opened the hero read "0 DAYS TO ROUND 1" — a countdown that had
+ * arrived and then just sat there. A number that stops meaning anything is
+ * worse than no number, because the reader assumes the whole page is stale.
+ *
+ * Inclusive of both ends: the round is "during" for all four days it runs.
+ */
+export function roundPhase(now: Date = new Date()): RoundPhase {
+  const day = (iso: string) =>
+    Date.UTC(
+      Number(iso.slice(0, 4)),
+      Number(iso.slice(5, 7)) - 1,
+      Number(iso.slice(8, 10)),
+    );
+  const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+
+  if (today < day(ROUND_ONE)) return "before";
+  if (today <= day(ROUND_ONE_END)) return "during";
+  return "after";
+}
 
 /** Whole days between now and the target, floored at zero. Computed in UTC on
  * both server and client so the two agree — a locale-dependent day count is a
