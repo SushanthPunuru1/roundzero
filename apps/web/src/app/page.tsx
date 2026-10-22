@@ -83,20 +83,21 @@ export default async function Home() {
             than as a pattern the text is sitting on top of. */}
         <BrandField className="pointer-events-none absolute inset-0 size-full opacity-[0.85] [mask-image:radial-gradient(120%_90%_at_78%_8%,black_10%,transparent_68%)]" />
 
-        {/* Layer 2 — five full-height structural rules. The single biggest
-            thing the Orano reference does that this page did not: it makes
-            the frame read as engineered rather than as a column of content
-            that happens to be centered. Pure CSS, no cost. */}
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 grid grid-cols-2 md:grid-cols-5"
-        >
-          {[0, 1, 2, 3, 4].map((i) => (
-            <span
-              key={i}
-              className="border-r border-hairline/55 last:border-r-0"
-            />
-          ))}
+        {/* Layer 2 — structural rules, aligned to the CONTENT container
+            rather than the viewport. Spanning the full window put rules at
+            x=381 and x=1524 while the container edges were 377 and 1529:
+            four pixels out, which reads as a mistake rather than as a grid.
+            Inside the container they land exactly on the measure the rest of
+            the page is built to, which is the whole point of showing them. */}
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+          <div className="mx-auto grid h-full max-w-6xl grid-cols-2 px-6 md:grid-cols-4">
+            {[0, 1, 2, 3].map((i) => (
+              <span
+                key={i}
+                className="border-l border-hairline/60 last:border-r last:border-r-hairline/60"
+              />
+            ))}
+          </div>
         </div>
         {/* Tighter top: the old pt-28 left a band of dead space above the
             eyebrow, and centering the two columns makes the countdown read
@@ -108,31 +109,36 @@ export default async function Home() {
               the hero read as unfinished. Stretched, the two columns are two
               solid masses, and a terminal whose output sits at the bottom of
               a taller frame is simply what a terminal looks like. */}
-          <div className="grid gap-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)] lg:items-stretch lg:gap-14">
-            <div>
-              <Reveal>
-                {/* Tracked far wider than the standard 0.06em eyebrow. At
-                    11px above a 70px all-caps headline the default reads as a
-                    caption that drifted up; this reads as a label on an
-                    instrument. Marketing surface only — DESIGN.md's
-                    typography section says where this is allowed. */}
-                <p className="font-mono text-[11px] uppercase tracking-[0.34em] text-text-dim">
-                  CyberPatriot XIX
-                </p>
-              </Reveal>
+          {/* Eyebrow and headline sit ABOVE the two-column grid, at the full
+              container width. Inside the left column they had 552px, which
+              broke the headline across four lines and left "SCORE" hanging
+              alone — and no font size fixed it, because `max-w-[15ch]` scales
+              with the font, so the line count was locked no matter what.
+              Measured on the deployed page before changing it. */}
+          <Reveal>
+            {/* Tracked far wider than the standard 0.06em eyebrow. At 11px
+                above an 88px all-caps headline the default reads as a caption
+                that drifted up; this reads as a label on an instrument.
+                Marketing surface only — DESIGN.md's typography section says
+                where this is allowed. */}
+            <p className="font-mono text-[11px] uppercase tracking-[0.34em] text-text-dim">
+              CyberPatriot XIX
+            </p>
+          </Reveal>
 
-              {/* Headline first now, countdown second. The countdown used to
-                  lead, which made the page about a date; the product is not
-                  the date. All-caps at display size is the one place
-                  DESIGN.md's sentence-case rule is suspended (DECISIONS 055)
-                  — the treatment needs short declarative lines, and the old
-                  sentence at 70px was a wall of text. */}
-              <Reveal delayMs={60}>
-                <h1 className="display-wide mt-7 max-w-[15ch] text-[clamp(34px,5.4vw,70px)] font-medium uppercase leading-[1.04] text-text">
-                  Train for the <span className="text-accent">round</span>, not
-                  the score
-                </h1>
-              </Reveal>
+          {/* Headline leads, countdown follows. The countdown used to come
+              first, which made the page about a date; the product is not the
+              date. All-caps at display size is the one place DESIGN.md's
+              sentence-case rule is suspended (DECISIONS 055). */}
+          <Reveal delayMs={60}>
+            <h1 className="display-wide mt-7 max-w-[1000px] text-[clamp(34px,6.4vw,88px)] font-medium uppercase leading-[1.02] text-text">
+              Train for the <span className="text-accent">round</span>, not the
+              score
+            </h1>
+          </Reveal>
+
+          <div className="mt-16 grid gap-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)] lg:items-stretch lg:gap-14">
+            <div>
 
               {/* The countdown only exists while there is something to count
                   to. Once Round 1 opened, "0 DAYS TO ROUND 1" sat on the hero
