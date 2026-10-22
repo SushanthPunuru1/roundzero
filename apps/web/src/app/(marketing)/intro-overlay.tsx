@@ -43,6 +43,7 @@ export function IntroOverlay() {
   const [armed, setArmed] = useState(false);
   const [step, setStep] = useState<"draw" | "word" | "wipe">("draw");
   const ringRef = useRef<SVGPathElement>(null);
+  const zeroRef = useRef<SVGPathElement>(null);
   const slashRef = useRef<SVGPathElement>(null);
   const timers = useRef<number[]>([]);
 
@@ -76,7 +77,7 @@ export function IntroOverlay() {
     // state, because the draw has to begin on the next frame — routing it
     // through a re-render tied to `step` started it at 1500ms, by which point
     // the overlay was already most of the way to wiping.
-    const strokes = [ringRef.current, slashRef.current].filter(
+    const strokes = [ringRef.current, zeroRef.current, slashRef.current].filter(
       (n): n is SVGPathElement =>
         !!n && typeof n.getTotalLength === "function" && n.getTotalLength() > 0,
     );
@@ -144,29 +145,42 @@ export function IntroOverlay() {
         fill="none"
         aria-hidden="true"
       >
-        {/* The ring of the real mark, expressed as two arcs rather than a
-            <rect> so getTotalLength() works in every engine. Geometry matches
-            packages/ui logo.tsx exactly — if these drift, the intro draws a
-            different logo than the one the header shows. */}
+        {/* Geometry matches packages/ui logo.tsx exactly. If these drift, the
+            intro draws a different logo than the one the header shows — so
+            the shield path, the zero's ellipse and the slash endpoints are
+            copied verbatim rather than approximated.
+
+            The zero is an ellipse here, not <ellipse>, because
+            getTotalLength() needs a path to measure for the draw. */}
         <path
           ref={ringRef}
-          d="M16 3.2 A10.4 12.8 0 0 1 16 28.8 A10.4 12.8 0 0 1 16 3.2 z"
+          d="M16 2.4 L27.4 7.0 V16.6 C27.4 23.5 22.5 28.0 16 30.2 C9.5 28.0 4.6 23.5 4.6 16.6 V7.0 Z"
           stroke="currentColor"
-          strokeWidth="1.6"
-          strokeOpacity="0.85"
+          strokeWidth="1.8"
+          strokeLinejoin="round"
           className="text-text"
           style={{
-            transition: `stroke-dashoffset 1200ms cubic-bezier(0.2,0,0,1) ${DRAW_AT}ms`,
+            transition: `stroke-dashoffset 1100ms cubic-bezier(0.2,0,0,1) ${DRAW_AT}ms`,
+          }}
+        />
+        <path
+          ref={zeroRef}
+          d="M16 8.6 A5.4 6.8 0 0 1 16 22.2 A5.4 6.8 0 0 1 16 8.6 z"
+          stroke="currentColor"
+          strokeWidth="2.4"
+          className="text-text"
+          style={{
+            transition: `stroke-dashoffset 700ms cubic-bezier(0.2,0,0,1) ${DRAW_AT + 620}ms`,
           }}
         />
         <path
           ref={slashRef}
-          d="M23.27 5.22 L8.73 26.78"
+          d="M20.362 8.934 L11.638 21.866"
           stroke="#E8A33D"
-          strokeWidth="5"
+          strokeWidth="2.6"
           strokeLinecap="round"
           style={{
-            transition: `stroke-dashoffset 600ms cubic-bezier(0.2,0,0,1) ${DRAW_AT + 820}ms`,
+            transition: `stroke-dashoffset 480ms cubic-bezier(0.2,0,0,1) ${DRAW_AT + 1150}ms`,
           }}
         />
       </svg>
