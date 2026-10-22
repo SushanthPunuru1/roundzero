@@ -9,6 +9,7 @@ import { CountdownNumber } from "./(marketing)/countdown";
 import { ROUND_ONE, daysUntil, roundPhase } from "./(marketing)/round-one";
 import { DebriefDemo, TerminalDemo } from "./(marketing)/landing-visuals";
 import { BrandField } from "./(marketing)/brand-field";
+import { IntroOverlay } from "./(marketing)/intro-overlay";
 import { SiteFooter } from "@/components/site-footer";
 
 /* Marketing surface. DESIGN.md's type scale tops out at 32/40 "display
@@ -61,6 +62,9 @@ export default async function Home() {
 
   return (
     <main className="flex-1">
+      {/* Renders nothing on the server and nothing on first paint — see the
+          file for why that is non-negotiable. */}
+      <IntroOverlay />
       {/* --- Hero: the countdown carries it -------------------------------
           Asymmetric on purpose. Content sits on a left axis with a wide
           right gutter that the terminal bleeds into — a centered column is
