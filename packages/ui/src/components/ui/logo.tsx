@@ -20,7 +20,11 @@ import { cn } from "../../lib/utils";
  * `currentColor` on the ring, accent on the slash. One-tone callers pass
  * `monochrome` and get a mark that still reads.
  */
-export const LOGO_SLASH_ANGLE = 34; // degrees off vertical — reused site-wide
+/** Degrees off vertical. 34 off vertical is 124 in CSS gradient terms, which
+ * is the value `brand-hatch` and `BrandField` both use — the three have to
+ * agree or the mark stops being the geometry the page is built from. The
+ * slash path below is computed from exactly this angle, not eyeballed. */
+export const LOGO_SLASH_ANGLE = 34;
 
 export interface LogoProps extends React.SVGProps<SVGSVGElement> {
   /** Drop the accent on the slash — favicons, print, anywhere color is
@@ -39,26 +43,42 @@ export const Logo = React.forwardRef<SVGSVGElement, LogoProps>(
       className={cn("size-8", className)}
       {...props}
     >
-      {/* The zero. A superellipse rather than a circle — a true circle reads
-          as a target or a loading spinner; the flattened sides read as a
-          glyph, which is what it is. */}
+      {/* The zero, now a thin container rather than an equal partner. The
+          earlier version drew ring and slash at the same 2.5 weight, so at
+          22px — the size it actually renders in the nav — neither led and the
+          mark read as generic. Weight contrast is what survives being shrunk;
+          intersection detail is not. (A first attempt at this broke the ring
+          where the slash crosses it; at 22px a 24-degree gap is invisible.) */}
       <rect
-        x="4.25"
-        y="2.25"
-        width="23.5"
-        height="27.5"
-        rx="11.75"
+        x="5.6"
+        y="3.2"
+        width="20.8"
+        height="25.6"
+        rx="10.4"
         stroke="currentColor"
-        strokeWidth="2.5"
+        strokeWidth="1.6"
+        strokeOpacity="0.85"
       />
-      {/* The slash. Inset from the ring's bounds so it reads as struck
-          through the counter rather than crossing the whole mark — the
-          latter looks like a "no entry" sign, which is the opposite of an
-          invitation. */}
+      {/* The slash, now the mark itself: three times the ring's weight and
+          running the full height.
+
+          NOTE, because this reverses a documented decision rather than
+          missing it. The previous slash was deliberately inset, on the
+          argument that a diagonal crossing the whole mark reads as a "no
+          entry" sign. That risk is real — it is the universal prohibition
+          symbol. What makes this version survive it is that the bar is amber
+          rather than red and the ring is too thin to read as the heavy
+          circle of a prohibition badge. If it ever does read as "no", the
+          fix is to pull the endpoints back toward the counter; the weight
+          contrast is what matters, not the full bleed.
+
+          Angle is exactly 124 degrees, matching `brand-hatch` in globals.css
+          and the lattice in BrandField, so the mark is the geometry the page
+          is built from rather than a badge that happens to sit on it. */}
       <path
-        d="M20.5 8.5 L11.5 23.5"
+        d="M23.27 5.22 L8.73 26.78"
         stroke={monochrome ? "currentColor" : "var(--accent)"}
-        strokeWidth="2.5"
+        strokeWidth="5"
         strokeLinecap="round"
       />
     </svg>

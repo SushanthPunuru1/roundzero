@@ -144,13 +144,16 @@ export function IntroOverlay() {
         fill="none"
         aria-hidden="true"
       >
-        {/* The rounded rect of the real mark, expressed as a path so
-            getTotalLength() works in every engine. Same geometry. */}
+        {/* The ring of the real mark, expressed as two arcs rather than a
+            <rect> so getTotalLength() works in every engine. Geometry matches
+            packages/ui logo.tsx exactly — if these drift, the intro draws a
+            different logo than the one the header shows. */}
         <path
           ref={ringRef}
-          d="M16 2.25 h0 a11.75 11.75 0 0 1 11.75 11.75 v4 A11.75 11.75 0 0 1 16 29.75 h0 A11.75 11.75 0 0 1 4.25 18 v-4 A11.75 11.75 0 0 1 16 2.25 z"
+          d="M16 3.2 A10.4 12.8 0 0 1 16 28.8 A10.4 12.8 0 0 1 16 3.2 z"
           stroke="currentColor"
-          strokeWidth="2.5"
+          strokeWidth="1.6"
+          strokeOpacity="0.85"
           className="text-text"
           style={{
             transition: `stroke-dashoffset 1200ms cubic-bezier(0.2,0,0,1) ${DRAW_AT}ms`,
@@ -158,9 +161,9 @@ export function IntroOverlay() {
         />
         <path
           ref={slashRef}
-          d="M20.5 8.5 L11.5 23.5"
+          d="M23.27 5.22 L8.73 26.78"
           stroke="#E8A33D"
-          strokeWidth="2.5"
+          strokeWidth="5"
           strokeLinecap="round"
           style={{
             transition: `stroke-dashoffset 600ms cubic-bezier(0.2,0,0,1) ${DRAW_AT + 820}ms`,
