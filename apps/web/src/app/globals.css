@@ -21,6 +21,12 @@
   --score: #3fb950;
   --penalty: #f85149;
 
+  /* Brand navy, from the commissioned mark (DECISIONS 056). NOT a surface
+     color and never a background here: it is 1.26:1 against --bg, which is
+     invisible. It exists for light surfaces only — the og:image and social
+     cards, where the mark sits on white and navy scores 13.7:1. */
+  --navy: #16243f;
+
   /* Switzer + IBM Plex Mono, both self-hosted. `--font-switzer` and
      `--font-plex-mono` are injected on <html> by next/font in layout.tsx.
      The system stacks stay behind them as a real fallback rather than a
@@ -74,6 +80,7 @@
   --color-accent-hover: var(--accent-hover);
   --color-score: var(--score);
   --color-penalty: var(--penalty);
+  --color-navy: var(--navy);
 
   --font-sans: var(--font-body);
   --font-mono: var(--font-mono-stack);

@@ -2,6 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 
+/** Same path as packages/ui logo.tsx. Duplicated rather than imported
+ * because that module has no "use client" and this file is a client
+ * component — the geometry check in the gate below keeps them honest. */
+const ZERO =
+  "M128,0H202A128,122 0 0 1 330,122V296A128,122 0 0 1 202,418H128A128,122 0 0 1 0,296V122A128,122 0 0 1 128,0Z " +
+  "M135,77H195A54,53 0 0 1 249,130V287A54,53 0 0 1 195,340H135A54,53 0 0 1 81,287V130A54,53 0 0 1 135,77Z";
+
 /**
  * The entrance. A full overlay that draws the slashed-zero mark, holds, then
  * wipes away to reveal the hero.
@@ -43,8 +50,6 @@ export function IntroOverlay() {
   const [armed, setArmed] = useState(false);
   const [step, setStep] = useState<"draw" | "word" | "wipe">("draw");
   const ringRef = useRef<SVGPathElement>(null);
-  const zeroRef = useRef<SVGPathElement>(null);
-  const slashRef = useRef<SVGPathElement>(null);
   const timers = useRef<number[]>([]);
 
   useEffect(() => {
@@ -77,7 +82,7 @@ export function IntroOverlay() {
     // state, because the draw has to begin on the next frame — routing it
     // through a re-render tied to `step` started it at 1500ms, by which point
     // the overlay was already most of the way to wiping.
-    const strokes = [ringRef.current, zeroRef.current, slashRef.current].filter(
+    const strokes = [ringRef.current].filter(
       (n): n is SVGPathElement =>
         !!n && typeof n.getTotalLength === "function" && n.getTotalLength() > 0,
     );
@@ -138,49 +143,58 @@ export function IntroOverlay() {
           : "opacity-100 [clip-path:inset(0_0_0_0)]",
       ].join(" ")}
     >
+      {/* Geometry is the same ZERO path packages/ui logo.tsx uses. If these
+          drift, the intro draws a different logo than the header shows.
+
+          The sequence: the outline strokes itself on, the solid body fades
+          in behind it, then the amber band wipes through. A filled shape
+          cannot stroke-draw, so the outline is a separate stroked copy that
+          exists only for the duration of the draw. */}
       <svg
-        width="92"
-        height="92"
-        viewBox="0 0 32 32"
+        width="104"
+        height="132"
+        viewBox="0 0 330 418"
         fill="none"
         aria-hidden="true"
       >
-        {/* Geometry matches packages/ui logo.tsx exactly. If these drift, the
-            intro draws a different logo than the one the header shows — so
-            the shield path, the zero's ellipse and the slash endpoints are
-            copied verbatim rather than approximated.
+        <defs>
+          <clipPath id="rz-intro-clip">
+            <path d={ZERO} fillRule="evenodd" clipRule="evenodd" />
+          </clipPath>
+          <mask id="rz-intro-gap" maskUnits="userSpaceOnUse" x="-10" y="-10" width="350" height="438">
+            <rect x="-10" y="-10" width="350" height="438" fill="#FFFFFF" />
+            <rect x="-600" y="-29.5" width="1200" height="59" transform="translate(165 209) rotate(124)" fill="#000000" />
+          </mask>
+        </defs>
 
-            The zero is an ellipse here, not <ellipse>, because
-            getTotalLength() needs a path to measure for the draw. */}
+        {/* The solid mark, revealed after the outline has drawn. */}
+        <g
+          clipPath="url(#rz-intro-clip)"
+          className="text-text"
+          style={{
+            opacity: step === "draw" ? 0 : 1,
+            transition: "opacity 520ms cubic-bezier(0.2,0,0,1)",
+          }}
+        >
+          <path d={ZERO} fill="currentColor" fillRule="evenodd" mask="url(#rz-intro-gap)" />
+          <rect x="-600" y="-21.5" width="1200" height="43" transform="translate(165 209) rotate(124)" fill="#E8A33D" />
+          <g fill="none" stroke="#E8A33D" strokeWidth="12" strokeLinejoin="miter">
+            <path d="M46 214V238L-8 292" />
+            <circle cx="46" cy="194" r="20" />
+          </g>
+        </g>
+
+        {/* The drawing outline. Fades out as the solid form arrives, so the
+            two never both read as edges at once. */}
         <path
           ref={ringRef}
-          d="M16 2.4 L27.4 7.0 V16.6 C27.4 23.5 22.5 28.0 16 30.2 C9.5 28.0 4.6 23.5 4.6 16.6 V7.0 Z"
+          d={ZERO}
           stroke="currentColor"
-          strokeWidth="1.8"
-          strokeLinejoin="round"
+          strokeWidth="6"
           className="text-text"
           style={{
-            transition: `stroke-dashoffset 1100ms cubic-bezier(0.2,0,0,1) ${DRAW_AT}ms`,
-          }}
-        />
-        <path
-          ref={zeroRef}
-          d="M16 8.6 A5.4 6.8 0 0 1 16 22.2 A5.4 6.8 0 0 1 16 8.6 z"
-          stroke="currentColor"
-          strokeWidth="2.4"
-          className="text-text"
-          style={{
-            transition: `stroke-dashoffset 700ms cubic-bezier(0.2,0,0,1) ${DRAW_AT + 620}ms`,
-          }}
-        />
-        <path
-          ref={slashRef}
-          d="M20.362 8.934 L11.638 21.866"
-          stroke="#E8A33D"
-          strokeWidth="2.6"
-          strokeLinecap="round"
-          style={{
-            transition: `stroke-dashoffset 480ms cubic-bezier(0.2,0,0,1) ${DRAW_AT + 1150}ms`,
+            opacity: step === "draw" ? 1 : 0,
+            transition: `stroke-dashoffset 1250ms cubic-bezier(0.2,0,0,1) ${DRAW_AT}ms, opacity 420ms linear`,
           }}
         />
       </svg>

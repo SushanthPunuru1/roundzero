@@ -1,0 +1,7 @@
+#!/bin/sh
+# Fast checks that run before every commit. Deliberately only the ones that
+# finish in well under a second — the full gate (lint, tests, build) is too
+# slow to put here, and a hook people disable is worse than no hook.
+#
+# Enable once per clone:  git config core.hooksPath .githooks
+node scripts/check-prose.mjs || exit 1

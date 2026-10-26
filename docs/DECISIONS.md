@@ -1999,7 +1999,7 @@ here. The remaining `tsc` output in apps/web is entirely implicit-any noise
 from a hand-written Prisma stub used to let the pure tests import, and every
 file changed in this pass is clean of it. A human should confirm the Vercel
 production build and click through `/app` — in particular the hero's
-keyboard focus ring, the reduced-motion behaviour, and the lab card's
+keyboard focus ring, the reduced-motion behavior, and the lab card's
 non-link state — before relying on this.
 
 **038a · 2026-08-11 · Follow-ups to 038, from reviewing the shipped result.**
@@ -2742,7 +2742,7 @@ Next exposes on purpose, and it is what makes a user's report matchable to a
 log line. (2) The boundaries sit INSIDE their layout, so the top bar and
 navigation survive an error rather than the user being stranded on a dead
 page. (3) `global-error.tsx` is the deliberate exception to golden rule 3
-and to DESIGN.md's no-raw-colours rule: it catches failures of the root
+and to DESIGN.md's no-raw-colors rule: it catches failures of the root
 layout, whose single side-effect import is `globals.css`, so a version built
 from tokens or `packages/ui` would render unstyled in exactly the case it
 exists for. It has zero imports and literal hex values, and says so in a
@@ -2767,8 +2767,8 @@ test rather than by care.**
 *Found by a human, not by any gate.* The landing page read "You can't
 practise the round" two sentences after "Most practice hands you a score".
 A sweep then found 26 more British spellings in lessons, drill cards and the
-forensics/quiz banks, plus 15 in code comments — `authorises`, `favourite`,
-`behaviour`, `organisation`, `memorisation`, `labelled`, `honoured`. None of
+forensics/quiz banks, plus 15 in code comments — `authorises`, `favorite`,
+`behavior`, `organization`, `memorisation`, `labelled`, `honoured`. None of
 `tsc`, ESLint, the content parsers or the 545 existing tests has an opinion
 about spelling, so the next one would have shipped too. The audience is US
 high-school CyberPatriot competitors; American English is not a preference
@@ -2782,7 +2782,7 @@ mechanical, high-frequency mistake, and it fails with file:line for each.
 *Two exemptions, both deliberate.* `grey` and `cancelled` are not flagged —
 both spellings are standard American English and failing a build over them
 is noise. Dotted and hyphenated identifiers are exempt, which is why the
-drill card `card.forensics.core.decoding.recognise` keeps its ID while its
+drill card `card.forensics.core.decoding.recognize` keeps its ID while its
 `front` text now reads "recognize": renaming a card ID would orphan every
 learner's FSRS scheduling state for that card, which is a real cost for an
 invisible string.
@@ -2893,3 +2893,35 @@ dependency (golden rule 7). It renders a single static frame under
 otherwise, is `aria-hidden`, and the page is complete and correct with the
 element deleted. That last property is the test for whether decoration has
 been allowed to become load-bearing.
+
+**056 · 2026-10-25 · The mark is a commissioned vector, ported verbatim; its
+body color is `currentColor`, not the navy it ships with.**
+*What arrived.* A four-file pack: color mark, horizontal lockup, and white
+and black single-ink variants, each as a real SVG — no embedded raster, no
+font dependencies, no gradients or filters, band at exactly 124°. It is good
+enough to use directly, so it is ported rather than redrawn, and the
+construction is documented in `logo.tsx` because it is non-obvious: a clip
+path for the zero, and a mask whose 59-unit bar removes the body wherever the
+43-unit amber bar crosses, leaving an 8-unit gap either side. Change one
+width without the other and the band starts touching the body.
+*The catch, found by measuring rather than by looking.* The asset fills the
+body with #16243F. Against `--bg` (#0B0D11) that is **1.26:1** — not low
+contrast, two shades of the same near-black. The zero would have vanished and
+left an amber band floating in a void. It reads beautifully in the supplied
+lockup only because that preview sits on white, where it is 13.7:1.
+*So the body inherits `currentColor`* and the mark inverts per surface:
+16.2:1 on the dark app, 13.7:1 on the print datasheet's warm paper. The amber
+band never changes — 9.0:1 on dark, 7.2:1 on navy — because it is the one
+element carrying the brand, and an identity that changes color per context
+is not an identity.
+*`--navy` is a token but never a background.* It exists for light surfaces
+only: og:image, social cards. The comment in globals.css says so explicitly,
+because a color named after the brand is exactly the kind of token someone
+reaches for as a surface fill without checking it.
+*Two forms, one drawing.* `detail` adds the circuit trace, legible from about
+40px up and mud below it; nav and inline uses leave it off. This is the
+responsive-logo pattern, not a hedge — the supplied C and D variants drop the
+trace for the same reason at 32px.
+*The intro overlay draws it by stroking a separate copy of the outline, then
+crossfading to the solid form.* A filled shape with a mask cannot stroke-draw
+itself, so the outline exists only for the duration of the entrance.
